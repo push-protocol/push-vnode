@@ -193,6 +193,7 @@ For the nodes to function correctly, you need to set up three separate databases
     do debug.v3
     ```
 7. Mocking Data ( Optional ) 
+
     After starting the nodes, you can add mock data to each database to simulate channel subscriptions. This helps in syncing with the local EVM for demonstration purposes.
     > **Note:** Skip this if you are not using the local EVM. For production, this data will be synced up by HistoryFetcher on Sepolia testnet.
     
