@@ -30,7 +30,7 @@
 
 # Push Validator Node
 
-Push Storage Node is a part of Push's Proof of Stake (PoS) chain and is responsible for ensuring the integrity and authenticity of transactions by validating them.
+Push Validator Node is a part of Push's Proof of Stake (PoS) chain and is responsible for ensuring the integrity and authenticity of transactions by validating them.
 
 ## Table of Contents
 
@@ -80,26 +80,9 @@ The random selection of validators for both the initial verification and subsequ
 
 ⚠️ **Warning: Work In Progress** ⚠️
 
-This project is currently a work in progress. Please be aware that things might break, and the installation process might change as we improve and dockerize it completely for public running of the node. Proceed with caution and check back frequently for updates.
-
-### Pre-Installation Requirements
-
-Before starting, ensure you have the following tools installed:
-
-1.  **NVM (Node Version Manager)** - [Install NVM on macOS using Homebrew](https://tecadmin.net/install-nvm-macos-with-homebrew/)
-
-2.  **Node.js versions 18 & 20** - Needed for different parts of the project (switch between them using `nvm`).
-
-3.  **NPM (Node Package Manager)** - Required for running Hardhat.
-
-4.  **Yarn** - Used for managing project dependencies.
-
-  
+This project is currently a work in progress. Please be aware that things might break, and the installation process might change as we improve and dockerize it completely for public running of the node. Proceed with caution and check back frequently for updates.  
 
 ## Installation Steps
-
-  
-### Pre-Installation Requirements
 
 ### Prerequisites
 
@@ -210,22 +193,22 @@ For the nodes to function correctly, you need to set up three separate databases
     do debug.v3
     ```
 7. Mocking Data ( Optional ) 
-After starting the nodes, you can add mock data to each database to simulate channel subscriptions. This helps in syncing with the local EVM for demonstration purposes.
-    > **Note:** Skip this if you are not using the local EVM.
-```shell
-INSERT INTO channels (channel, ipfshash, name, info, url, icon, processed, attempts, alias_address, alias_blockchain_id, is_alias_verified, blocked, alias_verification_event, activation_status, verified_status, subgraph_details, subgraph_attempts, counter, timestamp, channel_settings)
-VALUES ('eip155:5:0xD8634C39BBFd4033c0d3289C4515275102423681', 'QmTX8zZjzuKpiLZmn4ShNzyKDakNdbBQfwi449TBw7wgoK', 'testing goerli', 'Testing', 'https://dev.push.org/', 'https://gateway.ipfs.io/ipfs/bafybeidkt3qrlcplntabfazs7nnzlxdzu36mmieth2ocyphm2kp4sh333a/QmTX8zZjzuKpiLZmn4ShNzyKDakNdbBQfwi449TBw7wgoK', 1, 0, 'NULL', 'NULL', 0, 0, null, 1, 0, null, 0, null, '2023-08-11 13:45:05', null);
+    After starting the nodes, you can add mock data to each database to simulate channel subscriptions. This helps in syncing with the local EVM for demonstration purposes.
+    > **Note:** Skip this if you are not using the local EVM. For production, this data will be synced up by HistoryFetcher on Sepolia testnet.
+    
+    ```shell
+    INSERT INTO channels (channel, ipfshash, name, info, url, icon, processed, attempts, alias_address, alias_blockchain_id, is_alias_verified, blocked, alias_verification_event, activation_status, verified_status, subgraph_details, subgraph_attempts, counter, timestamp, channel_settings)
+    VALUES ('eip155:11155111:0xD8634C39BBFd4033c0d3289C4515275102423681', 'QmTX8zZjzuKpiLZmn4ShNzyKDakNdbBQfwi449TBw7wgoK', 'testing goerli', 'Testing', 'https://dev.push.org/', 'https://gateway.ipfs.io/ipfs/bafybeidkt3qrlcplntabfazs7nnzlxdzu36mmieth2ocyphm2kp4sh333a/QmTX8zZjzuKpiLZmn4ShNzyKDakNdbBQfwi449TBw7wgoK', 1, 0, 'NULL', 'NULL', 0, 0, null, 1, 0, null, 0, null, '2023-08-11 13:45:05', null);
 
-INSERT INTO subscribers (is_currently_subscribed, channel, alias, subscriber, signature, timestamp, sub_timestamp, unsub_timestamp, user_settings) 
-VALUES (1, 'eip155:5:0xD8634C39BBFd4033c0d3289C4515275102423681', null, 'eip155:0x5ac9E6205eACA2bBbA6eF716FD9AabD76326EEee', 'eip155:5:0xba3f4df977fc09614e86c84ab4857ce9b113d52dde258aedfa263fc29018f611', '2022-10-04 08:10:12', '2022-10-04 08:10:12', null, 'null');
+    INSERT INTO subscribers (is_currently_subscribed, channel, alias, subscriber, signature, timestamp, sub_timestamp, unsub_timestamp, user_settings) 
+    VALUES (1, 'eip155:11155111:0xD8634C39BBFd4033c0d3289C4515275102423681', null, 'eip155:0x5ac9E6205eACA2bBbA6eF716FD9AabD76326EEee', 'eip155:11155111:0xba3f4df977fc09614e86c84ab4857ce9b113d52dde258aedfa263fc29018f611', '2022-10-04 08:10:12', '2022-10-04 08:10:12', null, 'null');
 
-INSERT INTO subscribers (is_currently_subscribed, channel, alias, subscriber, signature, timestamp, sub_timestamp, unsub_timestamp, user_settings) 
-VALUES (1, 'eip155:5:0xD8634C39BBFd4033c0d3289C4515275102423681', null, 'eip155:0x69e666767Ba3a661369e1e2F572EdE7ADC926029', 'eip155:5:0xc5147c36467f489c212460e01dfd1ede1d853d67d17c042e994100b89a0d5a9d', '2022-10-20 12:27:48', '2022-10-20 12:27:48', null, 'null');
+    INSERT INTO subscribers (is_currently_subscribed, channel, alias, subscriber, signature, timestamp, sub_timestamp, unsub_timestamp, user_settings) 
+    VALUES (1, 'eip155:11155111:0xD8634C39BBFd4033c0d3289C4515275102423681', null, 'eip155:0x69e666767Ba3a661369e1e2F572EdE7ADC926029', 'eip155:11155111:0xc5147c36467f489c212460e01dfd1ede1d853d67d17c042e994100b89a0d5a9d', '2022-10-20 12:27:48', '2022-10-20 12:27:48', null, 'null');
 
-INSERT INTO subscribers (is_currently_subscribed, channel, alias, subscriber, signature, timestamp, sub_timestamp, unsub_timestamp, user_settings) 
-VALUES (1, 'eip155:5:0xD8634C39BBFd4033c0d3289C4515275102423681', null, 'eip155:0xD8634C39BBFd4033c0d3289C4515275102423681', 'eip155:5:0xba3f4df977fc09614e86c84ab4857ce9b113d52dde258aedfa263fc29018f611', '2022-10-04 08:10:12', '2022-10-04 08:10:12', null, 'null');
-
-```
+    INSERT INTO subscribers (is_currently_subscribed, channel, alias, subscriber, signature, timestamp, sub_timestamp, unsub_timestamp, user_settings) 
+    VALUES (1, 'eip155:11155111:0xD8634C39BBFd4033c0d3289C4515275102423681', null, 'eip155:0xD8634C39BBFd4033c0d3289C4515275102423681', 'eip155:11155111:0xba3f4df977fc09614e86c84ab4857ce9b113d52dde258aedfa263fc29018f611', '2022-10-04 08:10:12', '2022-10-04 08:10:12', null, 'null');
+    ```
 
 
 ## Testing
