@@ -1,0 +1,93 @@
+# This workflow will do a clean install of node dependencies, cache/restore them, build the source code and run tests across different versions of node
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
+
+name: CI
+
+on:
+  push:
+    branches: [ master, epns-push-node-kovan]
+  pull_request:
+    branches: [ master, epns-push-node-kovan]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-18.04
+
+    strategy:
+      matrix:
+        node-version: [14.x]
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+
+    steps:
+    
+    - uses: actions/checkout@v2
+
+    - name: Use Node.js ${{ matrix.node-version }}
+
+      uses: actions/setup-node@v2
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+      
+    - run: |
+             rm -rf node-modules
+             rm -rf package-lock.json
+             npm install
+
+    - name: Setup .env from github secrets
+      run: |
+        touch ./.env
+        echo "NODE_ENV=${{ secrets.NODE_ENV }}" > .env
+        echo "PORT=${{ secrets.PORT }}" >> .env
+        echo "RUNNING_ON_MACHINE=${{ secrets.RUNNING_ON_MACHINE }}" >> .env
+        echo "TRUSTED_URLS=${{ secrets.TRUSTED_URLS }}" >> .env
+        echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
+        echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
+        echo "DB_USER=${{ secrets.DB_USER }}" >> .env
+        echo "DB_PASS=${{ secrets.DB_PASS }}" >> .env
+        echo "DB_SERVER_NAME=${{ secrets.DB_SERVER_NAME }}" >> .env
+        echo "FS_SERVER_DEV=${{ secrets.FS_SERVER_DEV }}" >> .env
+        echo "FS_SERVER_PROD=${{ secrets.FS_SERVER_PROD }}" >> .env
+        echo "SERVE_STATIC_FILES=${{ secrets.SERVE_STATIC_FILES }}" >> .env
+        echo "SERVE_CACHE_FILES=${{ secrets.SERVE_CACHE_FILES }}" >> .env
+        echo "DEFAULT_MAX_ATTEMPTS=${{ secrets.DEFAULT_MAX_ATTEMPTS }}" >> .env
+        echo "IPFS_MAX_ATTEMPTS=${{ secrets.IPFS_MAX_ATTEMPTS }}" >> .env
+        echo "IPFS_GATEWAY=${{ secrets.IPFS_GATEWAY }}" >> .env
+        echo "MESSAGING_MAX_ATTEMPTS=${{ secrets.MESSAGING_MAX_ATTEMPTS }}" >> .env
+        echo "MESSAGING_CHUNK_MAX_SIZE=${{ secrets.MESSAGING_CHUNK_MAX_SIZE }}" >> .env
+        echo "FIREBASE_DATABASE_URL=${{ secrets.FIREBASE_DATABASE_URL }}" >> .env
+        echo "LOG_LEVEL=${{ secrets.LOG_LEVEL }}" >> .env
+        echo "EPNS_DEPLOYED_CONTRACT=${{ secrets.EPNS_DEPLOYED_CONTRACT }}" >> .env
+        echo "ETHERSCAN_API=${{ secrets.ETHERSCAN_API }}" >> .env
+        echo "INFURA_PROJECT_ID=${{ secrets.INFURA_PROJECT_ID }}" >> .env
+        echo "INFURA_PROJECT_SECRET=${{ secrets.INFURA_PROJECT_SECRET }}" >> .env
+        echo "ALCHEMY_API=${{ secrets.ALCHEMY_API }}" >> .env
+        echo "ROPSTEN_WEB3_PROVIDER=${{ secrets.ROPSTEN_WEB3_PROVIDER }}" >> .env
+        echo "MAINNET_WEB3_PROVIDER=${{ secrets.MAINNET_WEB3_PROVIDER }}" >> .env
+        echo "KOVAN_WEB3_PROVIDER=${{ secrets.KOVAN_WEB3_PROVIDER }}" >> .env
+        echo "ROPSTEN_WEB3_NETWORK=${{ secrets.ROPSTEN_WEB3_NETWORK }}" >> .env
+        echo "MAINNET_WEB3_NETWORK=${{ secrets.MAINNET_WEB3_NETWORK }}" >> .env
+        echo "KOVAN_WEB3_NETWORK=${{ secrets.KOVAN_WEB3_NETWORK }}" >> .env
+        echo "KOVAN_WEB3_SOCKET=${{ secrets.KOVAN_WEB3_SOCKET }}" >> .env
+        echo "ROPSTEN_WEB3_SOCKET=${{ secrets.ROPSTEN_WEB3_SOCKET }}" >> .env
+        echo "MAINNET_WEB3_SOCKET=${{ secrets.MAINNET_WEB3_SOCKET }}" >> .env
+        echo "MATIC_MUMBAI_WEB3_PROVIDER=${{ secrets.MATIC_MUMBAI_WEB3_PROVIDER }}" >> .env
+        echo "EPNS_CORE=${{ secrets.EPNS_CORE }}" >> .env
+        echo "EPNS_COMMUNICATOR_KOVAN_NETWORK=${{ secrets.EPNS_COMMUNICATOR_KOVAN_NETWORK }}" >> .env
+        echo "EPNS_COMMUNICATOR_MUMBAI_NETWORK=${{ secrets.EPNS_COMMUNICATOR_MUMBAI_NETWORK }}" >> .env
+        echo "MATIC_MUMBAI_WEB3_NETWORK=${{ secrets.MATIC_MUMBAI_WEB3_NETWORK }}" >> .env
+        echo "MATIC_MUMBAI_MOLASIS_WEB3_PROVIDER=${{ secrets.MATIC_MUMBAI_MOLASIS_WEB3_PROVIDER }}" >> .env
+        echo "MATIC_MUMBAI_MOLASIS_WEB3_SOCKET=${{ secrets.MATIC_MUMBAI_MOLASIS_WEB3_SOCKET }}" >> .env
+        echo "ROPSTEN_MORALIS_WEB_SOCKET=${{ secrets.ROPSTEN_MORALIS_WEB_SOCKET }}" >> .env
+        echo "ROPSTEN_ALCHEMY_WEB3_SOCKET=${{ secrets.ROPSTEN_ALCHEMY_WEB3_SOCKET }}" >> .env
+        echo "KOVAN_MORALIS_WEB_SOCKET=${{ secrets.KOVAN_MORALIS_WEB_SOCKET }}" >> .env
+    
+    - run: |
+              sudo docker-compose up -d
+              sudo docker-compose stop mysql
+              sudo /etc/init.d/mysql start
+              mysql -e 'CREATE DATABASE ${{ secrets.DB_NAME }};' -u${{ secrets.DB_USER }} -p${{ secrets.DB_PASS }}    
+              sudo docker build -t push-nodes .
+              sudo docker run push-nodes npm run test
+              sudo docker run -d push-nodes

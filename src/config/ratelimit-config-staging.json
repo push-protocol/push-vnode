@@ -1,0 +1,312 @@
+{
+  "^GET::/apis/v1/alias/([a-zA-Z0-9:]*)/channel/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/channels/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/channels/search/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^POST::/apis/v1/channels/([a-zA-Z0-9:]*)/subscribe/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^POST::/apis/v1/channels/([a-zA-Z0-9:]*)/unsubscribe/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/channels/([a-zA-Z0-9:]*)/delegates/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/channels/([a-zA-Z0-9:]*)/tags/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^DELETE::/apis/v1/channels/([a-zA-Z0-9:]*)/tags/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/channels/([a-zA-Z0-9:]*)/subscribers/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/channels/([a-zA-Z0-9:]*)/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/feeds/search/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/ipfs/([a-zA-Z0-9:]*)/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^POST::/apis/v1/ipfs/upload/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^POST::/apis/v1/mailing/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/encryption_keys/([a-zA-Z0-9:]*)/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^POST::/apis/v1/encryption_keys/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^POST::/apis/v1/payloads/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^POST::/apis/v1/pushtokens/register/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^DELETE::/apis/v1/pushtokens/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/users/([a-zA-Z0-9:]*)/subscriptions/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/users/([a-zA-Z0-9:]*)/delegations/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/users/([a-zA-Z0-9:]*)/feeds/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/analytics/subscriber/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/analytics/notification/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/analytics/channel/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/analytics/leaderboard/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/users/([a-zA-Z0-9:]*)/channels/([a-zA-Z0-9:]*)/feeds/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/w2w/users/([a-zA-Z0-9:]*)/messages/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/w2w/users/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^POST::/apis/v1/w2w/users/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^POST::/apis/v1/w2w/messages/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^POST::/apis/v1/w2w/intents/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^PUT::/apis/v1/w2w/intents/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^PUT::/apis/v1/w2w/users/([a-zA-Z0-9:]*)/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^POST::/apis/channels/_is_user_subscribed": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^POST::/apis/channels/get_subscribers": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/users/$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^POST::/apis/v1/users/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^POST::/apis/v1/users/batch/$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^PUT::/apis/v1/users/([a-zA-Z0-9:]*)/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v2/users/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^PUT::/apis/v2/users/([a-zA-Z0-9:]*)/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^POST::/apis/v2/users/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^POST::/apis/v2/users/batch/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/chat/users/([a-zA-Z0-9:]*)/messages/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/chat/users/([a-zA-Z0-9:]*)/requests/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/chat/users/([a-zA-Z0-9:]*)/chats/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/chat/users/([a-zA-Z0-9:]*)/conversations/([a-zA-Z0-9:]*)/hash/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/chat/conversationhash/([a-zA-Z0-9:]*)/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 5000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^POST::/apis/v1/chat/message/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^POST::/apis/v1/chat/request/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^PUT::/apis/v1/chat/request/accept/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 1000,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^POST::/apis/v1/chat/groups/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 50,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^PUT::/apis/v1/chat/groups/([a-zA-Z0-9:]*)/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 50,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/chat/groups/([a-zA-Z0-9:]*)/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/chat/groups/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/v1/spaces/users/:did/spaces/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/v1/spaces/users/:did/requests/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/v1/spaces/trending/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/channels/([a-zA-Z0-9:]*)/feeds/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 100,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "^GET::/apis/v1/turnserver/iceconfig/?$": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 10,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  },
+  "default": {
+    "WINDOW_SIZE_IN_SECONDS": 60,
+    "MAX_WINDOW_REQUEST_COUNT": 500,
+    "WINDOW_LOG_INTERVAL_IN_SECONDS": 1
+  }
+}
