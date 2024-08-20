@@ -1,5 +1,5 @@
 import 'reflect-metadata' // We need this in order to use @Decorators
-import 'newrelic'
+// import 'newrelic'
 
 import chalk from 'chalk'
 import express from 'express'
