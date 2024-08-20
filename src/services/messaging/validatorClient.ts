@@ -16,7 +16,7 @@ export class ValidatorClient {
   timeout: number = 500000
 
   constructor(baseUri: string) {
-    this.baseUri = baseUri + '/apis/v1'
+    this.baseUri = baseUri + '/api/v1'
     this.log.level = 'error'
   }
 

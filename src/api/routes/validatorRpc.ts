@@ -3,6 +3,7 @@ import {Logger} from "winston";
 import {WinstonUtil} from "../../utilz/winstonUtil";
 import {ValidatorContractState} from "../../services/messaging-common/validatorContractState";
 import {ValidatorNode} from "../../services/messaging/validatorNode";
+import {ValidatorRandom} from "../../services/messaging/validatorRandom";
 
 @Service()
 export class ValidatorRpc {
@@ -10,13 +11,16 @@ export class ValidatorRpc {
 
   @Inject()
   private validatorNode: ValidatorNode
+  @Inject()
+  private validatorRandom: ValidatorRandom;
 
-  public push_getAPIToken([]) {
+  public push_getApiToken([]) {
     // todo return api token
+    const apiToken = this.validatorRandom.createValidatorToken();
 
     return {
-      "apiToken" : "0xAAAAA",
-      "targetNodeUrl": "https://v1.dev.push.org"
+      "apiToken" : apiToken.validatorToken,
+      "apiUrl": apiToken.validatorUrl
     } ;
   }
 

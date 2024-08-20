@@ -95,7 +95,7 @@ export class QueueClient {
     baseUri: string,
     firstOffset: number = 0
   ): Promise<{ items: QItem[]; lastOffset: number } | null> {
-    const url = `${baseUri}/apis/v1/dset/queue/${queueName}?firstOffset=${firstOffset}`
+    const url = `${baseUri}/api/v1/dset/queue/${queueName}?firstOffset=${firstOffset}`
     try {
       const re = await axios.get(url, {
         timeout: 3000
