@@ -13,7 +13,8 @@ import { ValidatorRandom } from '../../services/messaging/validatorRandom'
 import { ValidatorPing } from '../../services/messaging/validatorPing'
 import { MessageBlock, PayloadItem, SenderType } from '../../services/messaging-common/messageBlock'
 import { WinstonUtil } from '../../utilz/winstonUtil'
-
+import jsonRouter from "express-json-rpc-router";
+import {ValidatorRpc} from "./validatorRpc";
 // /apis/v1/messaging
 const route = Router()
 
@@ -28,9 +29,16 @@ function logResponseFinished(log: Logger, status: number, responseObj: any) {
   log.debug(`=== Reply ${status} with body: %o`, responseObj)
 }
 
+function initRpc(app: Router) {
+  const validatorRpc = Container.get(ValidatorRpc);
+  app.use(`/v1/rpc`, jsonRouter({ methods: validatorRpc }));
+}
+
 export default (app: Router) => {
+  initRpc(app);
+
   // Load the rest
-  app.use(`/${config.api.version}/messaging`, route)
+  app.use(`/v1/messaging`, route)
   app.use(errors())
 
   // add external payload
