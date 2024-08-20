@@ -57,4 +57,13 @@ export class BitUtil {
     Coll.sortNumbersAsc(result)
     return result
   }
+
+  public static base16ToBytes(base16String:string):Uint8Array {
+    return Uint8Array.from(Buffer.from(base16String, 'hex'));
+  }
+
+  public static bytesToBase16(arr:Uint8Array):string {
+    return Buffer.from(arr).toString('hex');
+  }
+
 }
