@@ -26,7 +26,7 @@
     "lint:js": "npm run lint:eslint src/",
     "lint:fix": "npm run lint:js -- --fix",
     "prepare": "husky install",
-    "generate:proto": "protoc --plugin=\"protoc-gen-ts=./node_modules/.bin/protoc-gen-ts\" --ts_opt=esModuleInterop=true --js_out=\"./src/generated\" --ts_out=\"./src/generated\" --proto_path=\"./src/proto\" src/proto/block.proto"
+    "build:proto": "scripts/protoc-generate.sh"
   },
   "repository": {
     "type": "git",
