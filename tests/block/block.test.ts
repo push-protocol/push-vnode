@@ -27,6 +27,7 @@ now you can use .proto stubs for typescript
 
 describe('block tests', function () {
 
+
   it('create transaction and block, serialize/deserialize', async function () {
     console.log("building ------------------------- ");
     // build transaction data (app-dependent)
@@ -40,13 +41,13 @@ describe('block tests', function () {
 
     // build transaction
     const t = new Transaction();
-    t.setType(0);
+    t.setType(3);
     t.setCategory('INIT_DID');
-    t.setSource('eip155:1:0xAA');
+    t.setSender('eip155:1:0xAA');
     t.setRecipientsList(['eip155:1:0xBB', 'eip155:1:0xCC']);
     t.setData(data.serializeBinary())
     t.setSalt(IdUtil.getUuidV4AsBytes()); // uuid.parse(uuid.v4())
-    t.setApitoken(BitUtil.base16ToBytes("AA")); // fake token
+    t.setApitoken("eyJub2RlcyI6W3sibm9kZUlkIjoiMHg4ZTEyZEUxMkMzNWVBQmYzNWI1NmIwNEU1M0M0RTQ2OGU0NjcyN0U4IiwidHNNaWxsaXMiOjE3MjQ2NzMyNDAwMzAsInJhbmRvbUhleCI6ImY3YmY3YmYwM2ZlYTBhNzI1MTU2OWUwNWRlNjU2ODJkYjU1OTU1N2UiLCJwaW5nUmVzdWx0cyI6W3sibm9kZUlkIjoiMHhmREFFYWY3YWZDRmJiNGU0ZDE2REM2NmJEMjAzOWZkNjAwNENGY2U4IiwidHNNaWxsaXMiOjE3MjQ2NzMyNDAwMjAsInN0YXR1cyI6MX0seyJub2RlSWQiOiIweDk4RjlEOTEwQWVmOUIzQjlBNDUxMzdhZjFDQTc2NzVlRDkwYTUzNTUiLCJ0c01pbGxpcyI6MTcyNDY3MzI0MDAxOSwic3RhdHVzIjoxfV0sInNpZ25hdHVyZSI6IjB4YjMzM2NjMWI3MWM0NGM0MDhkOTZiN2JmYjYzODU0OTNjZjE2N2NiMmJkMjU1MjdkNzg2ZDM4ZjdiOTgwZWFkMzAxMmY3NmNhNzhlM2FiMWEzN2U2YTFjY2ZkMjBiNjkzZGVmZDAwOWM4NzExY2ZjODlmMDUyYjM5MzY4ZjFjZTgxYiJ9LHsibm9kZUlkIjoiMHhmREFFYWY3YWZDRmJiNGU0ZDE2REM2NmJEMjAzOWZkNjAwNENGY2U4IiwidHNNaWxsaXMiOjE3MjQ2NzMyNDAwMjUsInJhbmRvbUhleCI6IjkyMTY4NzRkZjBlMTQ4NTk3ZjlkNDRkMGRmZmFlZGU5NTg0NGRkMTciLCJwaW5nUmVzdWx0cyI6W3sibm9kZUlkIjoiMHg4ZTEyZEUxMkMzNWVBQmYzNWI1NmIwNEU1M0M0RTQ2OGU0NjcyN0U4IiwidHNNaWxsaXMiOjE3MjQ2NzMyMjQ2NTAsInN0YXR1cyI6MX0seyJub2RlSWQiOiIweDk4RjlEOTEwQWVmOUIzQjlBNDUxMzdhZjFDQTc2NzVlRDkwYTUzNTUiLCJ0c01pbGxpcyI6MTcyNDY3MzIyNDY1NSwic3RhdHVzIjoxfV0sInNpZ25hdHVyZSI6IjB4N2JmYzQ0MjQ0ZGM0MTdhMjg0YzEwODUwZGEzNTE2YzUwNWEwNjJmYjIyYmI1ODU0ODg2YWEyOTk3OWUwMmYxOTdlZWMyYzk2ZDVkOTQ4ZDBhMWQ2NTBlYzIzNGRhMDVjMGY5M2JlNWUyMDkxNjFlYzJjY2JjMWU5YzllNzQyOGIxYiJ9LHsibm9kZUlkIjoiMHg5OEY5RDkxMEFlZjlCM0I5QTQ1MTM3YWYxQ0E3Njc1ZUQ5MGE1MzU1IiwidHNNaWxsaXMiOjE3MjQ2NzMyNDAwMjQsInJhbmRvbUhleCI6IjBkOWExNmE4OTljYWQwZWZjODgzZjM0NWQwZjgwYjdmYTE1YTY1NmYiLCJwaW5nUmVzdWx0cyI6W3sibm9kZUlkIjoiMHg4ZTEyZEUxMkMzNWVBQmYzNWI1NmIwNEU1M0M0RTQ2OGU0NjcyN0U4IiwidHNNaWxsaXMiOjE3MjQ2NzMyMjY5NDMsInN0YXR1cyI6MX0seyJub2RlSWQiOiIweGZEQUVhZjdhZkNGYmI0ZTRkMTZEQzY2YkQyMDM5ZmQ2MDA0Q0ZjZTgiLCJ0c01pbGxpcyI6MTcyNDY3MzIyNjk0Nywic3RhdHVzIjoxfV0sInNpZ25hdHVyZSI6IjB4YmE2Mjk2OTZlZWU4MDQ4ZDE2OTA3MDNhZmVjYWY4ZmJjM2Y4NDMxOWQ0OTFhZGIzY2YzZGYzMzExMTllMDAyOTA1MTc3MjAyNzkxNzEzNTMzMmU0MGZiMzI2OTM5Y2JhN2Y2NDc2NmYyYjY5MzQwZTZlNGYwZmIzNjM2OThmYzkxYiJ9XX0="); // fake token
     t.setFee("1"); // tbd
     t.setSignature(BitUtil.base16ToBytes("EE")); // fake signature
     console.log("tx as json", JSON.stringify(t.toObject()));
@@ -96,5 +97,18 @@ describe('block tests', function () {
 
     let b2 = Block.deserializeBinary(blockAsBytes);
     console.log("block2 as json", JSON.stringify(b2.toObject()));
-  })
+  });
+
+  it('test for setting data as string (do not use this)', async function () {
+    const t = new Transaction();
+    let originalData = "AABB";
+    console.log('assign data ', originalData);
+    let encoded = BitUtil.bytesToBase64(BitUtil.base16ToBytes("AABB"));
+    console.log('encoded for assignment ', encoded);
+    t.setData(encoded);
+    console.log("t as bin", BitUtil.bytesToBase16(t.serializeBinary()));
+    let protoEncodedAndDecoded: any = Transaction.deserializeBinary(t.serializeBinary()).getData();
+    console.log('expeced assigned data, to be ', originalData, "but got", protoEncodedAndDecoded, '=', BitUtil.bytesToBase16(protoEncodedAndDecoded));
+  });
+
 })

@@ -1,22 +1,16 @@
-import {Inject, Service} from "typedi";
+import {Container, Inject, Service} from "typedi";
 import {Logger} from "winston";
 import {WinstonUtil} from "../../utilz/winstonUtil";
-import {ValidatorContractState} from "../../services/messaging-common/validatorContractState";
 import {ValidatorNode} from "../../services/messaging/validatorNode";
 import {ValidatorRandom} from "../../services/messaging/validatorRandom";
-import {
-  Block,
-  InitDid, Signer,
-  Transaction,
-  TransactionObj, TxAttestorData,
-  TxValidatorData
-} from "../../generated/push/block_pb";
 import {BitUtil} from "../../utilz/bitUtil";
-import DateUtil from "../../utilz/dateUtil";
-import IdUtil from "../../utilz/idUtil";
-import {HashUtil} from "../../utilz/hashUtil";
+import {NumUtil} from "../../utilz/numUtil";
+import {QueueManager} from "../../services/messaging/QueueManager";
 
-console.log(Block);
+type RpcResult = {
+  result: string;
+  error: string;
+}
 
 @Service()
 export class ValidatorRpc {
@@ -28,6 +22,9 @@ export class ValidatorRpc {
   @Inject()
   private validatorRandom: ValidatorRandom;
 
+  @Inject()
+  private queueManager: QueueManager;
+
   public push_getApiToken([]) {
     const apiToken = this.validatorRandom.createValidatorToken();
     return {
@@ -36,40 +33,25 @@ export class ValidatorRpc {
     } ;
   }
 
-  public push_sendTransaction([ transactionDataBase16 ]) {
-    const bytes = BitUtil.base16ToBytes(transactionDataBase16);
-    const tx = Transaction.deserializeBinary(bytes);
-    // todo process tx, append to block
-    console.log(JSON.stringify(tx.toObject()));
-    const txHash = "0xAAAA";
+
+
+  public async push_sendTransaction([ transactionDataBase16 ]) {
+    let txRaw = BitUtil.base16ToBytes(transactionDataBase16);
+    let txHash = await this.validatorNode.sendTransactionBlocking(txRaw);
     return txHash;
   }
 
-  public push_readBlockQueue([ offsetStr ]) {
-    // todo serve data from block queue
-
-    return {
-      "items": [
-        {
-          "id" : "101",
-          "object" : "0xAAAA",       // BLOCK in protobuf format
-          "object_hash" : "0xBBBBBB" // BLOCK SHA1
-        },
-        {
-          "id" : "102",
-          "object" : "0xCC",
-          "object_hash" : "0xDD"
-        }
-      ],
-      "lastOffset" : "102"
-    }
+  public async push_readBlockQueue([ offsetStr ]) {
+    const firstOffset = NumUtil.parseInt(offsetStr, 0);
+    let result = await Container.get(QueueManager).readItems("mblock", firstOffset);
+    return result;
   }
 
 
-  public push_readBlockQueueSize([]) {
-    // todo return queue state
+  public async push_readBlockQueueSize([]) {
+    let result = await this.queueManager.getQueueLastOffsetNum("mblock");
     return {
-      "lastOffset" : "102"
+      "lastOffset" : NumUtil.toString(result)
     }
   }
 

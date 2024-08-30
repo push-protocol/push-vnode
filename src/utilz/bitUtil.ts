@@ -1,5 +1,11 @@
 import { Coll } from './coll'
 
+// bytes      (as hex numbers)            = 0x41 0x41 0x42 0x42
+// Uint8Array (as decimal numbers)        = 65 65 66 66
+//        string (as non printable chars) = ..
+// base16 string                          = 0xAABB
+// base64 string                          = QUFCQg==
+
 export class BitUtil {
   /**
    * XORs 2 buffers, byte by byte: src = src XOR add
@@ -58,12 +64,37 @@ export class BitUtil {
     return result
   }
 
+
   public static base16ToBytes(base16String:string):Uint8Array {
     return Uint8Array.from(Buffer.from(base16String, 'hex'));
   }
 
   public static bytesToBase16(arr:Uint8Array):string {
     return Buffer.from(arr).toString('hex');
+  }
+
+  public static base64ToString(base64String:string):string {
+    return Buffer.from(base64String, 'base64').toString('binary');
+  }
+
+  public static bytesToBase64(bytes:Uint8Array):string {
+    return Buffer.from(bytes).toString('base64');
+  }
+
+  public static bytesToString(bytes:Uint8Array):string {
+    return Buffer.from(bytes).toString('utf8');
+  }
+
+  public static stringToBytes(str:string):Uint8Array {
+    return new Uint8Array(Buffer.from(str, 'utf-8'));
+  }
+
+  public static stringToBase64(str:string):string {
+    return Buffer.from(str, 'binary').toString('base64');
+  }
+
+  public static base64ToBase16(base64String:string):string {
+    return Buffer.from(base64String, 'base64').toString('hex');
   }
 
 }

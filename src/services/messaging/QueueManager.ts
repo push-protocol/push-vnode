@@ -137,6 +137,11 @@ export class QueueManager {
     return result
   }
 
+  public async getQueueLastOffsetNum(queueName: string): Promise<number> {
+    return await this.getQueue(queueName).getLastOffset()
+  }
+
+  // todo: remove
   public async getQueueLastOffset(queueName: string): Promise<any> {
     const lastOffset = await this.getQueue(queueName).getLastOffset()
     return { result: lastOffset }

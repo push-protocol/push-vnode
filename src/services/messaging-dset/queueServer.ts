@@ -123,12 +123,12 @@ export class QueueServer implements Consumer<QItem> {
   }
 
   public async getLastOffset(): Promise<number> {
-    const row = await MySqlUtil.queryOneRow<{ lastOffset: number }>(
-      `select max(id) as lastOffset
+    const max = await MySqlUtil.queryOneValue<number>(
+      `select max(id)  
        from dset_queue_${this.queueName}
        limit 1`
     )
-    return row == null ? 0 : row.lastOffset
+    return max == null ? 0 : max;
   }
 
   public async readWithLastOffset(
