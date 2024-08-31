@@ -60,9 +60,9 @@ export default async ({
   await dbListenerLoader({ pool, logger })
   logger.info('DB Listener loaded!')
 
-  logger.info('Loading jobs')
-  await jobsLoader({ logger })
-  logger.info('Jobs loaded!')
+  // logger.info('Loading jobs')
+  // await jobsLoader({ logger })
+  // logger.info('Jobs loaded!')
 
   if (config.pushNodesNet !== 'PROD') {
     logger.info('Loading Subgraph jobs')
