@@ -19,6 +19,8 @@ services:
       push-shared-network:
         aliases:
           - vnode1.local
+    depends_on:
+      - hardhat
     environment:
       DB_NAME: vnode1
       PORT: 4001
@@ -42,6 +44,8 @@ services:
       push-shared-network:
         aliases:
           - vnode2.local
+    depends_on:
+      - hardhat
     environment:
       DB_NAME: vnode2
       PORT: 4001
@@ -65,6 +69,8 @@ services:
       push-shared-network:
         aliases:
           - vnode3.local
+    depends_on:
+      - hardhat
     environment:
       DB_NAME: vnode3
       PORT: 4001

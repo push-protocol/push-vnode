@@ -247,6 +247,7 @@ For the nodes to function correctly, you need to set up three separate databases
     curl --location 'http://localhost:4001/apis/v1/messaging/settings/eip155:11155111:0xD8634C39BBFd4033c0d3289C4515275102423681/ETH_TEST_SEPOLIA'
     ```
 
+
 ## Contributing
 
 We welcome contributions from the community! To contribute, please follow these steps:
@@ -262,3 +263,146 @@ Please ensure your code adheres to our coding standards and includes appropriate
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+
+## Docker (local testing)
+
+Assumptions:
+- default dir is /Users/w/chain where all push git repos are located (you can use any)
+  - /Users/w/chain/push-node-smart-contracts
+  - /Users/w/chain/push-vnode
+  - /Users/w/chain/push-snode
+  - /Users/w/chain/push-anode
+- docker and docker-compose are installed
+- docker desktop case: Allow full docker image access to /Users/w/chain in Preferences->Resources->File sharing
+- recommended docker version could look like this (no specific version is needed; )
+- naming conventions:
+  - docker images: hardhat-main, validator-main, ...
+  - docker containers: vnode1, vnode2, ...
+  - docker dns: vnode1.local, redis.local, hardhat.local, ....
+```shell
+docker --version
+Docker version 20.10.21, build baeda1f
+
+docker-compose --version
+Docker Compose version v2.13.0
+```
+
+Setup docker images for smart-contracts & vnodes
+```bash
+## create docker network
+docker network create push-shared-network
+
+## prepare image for hardhat
+cd /Users/w/chain/push-node-smart-contracts
+docker build . -t hardhat-main
+ 
+## prepare image for V
+cd /Users/w/chain/push-vnode
+docker build . -t vnode-main
+```
+
+Run (2 shell tabs recommended)
+
+```bash
+## run mysql + redis + phpmyadmin (shell1)
+## add up -d for background
+export DB_PASS=s1mpl3
+export DB_NAME=vnode1 
+export DB_USER=2roor
+cd /Users/w/chain/push-vnode
+docker-compose up
+
+## run hardhat + vnode1 + vnode2 + vnode3 (shell2)
+## add up -d for background
+export DB_PASS=s1mpl3
+export DB_USER=2roor
+cd /Users/w/push-vnode
+docker-compose -f net.yml up 
+```
+
+Check that all docker DNS is online (OPTIONAL)
+```bash
+docker exec redis-main bash -c " getent hosts redis.local "
+docker exec redis-main bash -c " getent hosts mysql.local "
+docker exec redis-main bash -c " getent hosts phpmyadmin.local "
+docker exec redis-main bash -c " getent hosts hardhat.local "
+docker exec redis-main bash -c " getent hosts vnode1.local "
+docker exec redis-main bash -c " getent hosts vnode2.local "
+docker exec redis-main bash -c " getent hosts vnode3.local "
+```
+
+Test 
+```shell
+## vnode1, vnode2, vnode3 are online and visible from the host machine
+curl --location 'http://localhost:4001/api/v1/rpc/' \
+--header 'Content-Type: application/json' \
+--data '{
+    "jsonrpc": "2.0",
+    "method": "push_listening",  
+    "params": [],
+    "id": 1
+}'
+echo ------------ 
+curl --location 'http://localhost:4002/api/v1/rpc/' \
+--header 'Content-Type: application/json' \
+--data '{
+    "jsonrpc": "2.0",
+    "method": "push_listening",  
+    "params": [],
+    "id": 2
+}'
+echo ------------ 
+curl --location 'http://localhost:4003/api/v1/rpc/' \
+--header 'Content-Type: application/json' \
+--data '{
+    "jsonrpc": "2.0",
+    "method": "push_listening",  
+    "params": [],
+    "id": 3
+}'
+echo ------------ 
+```
+Smoke-test validator api
+```shell
+### get api token
+curl --location 'http://localhost:4001/api/v1/rpc/' \
+--header 'Content-Type: application/json' \
+--data '{
+    "jsonrpc": "2.0",
+    "method": "push_getApiToken",  
+    "params": [],
+    "id": 1
+}'
+echo ------------ 
+### send a test transaction (DUMMY DATA)
+curl --location 'http://localhost:4001/api/v1/rpc/' \
+--header 'Content-Type: application/json' \
+--data '{
+    "jsonrpc": "2.0",
+    "method": "push_sendTransaction",  
+    "params": ["1208494e49545f4449441a0d6569703135353a313a30784141220d6569703135353a313a30784242220d6569703135353a313a307843432a1a0a043078414112043078424218012204307843432a04307844443210d8555d2a5c474fa0a5f588563d50b2873ab40b7b226e6f646573223a5b7b226e6f64654964223a22307838653132644531324333356541426633356235366230344535334334453436386534363732374538222c2274734d696c6c6973223a313732343637333234303033302c2272616e646f6d486578223a2266376266376266303366656130613732353135363965303564653635363832646235353935353765222c2270696e67526573756c7473223a5b7b226e6f64654964223a22307866444145616637616643466262346534643136444336366244323033396664363030344346636538222c2274734d696c6c6973223a313732343637333234303032302c22737461747573223a317d2c7b226e6f64654964223a22307839384639443931304165663942334239413435313337616631434137363735654439306135333535222c2274734d696c6c6973223a313732343637333234303031392c22737461747573223a317d5d2c227369676e6174757265223a22307862333333636331623731633434633430386439366237626662363338353439336366313637636232626432353532376437383664333866376239383065616433303132663736636137386533616231613337653661316363666432306236393364656664303039633837313163666338396630353262333933363866316365383162227d2c7b226e6f64654964223a22307866444145616637616643466262346534643136444336366244323033396664363030344346636538222c2274734d696c6c6973223a313732343637333234303032352c2272616e646f6d486578223a2239323136383734646630653134383539376639643434643064666661656465393538343464643137222c2270696e67526573756c7473223a5b7b226e6f64654964223a22307838653132644531324333356541426633356235366230344535334334453436386534363732374538222c2274734d696c6c6973223a313732343637333232343635302c22737461747573223a317d2c7b226e6f64654964223a22307839384639443931304165663942334239413435313337616631434137363735654439306135333535222c2274734d696c6c6973223a313732343637333232343635352c22737461747573223a317d5d2c227369676e6174757265223a22307837626663343432343464633431376132383463313038353064613335313663353035613036326662323262623538353438383661613239393739653032663139376565633263393664356439343864306131643635306563323334646130356330663933626535653230393136316563326363626331653963396537343238623162227d2c7b226e6f64654964223a22307839384639443931304165663942334239413435313337616631434137363735654439306135333535222c2274734d696c6c6973223a313732343637333234303032342c2272616e646f6d486578223a2230643961313661383939636164306566633838336633343564306638306237666131356136353666222c2270696e67526573756c7473223a5b7b226e6f64654964223a22307838653132644531324333356541426633356235366230344535334334453436386534363732374538222c2274734d696c6c6973223a313732343637333232363934332c22737461747573223a317d2c7b226e6f64654964223a22307866444145616637616643466262346534643136444336366244323033396664363030344346636538222c2274734d696c6c6973223a313732343637333232363934372c22737461747573223a317d5d2c227369676e6174757265223a22307862613632393639366565653830343864313639303730336166656361663866626333663834333139643439316164623363663364663333313131396530303239303531373732303237393137313335333332653430666233323639333963626137663634373636663262363933343065366534663066623336333639386663393162227d5d7d4201ee4a0131"],
+    "id": 1
+}'
+echo ------------ 
+
+### read transaction queue size
+curl --location 'http://localhost:4001/api/v1/rpc/' \
+--header 'Content-Type: application/json' \
+--data '{
+    "jsonrpc": "2.0",
+    "method": "push_readBlockQueueSize",  
+    "params": [],
+    "id": 1
+}'
+
+### read transaction queue
+curl --location 'http://localhost:4001/api/v1/rpc/' \
+--header 'Content-Type: application/json' \
+--data '{
+    "jsonrpc": "2.0",
+    "method": "push_readBlockQueue",  
+    "params": ["0"],
+    "id": 1
+}'
+```
