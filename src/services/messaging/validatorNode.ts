@@ -1,15 +1,15 @@
-import { MsgConverterService } from './msgConverterService'
-import { ObjectHasher } from '../../utilz/objectHasher'
-import { ethers, Wallet } from 'ethers'
-import { Inject, Service } from 'typedi'
-import { Logger } from 'winston'
-import { MsgDeliveryService } from './msgDeliveryService'
-import { EthSig } from '../../utilz/ethSig'
-import { ValidatorClient } from './validatorClient'
-import { WaitNotify } from '../../utilz/waitNotify'
-import { NodeInfo, ValidatorContractState } from '../messaging-common/validatorContractState'
-import { ValidatorRandom } from './validatorRandom'
-import { ValidatorPing } from './validatorPing'
+import {MsgConverterService} from './msgConverterService'
+import {ObjectHasher} from '../../utilz/objectHasher'
+import {ethers, Wallet} from 'ethers'
+import {Inject, Service} from 'typedi'
+import {Logger} from 'winston'
+import {MsgDeliveryService} from './msgDeliveryService'
+import {EthSig} from '../../utilz/ethSig'
+import {ValidatorClient} from './validatorClient'
+import {WaitNotify} from '../../utilz/waitNotify'
+import {NodeInfo, ValidatorContractState} from '../messaging-common/validatorContractState'
+import {ValidatorRandom} from './validatorRandom'
+import {ValidatorPing} from './validatorPing'
 import StrUtil from '../../utilz/strUtil'
 import {
   FeedItem,
@@ -20,30 +20,38 @@ import {
   MessageBlockUtil,
   NetworkRole,
   NodeMeta,
-  PayloadItem,
   RecipientMissing,
   RecipientsMissing
 } from '../messaging-common/messageBlock'
-import { WinstonUtil } from '../../utilz/winstonUtil'
-import { RedisClient } from '../messaging-common/redisClient'
-import { Coll } from '../../utilz/coll'
+import {WinstonUtil} from '../../utilz/winstonUtil'
+import {RedisClient} from '../messaging-common/redisClient'
+import {Coll} from '../../utilz/coll'
 import DateUtil from '../../utilz/dateUtil'
-import { QueueManager } from './QueueManager'
-import { Check } from '../../utilz/check'
+import {QueueManager} from './QueueManager'
+import {Check} from '../../utilz/check'
 import schedule from 'node-schedule'
-import {
-  StorageContractListener,
-  StorageContractState
-} from '../messaging-common/storageContractState'
-import { AxiosResponse } from 'axios'
-import { PromiseUtil } from '../../utilz/promiseUtil'
+import {StorageContractListener, StorageContractState} from '../messaging-common/storageContractState'
+import {AxiosResponse} from 'axios'
+import {PromiseUtil} from '../../utilz/promiseUtil'
 import SNodeClient from './snodeClient'
-import { AggregatedReplyHelper, NodeHttpStatus } from './AggregatedReplyHelper'
-import Subscribers, { SubscribersItem } from '../channelsCompositeClasses/subscribersClass'
+import {AggregatedReplyHelper, NodeHttpStatus} from './AggregatedReplyHelper'
+import Subscribers, {SubscribersItem} from '../channelsCompositeClasses/subscribersClass'
 import config from '../../config'
 import ChannelsService from '../channelsService'
-import { MySqlUtil } from '../../utilz/mySqlUtil'
+import {MySqlUtil} from '../../utilz/mySqlUtil'
 import {EnvLoader} from "../../utilz/envLoader";
+import {
+  Block,
+  InitDid, Signer,
+  Transaction,
+  TransactionObj,
+  TxAttestorData,
+  TxValidatorData
+} from "../../generated/push/block_pb";
+import {BlockUtil} from "../messaging-common/blockUtil";
+import {BitUtil} from "../../utilz/bitUtil";
+import {TransactionError} from "./transactionError";
+import {EthUtil} from "../../utilz/EthUtil";
 
 // todo move read/write qurum to smart contract constants
 // todo joi validate for getRecord
@@ -86,14 +94,15 @@ export class ValidatorNode implements StorageContractListener {
 
   // state
   // block
-  private currentBlock: MessageBlock
+  private currentBlock: Block;
   // objects used to wait on block
   private blockMonitors: Map<string, WaitNotify> = new Map<string, WaitNotify>()
 
   private readQuorum = 2
   private writeQuorum = 2
 
-  constructor() {}
+  constructor() {
+  }
 
   // https://github.com/typestack/typedi/issues/6
   public async postConstruct() {
@@ -128,93 +137,192 @@ export class ValidatorNode implements StorageContractListener {
     return this.valContractState.getAllNodesMap()
   }
 
-  public async addPayloadToMemPool(
-    p: PayloadItem,
-    validatorTokenRequired: boolean = false
-  ): Promise<boolean> {
+  public async sendTransaction(txRaw: Uint8Array, validatorTokenRequired: boolean): Promise<boolean> {
     if (this.currentBlock == null) {
-      this.currentBlock = new MessageBlock()
+      this.currentBlock = new Block();
     }
+    // check
+    const tx = BlockUtil.parseTransaction(txRaw);
+    this.log.debug('processing tx: %o', tx.toObject())
     if (validatorTokenRequired) {
       // check that this Validator is a valid target, according to validatorToken
-      const valid = this.random.checkValidatorToken(p.validatorToken, this.nodeId)
+      let valid = true;
+      let validatorToken = BitUtil.bytesToBase64(<any>tx.getApitoken());
+      try {
+        valid = this.random.checkValidatorToken(validatorToken, this.nodeId);
+      } catch (e) {
+        // parsing error
+        let err = 'invalid apiToken for nodeId ' + this.nodeId;
+        this.log.error(err, e);
+        throw new TransactionError(err);
+      }
       if (!valid) {
-        this.log.error(`invalid validatorToken %s , for nodeId %s`, p.validatorToken, this.nodeId)
-        return false
+        // logical error
+        let err = 'invalid apiToken for nodeId ' + this.nodeId;
+        this.log.error(err);
+        throw new TransactionError(err);
       }
     }
-    const feedItem = await this.converterService.addExternalPayload(p)
-    this.currentBlock.requests.push(p)
-    this.currentBlock.responses.push(feedItem)
+    this.checkValidTransactionFields(tx);
+    // append transaction
+    let txObj = new TransactionObj();
+    txObj.setTx(tx);
+    this.currentBlock.addTxobj(txObj);
     // todo handle bad conversions
     return true
   }
+
+  private checkValidTransactionFields(tx: Transaction) {
+
+    if (tx.getType() != 0) {
+      throw new TransactionError(`Only non-value transactions are supported`);
+    }
+    let senderAddr = EthUtil.parseCaipAddress(tx.getSender());
+    let recipientAddrs = tx.getRecipientsList().map(value => EthUtil.parseCaipAddress(value));
+    let goodSender = !StrUtil.isEmpty(senderAddr.chainId) && !StrUtil.isEmpty(senderAddr.namespace)
+      && !StrUtil.isEmpty(senderAddr.addr);
+    if (!goodSender) {
+      throw new TransactionError(`sender field is invalid ${tx.getSender()}`);
+    }
+
+    if (tx.getCategory() === 'INIT_DID') {
+      let txData = InitDid.deserializeBinary(<any>tx.getData());
+      if (StrUtil.isEmpty(txData.getDid())) {
+        throw new TransactionError(`did missing`);
+      }
+      if (StrUtil.isEmpty(txData.getMasterpubkey())) {
+        throw new TransactionError(`masterPubKey missing`);
+      }
+      if (StrUtil.isEmpty(txData.getDerivedpubkey())) {
+        throw new TransactionError(`derivedPubKey missing`);
+      }
+      if (StrUtil.isEmpty(txData.getEncderivedprivkey())) {
+        throw new TransactionError(`encDerivedPrivKey missing`);
+      }
+    } else if (tx.getCategory() === 'NOTIFICATION') {
+      // todo checks
+    } else {
+      throw new TransactionError(`unsupported transaction category`);
+    }
+    if (StrUtil.isEmpty(BitUtil.bytesToBase16(<any>tx.getSalt()))) {
+      throw new TransactionError(`salt field is invalid`);
+    }
+
+    let validSignature = true; // todo check signature
+    if (!validSignature) {
+      throw new TransactionError(`signature field is invalid`);
+    }
+  }
+
 
   /**
    * This method blocks for a long amount of time,
    * until processBlock() gets executed
    * @param p
    */
-  public async addPayloadToMemPoolBlocking(p: PayloadItem): Promise<boolean> {
-    try {
-      const monitor = new WaitNotify()
-      this.blockMonitors.set(p.id, monitor)
-      this.log.debug('adding monitor for id: %s', p.id)
-      const success = await this.addPayloadToMemPool(p)
+  public async sendTransactionBlocking(txRaw: Uint8Array): Promise<string> {
+    // try {
+      const monitor = new WaitNotify();
+      let txHash = BlockUtil.calculateTransactionHashBase16(txRaw);
+      this.blockMonitors.set(txHash, monitor)
+      this.log.debug('adding monitor for transaction hash: %s', txHash)
+      const success = await this.sendTransaction(txRaw, true);
       if (!success) {
-        return false
+        return null;
       }
       await monitor.wait(this.ADD_PAYLOAD_BLOCKING_TIMEOUT) // block until processBlock()
-      return true
-    } catch (e) {
-      this.log.error(e)
-      return false
-    }
+      return txHash;
+    // } catch (e) {
+    //   this.log.error(e)
+    //   return null;
+    // }
   }
 
   /**
    * Add first signature and start processing
    * @param cronJob
    */
-  public async batchProcessBlock(cronJob: boolean): Promise<MessageBlock> {
+  public async batchProcessBlock(cronJob: boolean): Promise<Block> {
     this.log.info('batch started');
-    if (this.currentBlock == null || this.currentBlock.requests.length == 0) {
+    if (this.currentBlock == null
+      || this.currentBlock.getTxobjList() == null
+      || this.currentBlock.getTxobjList().length == 0) {
       if (!cronJob) {
         this.log.error('block is empty')
       }
-      return null
+      return null;
     }
-    const block = this.currentBlock
-    const blockMonitors = this.blockMonitors
+    const block = this.currentBlock;
+    const blockMonitors = this.blockMonitors;
     // replace it with a new empty block
-    this.currentBlock = new MessageBlock()
-    this.blockMonitors = new Map<string, WaitNotify>()
+    this.currentBlock = new Block();
+    this.blockMonitors = new Map<string, WaitNotify>();
 
-    if (block.responses.length != block.requests.length) {
-      throw new Error(`message block has incorrect length ${block.responses.length}`)
+
+    // populate block
+    block.setTs(DateUtil.currentTimeMillis());
+    for (let txObj of block.getTxobjList()) {
+      let vd = new TxValidatorData();
+      vd.setVote(1);
+      txObj.setValidatordata(vd);
+
+      // todo fake attestation as of now (todo remove)
+      let ad = new TxAttestorData();
+      ad.setVote(1);
+      txObj.setAttestordataList([ad, ad]);
     }
-    if (block.responsesSignatures.length != 0) {
-      throw new Error(`message block has incorrect signature length ${block.responses.length}`)
+    const tokenObj = this.random.createAttestToken();
+    this.log.debug('random token: %o', tokenObj);
+    Check.isTrue(tokenObj.attestVector?.length > 0, 'attest vector is empty');
+    Check.isTrue(tokenObj.attestVector[0] != null, 'attest vector is empty');
+    block.setAttesttoken(BitUtil.stringToBytes(tokenObj.attestToken));
+
+    // collect attestation per each transaction
+    // and signature per block
+    // from every attestor
+    // todo
+    // todo fake attestation as of now (todo remove)
+    for (let txObj of block.getTxobjList()) {
+
+      let ad = new TxAttestorData();
+      ad.setVote(1);
+      txObj.setAttestordataList([ad, ad]);
     }
+    // todo fake signing as of now
+    let vSign = new Signer();
+    vSign.setNode(this.nodeId);
+    vSign.setRole(1);
+    vSign.setSig("AA11");
+
+    let aSign1 = new Signer();
+    aSign1.setNode("11");
+    aSign1.setRole(2);
+    aSign1.setSig("11");
+
+    let aSign2 = new Signer();
+    aSign1.setNode("22");
+    aSign1.setRole(2);
+    aSign1.setSig("22");
+
+    block.setSignersList([vSign, aSign1, aSign2]);
+
+    /*
     // sign every response
-    for (let i = 0; i < block.responses.length; i++) {
-      const feedItem = block.responses[i]
+    for (let i = 0; i < block.getTxobjList().length; i++) {
+      const txObj = block.getTxobjList()[i];
+      // TODO START FROM HERE !!!!!!!!!!!!!!!!!!!!!!!
       const nodeMeta = <NodeMeta>{
         nodeId: this.nodeId,
         role: NetworkRole.VALIDATOR,
         tsMillis: Date.now()
       }
-      const fisData: FISData = { vote: 'ACCEPT' }
+      const fisData: FISData = {vote: 'ACCEPT'}
       const ethSig = await EthSig.create(this.wallet, feedItem, fisData, nodeMeta)
       const fiSig = new FeedItemSig(fisData, nodeMeta, ethSig)
       block.responsesSignatures.push([fiSig])
     }
     // network status
-    const tokenObj = this.random.createAttestToken()
-    this.log.debug('random token: %o', tokenObj)
-    Check.isTrue(tokenObj.attestVector?.length > 0, 'attest vector is empty')
-    Check.isTrue(tokenObj.attestVector[0] != null, 'attest vector is empty')
-    block.attestToken = tokenObj.attestToken
+
     const attestCount = 1
     const safeAttestCountToAvoidDuplicates = attestCount + 5
     // todo handle if some M amount of nodes refuses to attest!
@@ -291,7 +399,7 @@ export class ValidatorNode implements StorageContractListener {
         arr.push(...asResult.reports)
         this.log.debug('attestor %s successfully received block signatures and published the block')
       }
-    }
+    }*/
     // group same reports , take one
     // todo
     // const sortedNodeReports = Coll.sortMapOfArrays(nodeReportsMap, false);
@@ -304,31 +412,35 @@ export class ValidatorNode implements StorageContractListener {
     // call a contract
 
     // 2: deliver
-    await this.publishCollectivelySignedMessageBlock(block)
+    await this.publishCollectivelySignedMessageBlock(block);
 
     // 3: unblock addPayloadToMemPoolBlocking() requests
-    for (let i = 0; i < block.responses.length; i++) {
-      const fi = block.responses[i]
-      const id = fi.payload.data.sid
-      const objMonitor = blockMonitors.get(id)
+    for (let txObj of block.getTxobjList()) {
+      let tx = txObj.getTx();
+      let txHash = BlockUtil.calculateTransactionHashBase16(tx.serializeBinary());
+
+      const objMonitor = blockMonitors.get(txHash);
       if (objMonitor) {
-        this.log.debug('unblocking monitor %s', objMonitor)
-        objMonitor.notifyAll()
+        this.log.debug('unblocking monitor %s', objMonitor);
+        objMonitor.notifyAll();
       } else {
-        this.log.debug('no monitor found for id %s', id)
+        this.log.debug('no monitor found for id %s', txHash);
       }
     }
     return block
   }
 
   // sends message block to all connected delivery nodes
-  public async publishCollectivelySignedMessageBlock(mb: MessageBlock) {
-    const queue = this.queueInitializer.getQueue(QueueManager.QUEUE_MBLOCK)
+  public async publishCollectivelySignedMessageBlock(mb: Block) {
+    const queue = this.queueInitializer.getQueue(QueueManager.QUEUE_MBLOCK);
+    let blockBytes = mb.serializeBinary();
+    let blockAsBase16 = BitUtil.bytesToBase16(blockBytes);
+    const blockHashAsBase16 = BlockUtil.calculateBlockHashBase16(blockBytes);
     const insertResult = await queue.accept({
-      object: mb,
-      object_hash: MessageBlockUtil.calculateHash(mb)
-    })
-    this.log.debug(`published message block ${mb.id} success: ${insertResult}`)
+      object: blockAsBase16,
+      object_hash: blockHashAsBase16
+    });
+    this.log.debug(`published message block ${blockHashAsBase16} success: ${insertResult}`)
   }
 
   // ------------------------------ ATTESTOR -----------------------------------------
@@ -346,7 +458,7 @@ export class ValidatorNode implements StorageContractListener {
     )
     const check1 = MessageBlockUtil.checkBlock(block, activeValidators)
     if (!check1.success) {
-      return { error: check1.err, signatures: null }
+      return {error: check1.err, signatures: null}
     }
     // attest token checks
     const item0sig0 = block.responsesSignatures[0][0]
@@ -359,7 +471,7 @@ export class ValidatorNode implements StorageContractListener {
       )
     ) {
       this.log.error('block attest token is invalid')
-      return { error: 'block attest token is invalid', signatures: null }
+      return {error: 'block attest token is invalid', signatures: null}
     }
     // conversion checks
     const sigs: FeedItemSig[] = []
@@ -383,7 +495,7 @@ export class ValidatorNode implements StorageContractListener {
       // fuzzy check subscribers
       const cmpSubscribers = this.compareSubscribersDroppingLatestIsAllowed(feedItem, feedItemNew)
       if (!cmpSubscribers.subscribersAreEqual) {
-        return { error: cmpSubscribers.error, signatures: null }
+        return {error: cmpSubscribers.error, signatures: null}
       }
       // sign
       const nodeMeta = <NodeMeta>{
@@ -405,7 +517,7 @@ export class ValidatorNode implements StorageContractListener {
     await this.redisCli.getClient().set(key, JSON.stringify(block))
     const expirationInSeconds = 60
     await this.redisCli.getClient().expire(key, expirationInSeconds)
-    return { error: null, signatures: sigs }
+    return {error: null, signatures: sigs}
   }
 
   /**
@@ -445,12 +557,12 @@ export class ValidatorNode implements StorageContractListener {
       if (!isFreshSubscriber) {
         const errMsg = `${recipientV.addr} (${deltaInMinutes}mins) exists in V, missing in A`
         this.log.error('%s %s', dbgPrefix, errMsg)
-        return { subscribersAreEqual: false, error: errMsg }
+        return {subscribersAreEqual: false, error: errMsg}
       }
       // V has a subscriber, while A doesn't
       // we allow to ignore this if this subscriber is a 'fresh' one
       this.log.debug('%s is a fresh subscriber only in A', dbgPrefix, recipientA)
-      const recipientMissing: RecipientMissing = { addr: recipientV.addr }
+      const recipientMissing: RecipientMissing = {addr: recipientV.addr}
       recipientsToRemove.recipients.push(recipientMissing)
     }
     // check A subscribers against V subscribers
@@ -461,10 +573,10 @@ export class ValidatorNode implements StorageContractListener {
       if (!isFreshSubscriber) {
         const errMsg = `${recipientA.addr} (${deltaInMinutes}mins) exists in A, missing in V`
         this.log.error('%s %s', dbgPrefix, errMsg)
-        return { subscribersAreEqual: false, error: errMsg }
+        return {subscribersAreEqual: false, error: errMsg}
       }
     }
-    const result = { subscribersAreEqual: true, comparisonResult: recipientsToRemove }
+    const result = {subscribersAreEqual: true, comparisonResult: recipientsToRemove}
     this.log.debug('%s result %s', dbgPrefix, result)
     return result
   }
@@ -596,7 +708,8 @@ export class ValidatorNode implements StorageContractListener {
   async handleReshard(
     currentNodeShards: Set<number> | null,
     allNodeShards: Map<string, Set<number>>
-  ): Promise<void> {}
+  ): Promise<void> {
+  }
 
   public async getRecord(nsName: string, nsIndex: string, dt: string, key: string): Promise<any> {
     this.log.debug(`getRecord() nsName=${nsName}, nsIndex=${nsIndex}, dt=${dt}, key=${key}`)

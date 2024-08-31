@@ -21,6 +21,7 @@ const gr = require('graphql-request')
 const { request, gql } = gr
 import epnsAPIHelper from '../helpers/epnsAPIHelper'
 import PayloadsService from '../services/payloadsService'
+import {EnvLoader} from "../utilz/envLoader";
 
 //helper function to format the scheduler as per node-schedule
 export function secondsToHms(pollTime) {
@@ -189,6 +190,9 @@ export async function scheduleTask(
 }
 //Main function
 export default async function main({ logger }) {
+  if (EnvLoader.getPropertyAsBool('VALIDATOR_DISABLE_ALL_SERVICES')) {
+    return;
+  }
   logger.info('Initiating subgraph cron tasks')
   const channel = Container.get(Channel)
   const jobs = await channel.getAllSubGraphDetails()

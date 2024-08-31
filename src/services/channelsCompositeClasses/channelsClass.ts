@@ -21,6 +21,7 @@ import fs from 'fs'
 import * as db from '../../helpers/dbHelper'
 import epnsAPIHelper from '../../helpers/epnsAPIHelper'
 import { isValidAddress } from '../../helpers/utilsHelper'
+import {EnvLoader} from "../../utilz/envLoader";
 
 const VALID_SUBGRAPH_FIELDS = ['subgraph_attempts', 'counter']
 const CHANGED_NOTIFCIATION_SETTING_DELIMITER = '+'
@@ -158,6 +159,9 @@ export default class Channel {
 
   // for processing ipfshash in batches of 50
   public async batchProcessChannelData() {
+    if (EnvLoader.getPropertyAsBool('VALIDATOR_DISABLE_ALL_SERVICES')) {
+      return;
+    }
     const logger = this.logger
     logger.debug('Trying to batch process all channels data processing, 50 requests at a time')
 

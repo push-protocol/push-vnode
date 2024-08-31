@@ -2,7 +2,7 @@ const CryptoJS = require('crypto-js')
 
 import { decrypt, encrypt } from 'eccrypto'
 import EthCrypto from 'eth-crypto'
-import { publicKeyConvert } from 'secp256k1-v4'
+
 
 const publicKeyToAddress = require('ethereum-public-key-to-address')
 
@@ -54,50 +54,7 @@ module.exports = {
   },
   // Encryption with public key
   encryptWithPublicKey: async function (message, publicKey) {
-    // Convert compressed public key, starts with 03 or 04
-    const pubKeyUint8Array = Uint8Array.from(new Buffer(publicKey, 'hex'))
-    //console.log("[ENCRYPTION] Public Key Uint8Array: " + pubKeyUint8Array);
 
-    const convertedKeyAsUint8Array = publicKeyConvert(pubKeyUint8Array, false)
-    //console.log("[ENCRYPTION] Public Key Converted: " + convertedKeyAsUint8Array);
-
-    const convertedPublicKeyHex = new Buffer(convertedKeyAsUint8Array)
-    //console.log("[ENCRYPTION] Converted Public Key Buffer: " + convertedPublicKeyHex);
-
-    const pubKey = new Buffer(convertedPublicKeyHex, 'hex')
-    //console.log("[ENCRYPTION] pubkey getting sentout for encrypt: " + pubKey);
-
-    return encrypt(pubKey, Buffer(message)).then((encryptedBuffers) => {
-      const cipher = {
-        iv: encryptedBuffers.iv.toString('hex'),
-        ephemPublicKey: encryptedBuffers.ephemPublicKey.toString('hex'),
-        ciphertext: encryptedBuffers.ciphertext.toString('hex'),
-        mac: encryptedBuffers.mac.toString('hex')
-      }
-      // use compressed key because it's smaller
-      // const compressedKey = new Buffer.from(publicKeyConvert(Web3Helper.getUint8ArrayFromHexStr(cipher.ephemPublicKey), true)).toString('hex')
-      const input = Uint8Array.from(new Buffer(cipher.ephemPublicKey, 'hex'))
-      const keyConvert = publicKeyConvert(input, true)
-      // console.log("[ENCRYPTION] Coverted key: " + keyConvert);
-
-      const keyConvertBuffer = new Buffer(keyConvert)
-      // console.log("[ENCRYPTION] Coverted key in buffer : " + keyConvertBuffer);
-      // console.log(keyConvertBuffer);
-
-      //console.log(keyConvert);
-      const compressedKey = keyConvertBuffer.toString('hex')
-      // console.log("[ENCRYPTION] Compressed key in buffer : ");
-      // console.log(compressedKey);
-
-      const ret = Buffer.concat([
-        new Buffer(cipher.iv, 'hex'), // 16bit
-        new Buffer(compressedKey, 'hex'), // 33bit
-        new Buffer(cipher.mac, 'hex'), // 32bit
-        new Buffer(cipher.ciphertext, 'hex') // var bit
-      ]).toString('hex')
-
-      return ret
-    })
   },
   // Decryption with public key
   decryptWithPrivateKey: async function (message, privateKey) {

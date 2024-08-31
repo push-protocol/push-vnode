@@ -1,7 +1,7 @@
 import StrUtil from './strUtil'
 
 export class EthUtil {
-  static parseCaipAddress(addressinCAIP: string): CaipAddr | null {
+  public static parseCaipAddress(addressinCAIP: string): CaipAddr | null {
     if (StrUtil.isEmpty(addressinCAIP)) {
       return null
     }
