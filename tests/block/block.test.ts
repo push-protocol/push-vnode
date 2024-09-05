@@ -69,13 +69,9 @@ describe('block tests', function () {
 
     // signers
     const s1 = new Signer();
-    s1.setNode('0x1111');
-    s1.setRole(1);
-    s1.setSig('CC');
+    s1.setSig(BitUtil.base16ToBytes('CC'));
     const s2 = new Signer();
-    s2.setNode('0x2222');
-    s2.setRole(1);
-    s2.setSig('EE');
+    s2.setSig(BitUtil.base16ToBytes('EE'));
 
     const b = new Block();
     b.setTs(DateUtil.currentTimeSeconds());

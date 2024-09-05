@@ -264,6 +264,30 @@ Please ensure your code adheres to our coding standards and includes appropriate
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
+## Protobuf modifications
+For every edit to /proto/push/block.proto.ts
+Please do the following
+
+- check that protobuf is installed
+
+```shell
+protoc --version
+### libprotoc 3.20.3
+
+## if missing (for mac)
+brew install protobuf@3
+```
+
+- regenerate files
+```shell
+yarn build:proto
+```
+
+- commit new files
+
+## generate protobuf
+yarn add ts-protoc-gen
+yarn build:proto
 
 ## Docker (local testing)
 
@@ -292,7 +316,6 @@ Setup docker images for smart-contracts & vnodes
 ```bash
 ## create docker network
 docker network create push-shared-network
-
 ## prepare image for hardhat
 cd /Users/w/chain/push-node-smart-contracts
 docker build . -t hardhat-main
@@ -305,20 +328,18 @@ docker build . -t vnode-main
 Run (2 shell tabs recommended)
 
 ```bash
-## run mysql + redis + phpmyadmin (shell1)
+## run mysql + redis + phpmyadmin (shell1) + hardhat
 ## add up -d for background
-export DB_PASS=s1mpl3
-export DB_NAME=vnode1 
-export DB_USER=2roor
 cd /Users/w/chain/push-vnode
 docker-compose up
 
-## run hardhat + vnode1 + vnode2 + vnode3 (shell2)
-## add up -d for background
-export DB_PASS=s1mpl3
-export DB_USER=2roor
+## run vnode1 + vnode2 + vnode3 (shell2)
 cd /Users/w/push-vnode
+export DB_PASS=s1mpl3 
+export DB_USER=2roor
 docker-compose -f net.yml up 
+
+## up -d for background
 ```
 
 Check that all docker DNS is online (OPTIONAL)
@@ -406,3 +427,4 @@ curl --location 'http://localhost:4001/api/v1/rpc/' \
     "id": 1
 }'
 ```
+

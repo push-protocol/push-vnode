@@ -50,9 +50,12 @@ message TransactionObj {
 }
 
 message Signer {
-    string node = 1;
-    Role role = 2;
-    string sig = 3;
+    // deprecated
+    // string node = 1;
+    // deprecated
+    // Role role = 2;
+
+    bytes sig = 1;
 }
 
 message Block {
@@ -61,6 +64,18 @@ message Block {
     bytes attestToken = 4;
     repeated TransactionObj txObj = 2;
     repeated Signer signers = 3;
+}
+
+message AttestorReply {
+   // reply per transaction (same order as in block)
+   repeated TxAttestorData attestorData = 1;
+   // signature for the whole block
+   // assuming that on this node TxAttestorData is filled per every tx
+   Signer signer = 2;
+}
+
+message AttestorReplies {
+   repeated AttestorReply attestations = 1;
 }
 
 
@@ -75,8 +90,8 @@ message Transaction {
     bytes data = 5;          // data is also a protobuf message, depending on tx_type
     bytes salt = 6;
     bytes apiToken = 7;  // f(apiToken) = v1
-    bytes signature = 8;
     string fee = 9;          // we don't use this as of now, no native 256bits int support in protobuf
+    bytes signature = 8;
 }
 
 

@@ -1,17 +1,6 @@
 version: '3'
 services:
 
-  hardhat:
-    image: hardhat-main
-    container_name: hardhat
-    networks:
-      push-shared-network:
-        aliases:
-          - hardhat.local
-    ports:
-      - "8545:8545"
-    restart: always
-
   vnode1:
     image: vnode-main
     container_name: vnode1
@@ -19,8 +8,6 @@ services:
       push-shared-network:
         aliases:
           - vnode1.local
-    depends_on:
-      - hardhat
     environment:
       DB_NAME: vnode1
       PORT: 4001
@@ -33,8 +20,8 @@ services:
     ports:
       - "4001:4001"
     volumes:
-      - ./push-docker/v01:/config
-      - ./push-docker/v01/log:/log
+      - ./docker/v01:/config
+      - ./docker/v01/log:/log
 
 
   vnode2:
@@ -44,8 +31,6 @@ services:
       push-shared-network:
         aliases:
           - vnode2.local
-    depends_on:
-      - hardhat
     environment:
       DB_NAME: vnode2
       PORT: 4001
@@ -58,8 +43,8 @@ services:
     ports:
       - "4002:4001"
     volumes:
-      - ./push-docker/v02:/config
-      - ./push-docker/v02/log:/log
+      - ./docker/v02:/config
+      - ./docker/v02/log:/log
 
 
   vnode3:
@@ -69,8 +54,6 @@ services:
       push-shared-network:
         aliases:
           - vnode3.local
-    depends_on:
-      - hardhat
     environment:
       DB_NAME: vnode3
       PORT: 4001
@@ -83,8 +66,8 @@ services:
     ports:
       - "4003:4001"
     volumes:
-      - ./push-docker/v03:/config
-      - ./push-docker/v03/log:/log
+      - ./docker/v03:/config
+      - ./docker/v03/log:/log
 
 networks:
   push-shared-network:
