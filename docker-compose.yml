@@ -3,7 +3,7 @@ services:
 
   redis:
     image: 'redis:latest'
-    container_name: redis-main
+    container_name: redis
     restart: always
     networks:
       push-shared-network:
@@ -16,7 +16,7 @@ services:
 
   mysql:
     image: mysql:8.0
-    container_name: mysql-main
+    container_name: mysql
     command: --default-authentication-plugin=mysql_native_password
     restart: always
     environment:
@@ -36,7 +36,7 @@ services:
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
-    container_name: phpmyadmin-main
+    container_name: phpmyadmin
     depends_on:
       - mysql
     environment:
@@ -64,7 +64,11 @@ services:
     restart: always
     environment:
       SEPOLIA_RPC_URL: 11
-      SEPOLIA_PRIVATE_KEY: AA
+      SEPOLIA_PRIVATE_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    depends_on:
+      - mysql
+      - phpmyadmin
+      - redis
 
 networks:
   push-shared-network:
