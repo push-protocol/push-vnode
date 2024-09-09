@@ -320,37 +320,47 @@ docker network create push-shared-network
 cd /Users/w/chain/push-node-smart-contracts
 docker build . -t hardhat-main
  
-## prepare image for V
+## prepare image for V (if needed)
 cd /Users/w/chain/push-vnode
 docker build . -t vnode-main
+
+## prepare image for S (if needed)
+cd /Users/w/chain/push-snode
+docker build . -t snode-main
 ```
 
-Run (2 shell tabs recommended)
+Run (3 shell tabs recommended; remove '-d' for debug)
+
 
 ```bash
-## run mysql + redis + phpmyadmin (shell1) + hardhat
-## add up -d for background
 cd /Users/w/chain/push-vnode
-docker-compose up
 
-## run vnode1 + vnode2 + vnode3 (shell2)
-cd /Users/w/push-vnode
-export DB_PASS=s1mpl3 
-export DB_USER=2roor
-docker-compose -f net.yml up 
+## run mysql + postgres + redis + phpmyadmin + hardhat
+export POSTGRES_USER=postgres
+export POSTGRES_PASSWORD=postgres
+export DB_PASS=mysql
+export DB_USER=mysql
+docker-compose -f db.yml up -d
 
-## up -d for background
+## run vnode1 + vnode2 + vnode3 
+docker-compose -f v.yml up -d
+
+## run snode1 + snode2
+docker-compose -f s.yml up -d
+
+## read logs
+docker-compose -f s.yml logs -f
 ```
 
 Check that all docker DNS is online (OPTIONAL)
 ```bash
-docker exec redis-main bash -c " getent hosts redis.local "
-docker exec redis-main bash -c " getent hosts mysql.local "
-docker exec redis-main bash -c " getent hosts phpmyadmin.local "
-docker exec redis-main bash -c " getent hosts hardhat.local "
-docker exec redis-main bash -c " getent hosts vnode1.local "
-docker exec redis-main bash -c " getent hosts vnode2.local "
-docker exec redis-main bash -c " getent hosts vnode3.local "
+docker exec redis bash -c " getent hosts redis.local "
+docker exec redis bash -c " getent hosts mysql.local "
+docker exec redis bash -c " getent hosts phpmyadmin.local "
+docker exec redis bash -c " getent hosts hardhat.local "
+docker exec redis bash -c " getent hosts vnode1.local "
+docker exec redis bash -c " getent hosts vnode2.local "
+docker exec redis bash -c " getent hosts vnode3.local "
 ```
 
 Test 
@@ -386,7 +396,7 @@ echo ------------
 ```
 Smoke-test validator api
 ```shell
-### get api token
+### 1 get api token
 curl --location 'http://localhost:4001/api/v1/rpc/' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -396,7 +406,7 @@ curl --location 'http://localhost:4001/api/v1/rpc/' \
     "id": 1
 }'
 echo ------------ 
-### send a test transaction (DUMMY DATA)
+### 2 send a test transaction (DUMMY DATA)
 curl --location 'http://localhost:4001/api/v1/rpc/' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -407,7 +417,7 @@ curl --location 'http://localhost:4001/api/v1/rpc/' \
 }'
 echo ------------ 
 
-### read transaction queue size
+### 3 read transaction queue size
 curl --location 'http://localhost:4001/api/v1/rpc/' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -417,7 +427,7 @@ curl --location 'http://localhost:4001/api/v1/rpc/' \
     "id": 1
 }'
 
-### read transaction queue
+### 4 read transaction queue
 curl --location 'http://localhost:4001/api/v1/rpc/' \
 --header 'Content-Type: application/json' \
 --data '{
