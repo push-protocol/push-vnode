@@ -1,0 +1,74 @@
+version: '3'
+services:
+
+  vnode1:
+    image: vnode-main
+    container_name: vnode1
+    networks:
+      push-shared-network:
+        aliases:
+          - vnode1.local
+    environment:
+      DB_NAME: vnode1
+      PORT: 4001
+      CONFIG_DIR: /config
+      LOG_DIR: /log
+      DB_HOST: mysql.local
+      REDIS_URL: redis://redis.local:6379
+      VALIDATOR_RPC_ENDPOINT: http://hardhat.local:8545
+      VALIDATOR_RPC_NETWORK: 1337
+    ports:
+      - "4001:4001"
+    volumes:
+      - ./v1:/config
+      - ./v1/log:/log
+
+
+  vnode2:
+    image: vnode-main
+    container_name: vnode2
+    networks:
+      push-shared-network:
+        aliases:
+          - vnode2.local
+    environment:
+      DB_NAME: vnode2
+      PORT: 4001
+      CONFIG_DIR: /config
+      LOG_DIR: /log
+      DB_HOST: mysql.local
+      REDIS_URL: redis://redis.local:6379
+      VALIDATOR_RPC_ENDPOINT: http://hardhat.local:8545
+      VALIDATOR_RPC_NETWORK: 1337
+    ports:
+      - "4002:4001"
+    volumes:
+      - ./v2:/config
+      - ./v2/log:/log
+
+
+  vnode3:
+    image: vnode-main
+    container_name: vnode3
+    networks:
+      push-shared-network:
+        aliases:
+          - vnode3.local
+    environment:
+      DB_NAME: vnode3
+      PORT: 4001
+      CONFIG_DIR: /config
+      LOG_DIR: /log
+      DB_HOST: mysql.local
+      REDIS_URL: redis://redis.local:6379
+      VALIDATOR_RPC_ENDPOINT: http://hardhat.local:8545
+      VALIDATOR_RPC_NETWORK: 1337
+    ports:
+      - "4003:4001"
+    volumes:
+      - ./v3:/config
+      - ./v3/log:/log
+
+networks:
+  push-shared-network:
+    external: true
