@@ -1,9 +1,12 @@
-# RUN: sudo python3 update-hosts.py
-
 # for every docker container from "push-shared-network"
 # adds a row
 # 127.0.0.1 container.local
 # to /etc/hosts
+
+# precondition: start all docker containers
+# RUN: sudo python3 update-hosts.py
+
+
 
 
 import subprocess
