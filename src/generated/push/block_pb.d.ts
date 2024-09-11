@@ -287,9 +287,8 @@ export class InitDid extends jspb.Message {
   getDerivedpubkey(): string;
   setDerivedpubkey(value: string): void;
 
-  getEncderivedprivkey(): string;
-  setEncderivedprivkey(value: string): void;
-
+  getWallettoencderivedkeyMap(): jspb.Map<string, string>;
+  clearWallettoencderivedkeyMap(): void;
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): InitDid.AsObject;
   static toObject(includeInstance: boolean, msg: InitDid): InitDid.AsObject;
@@ -306,7 +305,7 @@ export namespace InitDid {
     masterpubkey: string,
     derivedkeyindex: number,
     derivedpubkey: string,
-    encderivedprivkey: string,
+    wallettoencderivedkeyMap: Array<[string, string]>,
   }
 }
 

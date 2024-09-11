@@ -2427,7 +2427,7 @@ proto.push.InitDid.toObject = function(includeInstance, msg) {
     masterpubkey: jspb.Message.getFieldWithDefault(msg, 2, ""),
     derivedkeyindex: jspb.Message.getFieldWithDefault(msg, 3, 0),
     derivedpubkey: jspb.Message.getFieldWithDefault(msg, 4, ""),
-    encderivedprivkey: jspb.Message.getFieldWithDefault(msg, 5, "")
+    wallettoencderivedkeyMap: (f = msg.getWallettoencderivedkeyMap()) ? f.toObject(includeInstance, undefined) : []
   };
 
   if (includeInstance) {
@@ -2480,9 +2480,11 @@ proto.push.InitDid.deserializeBinaryFromReader = function(msg, reader) {
       var value = /** @type {string} */ (reader.readString());
       msg.setDerivedpubkey(value);
       break;
-    case 5:
-      var value = /** @type {string} */ (reader.readString());
-      msg.setEncderivedprivkey(value);
+    case 6:
+      var value = msg.getWallettoencderivedkeyMap();
+      reader.readMessage(value, function(message, reader) {
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readString, null, "", "");
+         });
       break;
     default:
       reader.skipField();
@@ -2541,12 +2543,9 @@ proto.push.InitDid.serializeBinaryToWriter = function(message, writer) {
       f
     );
   }
-  f = message.getEncderivedprivkey();
-  if (f.length > 0) {
-    writer.writeString(
-      5,
-      f
-    );
+  f = message.getWallettoencderivedkeyMap(true);
+  if (f && f.getLength() > 0) {
+    f.serializeBinary(6, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeString);
   }
 };
 
@@ -2624,21 +2623,25 @@ proto.push.InitDid.prototype.setDerivedpubkey = function(value) {
 
 
 /**
- * optional string encDerivedPrivKey = 5;
- * @return {string}
+ * map<string, string> walletToEncDerivedKey = 6;
+ * @param {boolean=} opt_noLazyCreate Do not create the map if
+ * empty, instead returning `undefined`
+ * @return {!jspb.Map<string,string>}
  */
-proto.push.InitDid.prototype.getEncderivedprivkey = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 5, ""));
+proto.push.InitDid.prototype.getWallettoencderivedkeyMap = function(opt_noLazyCreate) {
+  return /** @type {!jspb.Map<string,string>} */ (
+      jspb.Message.getMapField(this, 6, opt_noLazyCreate,
+      null));
 };
 
 
 /**
- * @param {string} value
+ * Clears values from the map. The map will be non-null.
  * @return {!proto.push.InitDid} returns this
  */
-proto.push.InitDid.prototype.setEncderivedprivkey = function(value) {
-  return jspb.Message.setProto3StringField(this, 5, value);
-};
+proto.push.InitDid.prototype.clearWallettoencderivedkeyMap = function() {
+  this.getWallettoencderivedkeyMap().clear();
+  return this;};
 
 
 
