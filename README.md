@@ -340,9 +340,13 @@ export POSTGRES_USER=postgres101
 export POSTGRES_PASSWORD=lmnkdwhplk2
 export DB_USER=sql101
 export DB_PASS=lmnkdwhplk2
-docker-compose -f db.yml up -d
-## read logs: docker-compose -f db.yml logs -f
-## stop: docker-compose -f db.yml stop
+docker-compose -f  db.yml up -d
+## re-create container (non-existing) db.yml up -d
+## read logs:                         db.yml logs -f
+## start (existing)                   db.yml start
+## stop  (existing)                   db.yml stop
+## delete container:                  db.yml down
+## delete everything:                 ./cleanup.sh
 
 ## run vnode1 + vnode2 + vnode3 
 export DB_USER=sql101
