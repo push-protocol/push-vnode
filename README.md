@@ -338,13 +338,13 @@ cd /Users/w/chain/push-vnode/docker
 ## run mysql + postgres + redis + phpmyadmin + hardhat
 export POSTGRES_USER=postgres101
 export POSTGRES_PASSWORD=lmnkdwhplk2
-export DB_PASS=sql101
-export DB_USER=lmnkdwhplk2
+export DB_USER=sql101
+export DB_PASS=lmnkdwhplk2
 docker-compose -f db.yml up -d
 
 ## run vnode1 + vnode2 + vnode3 
-export DB_PASS=2roor
-export DB_USER=simple
+export DB_USER=sql101
+export DB_PASS=lmnkdwhplk2
 docker-compose -f v.yml up -d
 
 ## run snode1 + snode2
