@@ -11,24 +11,24 @@ esac
 
 echo "starting cleanup"
 
-echo "stopping s nodes"
+echo "removing s nodes"
 docker-compose -f s.yml down
-sleep 10
 
-echo "stopping v nodes"
+
+echo "removing v nodes"
 docker-compose -f v.yml down
-sleep 10
 
-echo "stopping db nodes"
+
+echo "removing db nodes"
 docker-compose -f db.yml down
-sleep 10
+
 
 echo "removing logs"
 for i in {1..10}; do
     rm -f "v${i}/log/error.log" "v${i}/log/debug.log"
     rm -f "s${i}/log/error.log" "s${i}/log/debug.log"
 done
-sleep 10
+sleep 3
 
 echo "removing db state"
 rm -rf external

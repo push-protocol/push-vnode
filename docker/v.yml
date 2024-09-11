@@ -14,6 +14,8 @@ services:
       CONFIG_DIR: /config
       LOG_DIR: /log
       DB_HOST: mysql.local
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
       REDIS_URL: redis://redis.local:6379
       VALIDATOR_RPC_ENDPOINT: http://hardhat.local:8545
       VALIDATOR_RPC_NETWORK: 1337
@@ -37,6 +39,8 @@ services:
       CONFIG_DIR: /config
       LOG_DIR: /log
       DB_HOST: mysql.local
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
       REDIS_URL: redis://redis.local:6379
       VALIDATOR_RPC_ENDPOINT: http://hardhat.local:8545
       VALIDATOR_RPC_NETWORK: 1337
@@ -60,6 +64,8 @@ services:
       CONFIG_DIR: /config
       LOG_DIR: /log
       DB_HOST: mysql.local
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
       REDIS_URL: redis://redis.local:6379
       VALIDATOR_RPC_ENDPOINT: http://hardhat.local:8545
       VALIDATOR_RPC_NETWORK: 1337

@@ -333,19 +333,23 @@ Run (3 shell tabs recommended; remove '-d' for debug)
 
 
 ```bash
-cd /Users/w/chain/push-vnode
+cd /Users/w/chain/push-vnode/docker
 
 ## run mysql + postgres + redis + phpmyadmin + hardhat
-export POSTGRES_USER=postgres
-export POSTGRES_PASSWORD=postgres
-export DB_PASS=mysql
-export DB_USER=mysql
+export POSTGRES_USER=postgres101
+export POSTGRES_PASSWORD=lmnkdwhplk2
+export DB_PASS=sql101
+export DB_USER=lmnkdwhplk2
 docker-compose -f db.yml up -d
 
 ## run vnode1 + vnode2 + vnode3 
+export DB_PASS=2roor
+export DB_USER=simple
 docker-compose -f v.yml up -d
 
 ## run snode1 + snode2
+export POSTGRES_USER=postgres101
+export POSTGRES_PASSWORD=lmnkdwhplk2
 docker-compose -f s.yml up -d
 
 ## read logs
