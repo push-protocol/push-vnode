@@ -35,7 +35,7 @@ services:
           - vnode2.local
     environment:
       DB_NAME: vnode2
-      PORT: 4001
+      PORT: 4002
       CONFIG_DIR: /config
       LOG_DIR: /log
       DB_HOST: mysql.local
@@ -45,7 +45,7 @@ services:
       VALIDATOR_RPC_ENDPOINT: http://hardhat.local:8545
       VALIDATOR_RPC_NETWORK: 1337
     ports:
-      - "4002:4001"
+      - "4002:4002"
     volumes:
       - ./v2:/config
       - ./v2/log:/log
@@ -60,7 +60,7 @@ services:
           - vnode3.local
     environment:
       DB_NAME: vnode3
-      PORT: 4001
+      PORT: 4003
       CONFIG_DIR: /config
       LOG_DIR: /log
       DB_HOST: mysql.local
@@ -70,7 +70,7 @@ services:
       VALIDATOR_RPC_ENDPOINT: http://hardhat.local:8545
       VALIDATOR_RPC_NETWORK: 1337
     ports:
-      - "4003:4001"
+      - "4003:4003"
     volumes:
       - ./v3:/config
       - ./v3/log:/log

@@ -52,7 +52,7 @@ services:
       VALIDATOR_RPC_ENDPOINT: http://hardhat.local:8545
       VALIDATOR_RPC_NETWORK: 1337
     ports:
-      - "3002:3001"
+      - "3002:3002"
     volumes:
       - ./s2:/config
       - ./s2/log:/log

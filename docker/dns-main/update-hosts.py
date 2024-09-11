@@ -33,12 +33,12 @@ def backup_hosts_file():
 def host_entry_exists(hostname):
     with open("/etc/hosts", "r") as file:
         content = file.read()
-        return re.search(rf"127\.0\.0\.1\s+{re.escape(hostname)}\.local", content)
+        return re.search(rf"127\.0\.0\.1\s+{re.escape(hostname)}\.localz", content)
 
 # Function to append a new host entry to /etc/hosts
 def append_to_hosts(hostname):
     with open("/etc/hosts", "a") as file:
-        file.write(f"127.0.0.1 {hostname}.local\n")
+        file.write(f"127.0.0.1 {hostname}.localz\n")
 
 # Main function
 def update_hosts():
@@ -59,7 +59,7 @@ def update_hosts():
             if network == "push-shared-network":
                 # Check if the host entry already exists
                 if not host_entry_exists(name):
-                    print(f"Adding 127.0.0.1 {name}.local to /etc/hosts")
+                    print(f"Adding 127.0.0.1 {name}.localz to /etc/hosts")
                     append_to_hosts(name)
                 else:
                     print(f"{name}.local already exists in /etc/hosts, skipping.")
