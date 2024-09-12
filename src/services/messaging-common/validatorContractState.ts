@@ -240,8 +240,8 @@ export class ValidatorCtClient {
 
 
   private fixNodeUrl(nodeUrl: string) {
-    if (EnvLoader.getPropertyAsBool("LOCALZ") && !StrUtil.isEmpty(nodeUrl)) {
-      return nodeUrl.replace(".local", ".localz");
+    if (EnvLoader.getPropertyAsBool("LOCALH") && !StrUtil.isEmpty(nodeUrl)) {
+      return nodeUrl.replace(".local", ".localh");
     }
     return nodeUrl;
   }
