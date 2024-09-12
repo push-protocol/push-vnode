@@ -196,7 +196,7 @@ export class ValidatorNode implements StorageContractListener {
       if (StrUtil.isEmpty(txData.getDerivedpubkey())) {
         throw new TransactionError(`derivedPubKey missing`);
       }
-      if (StrUtil.isEmpty(txData.getEncderivedprivkey())) {
+      if (txData.getWallettoencderivedkeyMap().size > 0) {
         throw new TransactionError(`encDerivedPrivKey missing`);
       }
     } else if (tx.getCategory() === 'NOTIFICATION') {
@@ -290,18 +290,12 @@ export class ValidatorNode implements StorageContractListener {
     }
     // todo fake signing as of now
     let vSign = new Signer();
-    vSign.setNode(this.nodeId);
-    vSign.setRole(1);
     vSign.setSig("AA11");
 
     let aSign1 = new Signer();
-    aSign1.setNode("11");
-    aSign1.setRole(2);
     aSign1.setSig("11");
 
     let aSign2 = new Signer();
-    aSign1.setNode("22");
-    aSign1.setRole(2);
     aSign1.setSig("22");
 
     block.setSignersList([vSign, aSign1, aSign2]);
