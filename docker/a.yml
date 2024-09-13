@@ -1,0 +1,19 @@
+version: '3'
+services:
+
+  anode1:
+    image: anode-main
+    container_name: anode1
+    ports:
+      - "5001:3000"
+    networks:
+      push-shared-network:
+        aliases:
+          - anode1.local
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres.local:5432/anode1
+
+
+networks:
+  push-shared-network:
+    external: true
