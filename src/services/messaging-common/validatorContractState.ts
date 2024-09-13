@@ -247,8 +247,10 @@ export class ValidatorCtClient {
 
     try {
       const urlObj = new URL(nodeUrl);
-      if (urlObj.hostname.endsWith('.local')) {
-        urlObj.hostname = 'localhost';
+      if (EnvLoader.getPropertyAsBool("LOCALH") && !StrUtil.isEmpty(nodeUrl)) {
+        if (urlObj.hostname.endsWith('.local')) {
+          urlObj.hostname = 'localhost';
+        }
       }
 
       let fixedUrl = urlObj.toString();
