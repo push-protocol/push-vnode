@@ -379,9 +379,9 @@ docker exec redis bash -c " getent hosts vnode2.local "
 docker exec redis bash -c " getent hosts vnode3.local "
 ```
 
-Test 
+Test vnodes: vnode1, vnode2, vnode3 are online and visible from the host machine
 ```shell
-## vnode1, vnode2, vnode3 are online and visible from the host machine
+## 
 curl --location 'http://localhost:4001/api/v1/rpc/' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -410,7 +410,7 @@ curl --location 'http://localhost:4003/api/v1/rpc/' \
 }'
 echo ------------ 
 ```
-Smoke-test validator api
+Test vnodes: Smoke-test validator api
 ```shell
 ### 1 send a test transaction (DUMMY DATA) (INCLUDES API TOKEN)
 curl --location 'http://localhost:4001/api/v1/rpc/' \
@@ -444,7 +444,7 @@ curl --location 'http://localhost:4001/api/v1/rpc/' \
 }'
 ```
 
-Smoke test api token
+Test vnodes: Smoke test api token
 ```sh
 ### 1 get api token
 curl --location 'http://localhost:4001/api/v1/rpc/' \
@@ -456,4 +456,22 @@ curl --location 'http://localhost:4001/api/v1/rpc/' \
 "id": 1
 }'
 echo ------------ 
+```
+
+Test anodes: Get blocks
+```shell
+curl --location 'http://localhost:5001/rpc' \
+--header 'Content-Type: application/json' \
+--data '{
+    "jsonrpc": "2.0",
+    "method": "RpcService.getBlocks",
+    "params": {
+        "startTime": 1724771470,
+        "direction": "DESC",
+        "showDetails": true,
+        "pageSize": 10,
+        "page": 1
+    },
+    "id": 1
+}'
 ```
