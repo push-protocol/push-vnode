@@ -242,13 +242,13 @@ export class Transaction extends jspb.Message {
   getApitoken_asB64(): string;
   setApitoken(value: Uint8Array | string): void;
 
-  getFee(): string;
-  setFee(value: string): void;
-
   getSignature(): Uint8Array | string;
   getSignature_asU8(): Uint8Array;
   getSignature_asB64(): string;
   setSignature(value: Uint8Array | string): void;
+
+  getFee(): string;
+  setFee(value: string): void;
 
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): Transaction.AsObject;
@@ -269,8 +269,8 @@ export namespace Transaction {
     data: Uint8Array | string,
     salt: Uint8Array | string,
     apitoken: Uint8Array | string,
-    fee: string,
     signature: Uint8Array | string,
+    fee: string,
   }
 }
 

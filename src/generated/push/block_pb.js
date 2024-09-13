@@ -1945,8 +1945,8 @@ proto.push.Transaction.toObject = function(includeInstance, msg) {
     data: msg.getData_asB64(),
     salt: msg.getSalt_asB64(),
     apitoken: msg.getApitoken_asB64(),
-    fee: jspb.Message.getFieldWithDefault(msg, 9, ""),
-    signature: msg.getSignature_asB64()
+    signature: msg.getSignature_asB64(),
+    fee: jspb.Message.getFieldWithDefault(msg, 9, "")
   };
 
   if (includeInstance) {
@@ -2011,13 +2011,13 @@ proto.push.Transaction.deserializeBinaryFromReader = function(msg, reader) {
       var value = /** @type {!Uint8Array} */ (reader.readBytes());
       msg.setApitoken(value);
       break;
-    case 9:
-      var value = /** @type {string} */ (reader.readString());
-      msg.setFee(value);
-      break;
     case 8:
       var value = /** @type {!Uint8Array} */ (reader.readBytes());
       msg.setSignature(value);
+      break;
+    case 9:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setFee(value);
       break;
     default:
       reader.skipField();
@@ -2097,17 +2097,17 @@ proto.push.Transaction.serializeBinaryToWriter = function(message, writer) {
       f
     );
   }
-  f = message.getFee();
-  if (f.length > 0) {
-    writer.writeString(
-      9,
-      f
-    );
-  }
   f = message.getSignature_asU8();
   if (f.length > 0) {
     writer.writeBytes(
       8,
+      f
+    );
+  }
+  f = message.getFee();
+  if (f.length > 0) {
+    writer.writeString(
+      9,
       f
     );
   }
@@ -2332,24 +2332,6 @@ proto.push.Transaction.prototype.setApitoken = function(value) {
 
 
 /**
- * optional string fee = 9;
- * @return {string}
- */
-proto.push.Transaction.prototype.getFee = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 9, ""));
-};
-
-
-/**
- * @param {string} value
- * @return {!proto.push.Transaction} returns this
- */
-proto.push.Transaction.prototype.setFee = function(value) {
-  return jspb.Message.setProto3StringField(this, 9, value);
-};
-
-
-/**
  * optional bytes signature = 8;
  * @return {!(string|Uint8Array)}
  */
@@ -2388,6 +2370,24 @@ proto.push.Transaction.prototype.getSignature_asU8 = function() {
  */
 proto.push.Transaction.prototype.setSignature = function(value) {
   return jspb.Message.setProto3BytesField(this, 8, value);
+};
+
+
+/**
+ * optional string fee = 9;
+ * @return {string}
+ */
+proto.push.Transaction.prototype.getFee = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 9, ""));
+};
+
+
+/**
+ * @param {string} value
+ * @return {!proto.push.Transaction} returns this
+ */
+proto.push.Transaction.prototype.setFee = function(value) {
+  return jspb.Message.setProto3StringField(this, 9, value);
 };
 
 

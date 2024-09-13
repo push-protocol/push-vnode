@@ -238,16 +238,27 @@ export class ValidatorCtClient {
     )
   }
 
+  // todo work with corrupted url's: returning nulls as of now
   private fixNodeUrl(nodeUrl: string): string {
+    if (nodeUrl.length > 100) {
+      this.log.error('nodeUrl should be less than 100 chars');
+      return null;
+    }
+
     try {
-      const url = new URL(nodeUrl);
-      if (url.hostname.endsWith('.local')) {
-        url.hostname = 'localhost';
+      const urlObj = new URL(nodeUrl);
+      if (urlObj.hostname.endsWith('.local')) {
+        urlObj.hostname = 'localhost';
       }
-      return url.toString();
-    } catch (error) {
-      // Handle invalid URLs if necessary
-      return nodeUrl;
+
+      let fixedUrl = urlObj.toString();
+      if (fixedUrl.endsWith('/')) {
+        fixedUrl = fixedUrl.slice(0, -1);
+      }
+      return fixedUrl;
+    } catch (e) {
+      this.log.error(e);
+      return null;
     }
   }
   
