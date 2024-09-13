@@ -327,9 +327,13 @@ docker build . -t vnode-main
 ## prepare image for S (if needed)
 cd /Users/w/chain/push-snode
 docker build . -t snode-main
+
+## prepare image for A (if needed)
+cd /Users/w/chain/push-anode
+docker build -t anode-main -f Dockerfile.light .
 ```
 
-Run (3 shell tabs recommended; remove '-d' for debug)
+Run 
 
 
 ```bash
@@ -340,9 +344,10 @@ export POSTGRES_USER=postgres101
 export POSTGRES_PASSWORD=lmnkdwhplk2
 export DB_USER=sql101
 export DB_PASS=lmnkdwhplk2
-docker-compose -f  db.yml up -d
-## re-create container (non-existing) db.yml up -d
+docker-compose -f db.yml up -d
+## hints:
 ## read logs:                         db.yml logs -f
+## re-create container (non-existing) db.yml up -d
 ## start (existing)                   db.yml start
 ## stop  (existing)                   db.yml stop
 ## delete container:                  db.yml down
@@ -357,6 +362,9 @@ docker-compose -f v.yml up -d
 export POSTGRES_USER=postgres101
 export POSTGRES_PASSWORD=lmnkdwhplk2
 docker-compose -f s.yml up -d
+
+## run anode1
+docker-compose -f a.yml up -d
 
 ```
 
