@@ -196,7 +196,7 @@ export class ValidatorNode implements StorageContractListener {
       if (StrUtil.isEmpty(txData.getDerivedpubkey())) {
         throw new TransactionError(`derivedPubKey missing`);
       }
-      if (txData.getWallettoencderivedkeyMap().size > 0) {
+      if (txData.getWallettoencderivedkeyMap().size < 1) {
         throw new TransactionError(`encDerivedPrivKey missing`);
       }
     } else if (tx.getCategory() === 'NOTIFICATION') {
