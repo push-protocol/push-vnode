@@ -1,6 +1,9 @@
 import { BytesLike, ethers, Wallet } from 'ethers'
 import { verifyMessage } from 'ethers/lib/utils'
 import { ObjectHasher } from './objectHasher'
+import {recoverAddress} from "@ethersproject/transactions";
+import {hashMessage} from "@ethersproject/hash";
+import {BitUtil} from "./bitUtil";
 
 /**
  * Utitily class that allows
@@ -78,6 +81,15 @@ export class EthSig {
       return false
     }
     return true
+  }
+  // 0xAAAA == eip155:1:0xAAAAA
+  public static recoverAddress(message:Uint8Array, signature:Uint8Array):string {
+    return recoverAddress(hashMessage(message), signature)
+  }
+
+  public static async signBytes(wallet: Wallet, bytes: Uint8Array): Promise<Uint8Array> {
+    const sig = await wallet.signMessage(bytes);
+    return BitUtil.base16ToBytes(sig);
   }
 }
 

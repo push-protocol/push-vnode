@@ -3,6 +3,7 @@ import config from '../../config'
 import { Logger } from 'winston'
 import { WinstonUtil } from '../../utilz/winstonUtil'
 import { Service } from 'typedi'
+import {EnvLoader} from "../../utilz/envLoader";
 
 @Service()
 export class RedisClient {
@@ -11,7 +12,7 @@ export class RedisClient {
 
   public async postConstruct(): Promise<any> {
     this.client = await createClient({
-      url: config.REDIS_URL
+      url: EnvLoader.getPropertyOrFail("REDIS_URL")
     })
     await this.client.connect()
     this.client.on('error', (err) => this.log.error('Redis Client Error', err))

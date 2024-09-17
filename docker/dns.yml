@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  dns:
+    image: dns-main
+    container_name: dns
+    networks:
+      push-shared-network:
+        aliases:
+          - dns.local
+    ports:
+      - "53:53/udp"
+    restart: unless-stopped
+
+networks:
+  push-shared-network:
+    external: true

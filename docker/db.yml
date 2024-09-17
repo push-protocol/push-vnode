@@ -1,0 +1,96 @@
+version: '3'
+services:
+
+  redis:
+    image: 'redis:latest'
+    container_name: redis
+    restart: always
+    networks:
+      push-shared-network:
+        aliases:
+          - redis.local
+    ports:
+      - 6379:6379
+    volumes:
+      - ./external/redis:/data
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    depends_on:
+      - mysql
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+      UPLOAD_LIMIT: 3000M
+    restart: always
+    ports:
+      - 8183:80
+    networks:
+      push-shared-network:
+        aliases:
+          - phpmyadmin.local
+
+  hardhat:
+    image: hardhat-main
+    container_name: hardhat
+    networks:
+      push-shared-network:
+        aliases:
+          - hardhat.local
+    ports:
+      - "8545:8545"
+    restart: always
+    environment:
+      SEPOLIA_RPC_URL: 11
+      SEPOLIA_PRIVATE_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    depends_on:
+      - mysql
+      - phpmyadmin
+      - redis
+
+
+  # for V nodes we use mysql
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 'pass'
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
+    ports:
+      - 3306:3306
+    volumes:
+      - ./external/mysql:/var/lib/mysql/
+      - ./mysql-init:/docker-entrypoint-initdb.d/
+    networks:
+      push-shared-network:
+        aliases:
+          - mysql.local
+
+  # for snodes and a nodes we use postgres
+  postgres:
+    image: postgres:15.1
+    container_name: postgres
+    restart: always
+    environment:
+      - POSTGRES_DB=snode1
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - '5432:5432'
+    volumes:
+      - ./external/postgresql:/var/lib/postgresql/data
+      - ./pg-init:/docker-entrypoint-initdb.d/
+#      - ./pg-init/create_databases.sh:/docker-entrypoint-initdb.d/create_databases.sh
+    networks:
+      push-shared-network:
+        aliases:
+          - postgres.local
+
+networks:
+  push-shared-network:
+    external: true

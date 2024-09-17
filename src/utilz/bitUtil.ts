@@ -81,6 +81,10 @@ export class BitUtil {
     return Buffer.from(bytes).toString('base64');
   }
 
+  public static base64ToBytes(base64String:string):Uint8Array {
+    return new Uint8Array(Buffer.from(base64String, 'base64'));
+  }
+
   public static bytesToString(bytes:Uint8Array):string {
     return Buffer.from(bytes).toString('utf8');
   }

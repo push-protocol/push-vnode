@@ -50,9 +50,12 @@ message TransactionObj {
 }
 
 message Signer {
-    string node = 1;
-    Role role = 2;
-    string sig = 3;
+    // deprecated
+    // string node = 1;
+    // deprecated
+    // Role role = 2;
+
+    bytes sig = 1;
 }
 
 message Block {
@@ -61,6 +64,18 @@ message Block {
     bytes attestToken = 4;
     repeated TransactionObj txObj = 2;
     repeated Signer signers = 3;
+}
+
+message AttestorReply {
+   // reply per transaction (same order as in block)
+   repeated TxAttestorData attestorData = 1;
+   // signature for the whole block
+   // assuming that on this node TxAttestorData is filled per every tx
+   Signer signer = 2;
+}
+
+message AttestorReplies {
+   repeated AttestorReply attestations = 1;
 }
 
 
@@ -90,7 +105,9 @@ message InitDid {
     string masterPubKey = 2;
     uint32 derivedKeyIndex = 3;
     string derivedPubKey = 4;
-    string encDerivedPrivKey = 5;
+    // Map to store wallet address and corresponding encrypted derived key
+    // Note:- There will always be altest 1 mapping
+    map<string, string> walletToEncDerivedKey = 6;
 }
 
 enum KeyAction {
