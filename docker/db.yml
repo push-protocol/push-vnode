@@ -67,7 +67,6 @@ services:
     volumes:
       - ./external/postgresql:/var/lib/postgresql/data
       - ./pg-init:/docker-entrypoint-initdb.d/
-#      - ./pg-init/create_databases.sh:/docker-entrypoint-initdb.d/create_databases.sh
     networks:
       push-shared-network:
         aliases:
