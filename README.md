@@ -339,12 +339,18 @@ Run
 ```bash
 cd /Users/w/chain/push-vnode/docker
 
-## run mysql + postgres + redis + phpmyadmin + hardhat
+## run evm (hardhat test vm)
+docker compose -f evm.yml up -d
+
+## run mysql + postgres + redis + phpmyadmin 
 export POSTGRES_USER=postgres101
 export POSTGRES_PASSWORD=lmnkdwhplk2
 export DB_USER=sql101
 export DB_PASS=lmnkdwhplk2
-docker-compose -f db.yml up -d
+# generates db users/permissions applied ONLY once at startup
+python3 db-prepare.py
+# run dbs
+docker compose -f db.yml up -d
 ## hints:
 ## read logs:                         db.yml logs -f
 ## re-create container (non-existing) db.yml up -d
@@ -356,15 +362,15 @@ docker-compose -f db.yml up -d
 ## run vnode1 + vnode2 + vnode3 
 export DB_USER=sql101
 export DB_PASS=lmnkdwhplk2
-docker-compose -f v.yml up -d
+docker compose -f v.yml up -d
 
 ## run snode1 + snode2
 export POSTGRES_USER=postgres101
 export POSTGRES_PASSWORD=lmnkdwhplk2
-docker-compose -f s.yml up -d
+docker compose -f s.yml up -d
 
 ## run anode1
-docker-compose -f a.yml up -d
+docker compose -f a.yml up -d
 
 ```
 

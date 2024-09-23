@@ -5,6 +5,6 @@ case "$choice" in
   * ) echo "Aborted."; exit 1;;
 esac
 echo "sudo for editing /etc/hosts"
-sudo python3 dns-main/update-hosts.py
+sudo python3 update-hosts.py
 echo "showing /etc/hosts"
 cat /etc/hosts | grep ".localh"

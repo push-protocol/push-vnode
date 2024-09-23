@@ -18,6 +18,12 @@ docker-compose -f s.yml down
 echo "removing v nodes"
 docker-compose -f v.yml down
 
+echo "removing a nodes"
+docker-compose -f a.yml down
+
+
+echo "removing evm"
+docker-compose -f evm.yml down
 
 echo "removing db nodes"
 docker-compose -f db.yml down
