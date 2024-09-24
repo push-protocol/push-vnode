@@ -3,6 +3,19 @@
 import os
 import sys
 
+# Load environment variables from .env file if they are not already set
+with open('.env') as f:
+    for line in f:
+        # Skip comments and empty lines
+        if line.startswith('#') or line.strip() == '':
+            continue
+        key, value = line.strip().split('=', 1)
+        if key in os.environ:
+            print(f"override from os: {key}")
+        if key not in os.environ:
+            os.environ[key] = value
+            print(f"reading from .env: {key}")
+
 # Path to the SQL file
 sql_file_path = 'mysql-init/grant-privileges.sql'
 

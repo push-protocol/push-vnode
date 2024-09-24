@@ -21,8 +21,8 @@ services:
       CONFIG_DIR: /config
       LOG_DIR: /log
       REDIS_URL: redis://redis.local:6379
-      VALIDATOR_RPC_ENDPOINT: http://hardhat.local:8545
-      VALIDATOR_RPC_NETWORK: 1337
+      VALIDATOR_RPC_ENDPOINT: ${VALIDATOR_RPC_ENDPOINT}
+      VALIDATOR_RPC_NETWORK: ${VALIDATOR_RPC_NETWORK}
     ports:
       - "3001:3001"
     volumes:
@@ -49,8 +49,8 @@ services:
       CONFIG_DIR: /config
       LOG_DIR: /log
       REDIS_URL: redis://redis.local:6379
-      VALIDATOR_RPC_ENDPOINT: http://hardhat.local:8545
-      VALIDATOR_RPC_NETWORK: 1337
+      VALIDATOR_RPC_ENDPOINT: ${VALIDATOR_RPC_ENDPOINT}
+      VALIDATOR_RPC_NETWORK: ${VALIDATOR_RPC_NETWORK}
     ports:
       - "3002:3002"
     volumes:

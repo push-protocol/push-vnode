@@ -17,8 +17,8 @@ services:
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
       REDIS_URL: redis://redis.local:6379
-      VALIDATOR_RPC_ENDPOINT: http://hardhat.local:8545
-      VALIDATOR_RPC_NETWORK: 1337
+      VALIDATOR_RPC_ENDPOINT: ${VALIDATOR_RPC_ENDPOINT}
+      VALIDATOR_RPC_NETWORK: ${VALIDATOR_RPC_NETWORK}
     ports:
       - "4001:4001"
     volumes:
@@ -42,8 +42,8 @@ services:
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
       REDIS_URL: redis://redis.local:6379
-      VALIDATOR_RPC_ENDPOINT: http://hardhat.local:8545
-      VALIDATOR_RPC_NETWORK: 1337
+      VALIDATOR_RPC_ENDPOINT: ${VALIDATOR_RPC_ENDPOINT}
+      VALIDATOR_RPC_NETWORK: ${VALIDATOR_RPC_NETWORK}
     ports:
       - "4002:4002"
     volumes:
@@ -67,8 +67,8 @@ services:
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
       REDIS_URL: redis://redis.local:6379
-      VALIDATOR_RPC_ENDPOINT: http://hardhat.local:8545
-      VALIDATOR_RPC_NETWORK: 1337
+      VALIDATOR_RPC_ENDPOINT: ${VALIDATOR_RPC_ENDPOINT}
+      VALIDATOR_RPC_NETWORK: ${VALIDATOR_RPC_NETWORK}
     ports:
       - "4003:4003"
     volumes:
