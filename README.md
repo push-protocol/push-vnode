@@ -344,14 +344,12 @@ Run
 ```bash
 cd /Users/w/chain/push-vnode/docker
 
+## edit .env if needed;  
+
 ## run evm (hardhat test vm)
 docker compose -f evm.yml up -d
 
 ## run mysql + postgres + redis + phpmyadmin 
-export POSTGRES_USER=postgres101
-export POSTGRES_PASSWORD=lmnkdwhplk2
-export DB_USER=sql101
-export DB_PASS=lmnkdwhplk2
 # generates db users/permissions applied ONLY once at startup
 python3 db-prepare.py
 # run dbs
@@ -365,13 +363,9 @@ docker compose -f db.yml up -d
 ## delete everything:                 ./cleanup.sh
 
 ## run vnode1 + vnode2 + vnode3 
-export DB_USER=sql101
-export DB_PASS=lmnkdwhplk2
 docker compose -f v.yml up -d
 
 ## run snode1 + snode2
-export POSTGRES_USER=postgres101
-export POSTGRES_PASSWORD=lmnkdwhplk2
 docker compose -f s.yml up -d
 
 ## run anode1
