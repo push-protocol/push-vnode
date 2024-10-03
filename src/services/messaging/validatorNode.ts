@@ -41,23 +41,25 @@ import ChannelsService from '../channelsService'
 import {MySqlUtil} from '../../utilz/mySqlUtil'
 import {EnvLoader} from "../../utilz/envLoader";
 import {
+  AttestorReply,
   Block,
   InitDid, Signer,
   Transaction,
   TransactionObj,
   TxAttestorData,
-  TxValidatorData
+  TxValidatorData, Vote
 } from "../../generated/push/block_pb";
 import {BlockUtil} from "../messaging-common/blockUtil";
 import {BitUtil} from "../../utilz/bitUtil";
 import {TransactionError} from "./transactionError";
 import {EthUtil} from "../../utilz/EthUtil";
+import {BlockError} from "./blockError";
 
 // todo move read/write qurum to smart contract constants
 // todo joi validate for getRecord
 @Service()
 export class ValidatorNode implements StorageContractListener {
-  public log: Logger = WinstonUtil.newLog(ValidatorNode)
+  public log: Logger = WinstonUtil.newLog(ValidatorNode);
 
   private readonly ADD_PAYLOAD_BLOCKING_TIMEOUT = 45000
   private readonly BLOCK_SCHEDULE = EnvLoader.getPropertyOrDefault("BLOCK_SCHEDULE", '*/30 * * * * *');
@@ -93,8 +95,10 @@ export class ValidatorNode implements StorageContractListener {
   nodeId: string
 
   // state
-  // block
+  // block (cleared on every cron event)
   private currentBlock: Block;
+  // total serialized length of all transactions; used as a watermark (cleared on every cron event)
+  private totalTransactionBytes : number;
   // objects used to wait on block
   private blockMonitors: Map<string, WaitNotify> = new Map<string, WaitNotify>()
 
@@ -140,6 +144,23 @@ export class ValidatorNode implements StorageContractListener {
   public async sendTransaction(txRaw: Uint8Array, validatorTokenRequired: boolean): Promise<boolean> {
     if (this.currentBlock == null) {
       this.currentBlock = new Block();
+      this.totalTransactionBytes = 0;
+    }
+    if (this.currentBlock.getTxobjList().length >= BlockUtil.MAX_TRANSACTIONS_PER_BLOCK) {
+      // todo improve
+      // as of now - we simply reject the transaction
+      // it's the sender's responsibility to retry in a while
+      this.log.info('block is full; tx count: %d ; limit: %d ',
+        this.currentBlock.getTxobjList().length, BlockUtil.MAX_TRANSACTIONS_PER_BLOCK);
+      return false;
+    }
+    if (this.totalTransactionBytes >= BlockUtil.MAX_TOTAL_TRANSACTION_SIZE_BYTES) {
+      // todo improve
+      // as of now - we simply reject the transaction
+      // it's the sender's responsibility to retry in a while
+      this.log.info('block is full; totalTransactionBytes: %d ; limit: %d ',
+        this.totalTransactionBytes, BlockUtil.MAX_TOTAL_TRANSACTION_SIZE_BYTES);
+      return false;
     }
     // check
     const tx = BlockUtil.parseTransaction(txRaw);
@@ -147,7 +168,7 @@ export class ValidatorNode implements StorageContractListener {
     if (validatorTokenRequired) {
       // check that this Validator is a valid target, according to validatorToken
       let valid = true;
-      let validatorToken = BitUtil.bytesToBase64(<any>tx.getApitoken());
+      let validatorToken = BitUtil.bytesToBase64(tx.getApitoken_asU8());
       try {
         valid = this.random.checkValidatorToken(validatorToken, this.nodeId);
       } catch (e) {
@@ -163,65 +184,35 @@ export class ValidatorNode implements StorageContractListener {
         throw new TransactionError(err);
       }
     }
-    this.checkValidTransactionFields(tx);
+    let txCheck = await BlockUtil.checkGenericTransaction(tx);
+    if(!txCheck.success) {
+      throw new BlockError(txCheck.err);
+    }
+
+    let payloadCheck = BlockUtil.checkTransactionPayload(tx);
+    if(!txCheck.success) {
+      throw new BlockError(txCheck.err);
+    }
+
     // append transaction
     let txObj = new TransactionObj();
     txObj.setTx(tx);
     this.currentBlock.addTxobj(txObj);
+    // note: were he serialize 1 transaction to increment the total size
+    this.totalTransactionBytes += tx.serializeBinary().length;
+    this.log.debug(`block contains %d transacitons, totalling as %d bytes`,
+      this.currentBlock.getTxobjList().length, this.totalTransactionBytes);
     // todo handle bad conversions
     return true
   }
 
-  private checkValidTransactionFields(tx: Transaction) {
-
-    if (tx.getType() != 0) {
-      throw new TransactionError(`Only non-value transactions are supported`);
-    }
-    let senderAddr = EthUtil.parseCaipAddress(tx.getSender());
-    let recipientAddrs = tx.getRecipientsList().map(value => EthUtil.parseCaipAddress(value));
-    let goodSender = !StrUtil.isEmpty(senderAddr.chainId) && !StrUtil.isEmpty(senderAddr.namespace)
-      && !StrUtil.isEmpty(senderAddr.addr);
-    if (!goodSender) {
-      throw new TransactionError(`sender field is invalid ${tx.getSender()}`);
-    }
-
-    if (tx.getCategory() === 'INIT_DID') {
-      let txData = InitDid.deserializeBinary(<any>tx.getData());
-      if (StrUtil.isEmpty(txData.getDid())) {
-        throw new TransactionError(`did missing`);
-      }
-      if (StrUtil.isEmpty(txData.getMasterpubkey())) {
-        throw new TransactionError(`masterPubKey missing`);
-      }
-      if (StrUtil.isEmpty(txData.getDerivedpubkey())) {
-        throw new TransactionError(`derivedPubKey missing`);
-      }
-      if (txData.getWallettoencderivedkeyMap().size < 1) {
-        throw new TransactionError(`encDerivedPrivKey missing`);
-      }
-    } else if (tx.getCategory() === 'NOTIFICATION') {
-      // todo checks
-    } else {
-      throw new TransactionError(`unsupported transaction category`);
-    }
-    if (StrUtil.isEmpty(BitUtil.bytesToBase16(<any>tx.getSalt()))) {
-      throw new TransactionError(`salt field is invalid`);
-    }
-
-    let validSignature = true; // todo check signature
-    if (!validSignature) {
-      throw new TransactionError(`signature field is invalid`);
-    }
-  }
 
 
   /**
    * This method blocks for a long amount of time,
    * until processBlock() gets executed
-   * @param p
    */
   public async sendTransactionBlocking(txRaw: Uint8Array): Promise<string> {
-    // try {
       const monitor = new WaitNotify();
       let txHash = BlockUtil.calculateTransactionHashBase16(txRaw);
       this.blockMonitors.set(txHash, monitor)
@@ -230,12 +221,8 @@ export class ValidatorNode implements StorageContractListener {
       if (!success) {
         return null;
       }
-      await monitor.wait(this.ADD_PAYLOAD_BLOCKING_TIMEOUT) // block until processBlock()
+      await monitor.wait(this.ADD_PAYLOAD_BLOCKING_TIMEOUT); // block until processBlock()
       return txHash;
-    // } catch (e) {
-    //   this.log.error(e)
-    //   return null;
-    // }
   }
 
   /**
@@ -259,77 +246,89 @@ export class ValidatorNode implements StorageContractListener {
     this.blockMonitors = new Map<string, WaitNotify>();
 
 
-    // populate block
+    // ** populate block
     block.setTs(DateUtil.currentTimeMillis());
-    for (let txObj of block.getTxobjList()) {
-      let vd = new TxValidatorData();
-      vd.setVote(1);
-      txObj.setValidatordata(vd);
-
-      // todo fake attestation as of now (todo remove)
-      let ad = new TxAttestorData();
-      ad.setVote(1);
-      txObj.setAttestordataList([ad, ad]);
-    }
     const tokenObj = this.random.createAttestToken();
     this.log.debug('random token: %o', tokenObj);
     Check.isTrue(tokenObj.attestVector?.length > 0, 'attest vector is empty');
     Check.isTrue(tokenObj.attestVector[0] != null, 'attest vector is empty');
     block.setAttesttoken(BitUtil.stringToBytes(tokenObj.attestToken));
-
-    // collect attestation per each transaction
-    // and signature per block
-    // from every attestor
-    // todo
-    // todo fake attestation as of now (todo remove)
     for (let txObj of block.getTxobjList()) {
-
-      let ad = new TxAttestorData();
-      ad.setVote(1);
-      txObj.setAttestordataList([ad, ad]);
+      let vote = await this.validatorVoteOnTransaction(txObj);
+      txObj.setValidatordata(vote);
     }
-    // todo fake signing as of now
+
+    // ** V signs block
+    // every reply has (attestation per each transaction) and (signature)
+    let blockBytesToSign = block.serializeBinary();
+    this.log.debug('blockBytesToSign %s', BitUtil.bytesToBase16(blockBytesToSign));
+    const ethSig = await EthSig.signBytes(this.wallet, blockBytesToSign);
     let vSign = new Signer();
-    vSign.setSig("AA11");
+    vSign.setSig(ethSig);
+    block.setSignersList([vSign]);
+    let blockSignedByV = block;
+    this.log.debug('built block: %o', blockSignedByV.toObject());
 
-    let aSign1 = new Signer();
-    aSign1.setSig("11");
+    // ** A's attest block
+    // todo [local debug] attestation
+    Check.isTrue(blockSignedByV.getSignersList().length == 1);
+    for (const txObj of blockSignedByV.getTxobjList()) {
+      Check.isTrue(txObj.getAttestordataList().length == 0);
+    }
 
-    let aSign2 = new Signer();
-    aSign1.setSig("22");
+    let blockBytesToAttest = blockSignedByV.serializeBinary();
 
-    block.setSignersList([vSign, aSign1, aSign2]);
+    let attestorReply;
+    try {
+      attestorReply = await this.attestBlock(blockBytesToAttest);
+    } catch (e) {
+      this.log.error('failed to attest', e);
+    }
+
+    // ** V checks attestation
+    // make a block copy; and fill it with the reply
+    // all the attestorData + signatures come only from the single source
+    // the only purpose is to check that A signed the data correctly
+    let tmpBlock = Block.deserializeBinary(blockSignedByV.serializeBinary());
+    // tx0 -> attest0, ...
+    // is restructured into
+    // block.txObj[0].tx -> attest0, ...
+    for(let txIndex = 0; txIndex < tmpBlock.getTxobjList().length; txIndex++) {
+      let attestDataPerTx = attestorReply.getAttestordataList()[txIndex];
+      tmpBlock.getTxobjList()[txIndex].setAttestordataList([attestDataPerTx]);
+    }
+
+    let aSignatureBytes = attestorReply.getSigner().getSig_asU8();
+    let tmpBlockBytes = tmpBlock.serializeBinary();
+    this.log.debug('recovery pub key from block with hash: %s', EthSig.ethHash(tmpBlockBytes));
+    const blockAttestorNodeId = EthSig.recoverAddressFromMsg(tmpBlockBytes, aSignatureBytes);
+
+    this.log.debug('blockAttestorNodeId %o', blockAttestorNodeId);
+    const validatorInfo = this.valContractState.getValidatorNodesMap().get(blockAttestorNodeId)
+    Check.notNull(validatorInfo, `Validator url is empty for node: ${blockAttestorNodeId}`)
+    // todo add additional check that this was a valid attestor from the array of attestors
+
+    let blockSignedByVA = blockSignedByV;
+    // **V merges A's attestation
+    for(let txIndex = 0; txIndex < tmpBlock.getTxobjList().length; txIndex++) {
+      let attestDataPerTx = attestorReply.getAttestordataList()[txIndex];
+      blockSignedByVA.getTxobjList()[txIndex].setAttestordataList([attestDataPerTx]);
+    }
+    blockSignedByVA.getSignersList().push(attestorReply.getSigner());
+
+    this.log.debug('block after merging attestations: %o',  blockSignedByVA.toObject());
 
     /*
-    // sign every response
-    for (let i = 0; i < block.getTxobjList().length; i++) {
-      const txObj = block.getTxobjList()[i];
-      // TODO START FROM HERE !!!!!!!!!!!!!!!!!!!!!!!
-      const nodeMeta = <NodeMeta>{
-        nodeId: this.nodeId,
-        role: NetworkRole.VALIDATOR,
-        tsMillis: Date.now()
-      }
-      const fisData: FISData = {vote: 'ACCEPT'}
-      const ethSig = await EthSig.create(this.wallet, feedItem, fisData, nodeMeta)
-      const fiSig = new FeedItemSig(fisData, nodeMeta, ethSig)
-      block.responsesSignatures.push([fiSig])
-    }
-    // network status
 
-    const attestCount = 1
-    const safeAttestCountToAvoidDuplicates = attestCount + 5
-    // todo handle if some M amount of nodes refuses to attest!
 
-    // attestor.attestBlock()
-    const attesterArr: string[] = []
+    const attesterArr: string[] = [];
     for (let j = 0; j < tokenObj.attestVector.length; j++) {
       const attesterNodeId = tokenObj.attestVector[j]
       this.log.debug('requesting attestor: %s', attesterNodeId)
       const validatorInfo = this.valContractState.getValidatorNodesMap().get(attesterNodeId)
       Check.notNull(validatorInfo, `Validator url is empty for node: ${attesterNodeId}`)
       const apiClient = new ValidatorClient(validatorInfo.url)
-      const reply = await apiClient.attest(block) // todo make parallel
+      const reply = await apiClient.attest(block) // todo 1) PARALLEL CALLS 2) JSON RPC
       if (reply == null || reply.error != null) {
         this.log.error(
           'attestor %s failed to sign the block, reason: %s',
@@ -343,57 +342,14 @@ export class ValidatorNode implements StorageContractListener {
         this.log.info('fiSignatures: %o', reply.signatures)
       }
       for (let i = 0; i < block.responsesSignatures.length; i++) {
-        const fi = block.responses[i]
-        const fiSig = reply.signatures[i]
-        {
-          // note: double safety check, don't merge incorrect signatures into the message block
-          const valid = EthSig.check(
-            fiSig.signature,
-            fiSig.nodeMeta.nodeId,
-            fi,
-            fiSig.data,
-            fiSig.nodeMeta
-          )
-          if (!valid) {
-            const err = `attester ${attesterNodeId} produced invalid signature for response ${i}`
-            this.log.error('%s %o for %o', err, fiSig, fi)
-            throw new Error(err)
-          }
-          this.log.info(
-            'attester %s produced valid signature for responses[%d]',
-            attesterNodeId,
-            i,
-            fiSig
-          )
-        }
-        block.responsesSignatures[i].push(fiSig)
-      }
-    }
-    this.log.info('messageBlock after signature stage: %j', block)
-
-    // attestor.attestSignatures()
-    const nodeReportsMap = new Map<string, NodeReportSig[]>()
-    for (const nodeId of attesterArr) {
-      const validatorInfo = this.valContractState.getValidatorNodesMap().get(nodeId)
-      const apiClient = new ValidatorClient(validatorInfo.url)
-      const mbSignatures: MessageBlockSignatures = {
-        id: block.id,
-        responsesSignatures: block.responsesSignatures
-      }
-      const asResult: AttestSignaturesResult = await apiClient.attestSignatures(mbSignatures)
-      if (asResult == null) {
-        this.log.error('attestor %s failed to receive block signatures')
-        throw new Error('failed to sign')
-      } else if (asResult.reports?.length > 0) {
-        const nodeId = asResult.reports[0].nodeId
-        if (!nodeReportsMap.has(nodeId)) {
-          nodeReportsMap.set(nodeId, [])
-        }
-        const arr = nodeReportsMap.get(nodeId)
-        arr.push(...asResult.reports)
-        this.log.debug('attestor %s successfully received block signatures and published the block')
+        // todo check signatures
       }
     }*/
+
+
+      // network status
+
+
     // group same reports , take one
     // todo
     // const sortedNodeReports = Coll.sortMapOfArrays(nodeReportsMap, false);
@@ -406,10 +362,10 @@ export class ValidatorNode implements StorageContractListener {
     // call a contract
 
     // 2: deliver
-    await this.publishCollectivelySignedMessageBlock(block);
+    await this.publishCollectivelySignedMessageBlock(blockSignedByVA);
 
     // 3: unblock addPayloadToMemPoolBlocking() requests
-    for (let txObj of block.getTxobjList()) {
+    for (let txObj of blockSignedByVA.getTxobjList()) {
       let tx = txObj.getTx();
       let txHash = BlockUtil.calculateTransactionHashBase16(tx.serializeBinary());
 
@@ -421,10 +377,10 @@ export class ValidatorNode implements StorageContractListener {
         this.log.debug('no monitor found for id %s', txHash);
       }
     }
-    return block
+    return blockSignedByVA
   }
 
-  // sends message block to all connected delivery nodes
+
   public async publishCollectivelySignedMessageBlock(mb: Block) {
     const queue = this.queueInitializer.getQueue(QueueManager.QUEUE_MBLOCK);
     let blockBytes = mb.serializeBinary();
@@ -440,139 +396,95 @@ export class ValidatorNode implements StorageContractListener {
   // ------------------------------ ATTESTOR -----------------------------------------
 
   /**
-   * for every feedItem[i]: check signatures + check conversion results
+   * for every transaction: check v signaturee + check conversion results
    *
-   * @param block message block
-   * @returns a list of new feedItem[i] sinature
+   * @param blockRaw message block as bytes
+   * @returns
    */
-  public async attestBlock(block: Readonly<MessageBlock>): Promise<AttestBlockResult> {
+  public async attestBlock(blockRaw: Uint8Array): Promise<AttestorReply> {
     // basic checks
     const activeValidators = new Set<string>(
       this.valContractState.getActiveValidators().map((ni) => ni.nodeId)
     )
-    const check1 = MessageBlockUtil.checkBlock(block, activeValidators)
+    let block = BlockUtil.parseBlock(blockRaw);
+    const check1 = await BlockUtil.checkBlock(block, activeValidators)
     if (!check1.success) {
-      return {error: check1.err, signatures: null}
+      throw new BlockError(check1.err); //todo reply with error here ?
     }
-    // attest token checks
-    const item0sig0 = block.responsesSignatures[0][0]
-    const blockValidatorNodeId = item0sig0?.nodeMeta.nodeId
+
+    // ** check validator signature,
+    const validatorSignature = block.getSignersList()[0]?.getSig_asU8();
+    Check.notNull(validatorSignature, "validator signature is required");
+    let blockObj = Block.deserializeBinary(blockRaw);
+    blockObj.clearSignersList();
+    let blockBytesNoSigners = blockObj.serializeBinary();
+    const blockValidatorNodeId = EthSig.recoverAddressFromMsg(blockBytesNoSigners, validatorSignature);
+    this.log.debug('blockValidatorNodeId %o', blockValidatorNodeId);
+    const validatorInfo = this.valContractState.getValidatorNodesMap().get(blockValidatorNodeId)
+    Check.notNull(validatorInfo, `Validator url is empty for node: ${blockValidatorNodeId}`)
+    // todo add additional check that this was a valid attestor from the array of attestors
+
+    // ** check attest token
+/*
+    TODO enable it!!!!!!!!!!!!!!
     if (
       !this.random.checkAttestToken(
-        block.attestToken,
+        block.getAttesttoken_asB64(),
         blockValidatorNodeId,
         this.valContractState.nodeId
       )
     ) {
       this.log.error('block attest token is invalid')
-      return {error: 'block attest token is invalid', signatures: null}
-    }
-    // conversion checks
-    const sigs: FeedItemSig[] = []
-    for (let i = 0; i < block.responses.length; i++) {
-      const payloadItem = block.requests[i]
-      const feedItem = block.responses[i]
-      this.log.debug('attestBlock() processing payloadItem %s', payloadItem.id)
-      // check content
-      const feedItemNew = await this.converterService.addExternalPayload(payloadItem)
-      const fiHash = ObjectHasher.hashToSha256IgnoreRecipientsResolved(feedItem)
-      const fiHashNew = ObjectHasher.hashToSha256IgnoreRecipientsResolved(feedItemNew)
-      if (fiHashNew != fiHash) {
-        this.log.error(
-          `item %d feedItemNew: %j \n differs from feedItem: %j `,
-          i,
-          feedItemNew,
-          feedItem
-        )
-        return null
-      }
-      // fuzzy check subscribers
-      const cmpSubscribers = this.compareSubscribersDroppingLatestIsAllowed(feedItem, feedItemNew)
-      if (!cmpSubscribers.subscribersAreEqual) {
-        return {error: cmpSubscribers.error, signatures: null}
-      }
-      // sign
-      const nodeMeta = <NodeMeta>{
-        nodeId: this.nodeId,
-        role: NetworkRole.ATTESTER,
-        tsMillis: Date.now()
-      }
-      const fisData: FISData = {
-        vote: 'ACCEPT',
-        recipientsMissing: cmpSubscribers.comparisonResult
-      }
-      const ethSig = await EthSig.create(this.wallet, feedItem, fisData, nodeMeta)
-      const fiSig = new FeedItemSig(fisData, nodeMeta, ethSig)
+      throw new BlockError('block attest token is invalid');
+    }*/
 
-      sigs.push(fiSig)
+    // ** vote on every transaction; put a signature;
+    // fill a temp object which contains only [votes] + [sig] to reduce the network usage
+    Check.isTrue(block.getSignersList().length == 1);
+    for (const txObj of block.getTxobjList()) {
+      Check.isTrue(txObj.getAttestordataList().length == 0);
     }
-    // cache block in redis
-    const key = 'node' + this.nodeId + 'blockId' + block.id
-    await this.redisCli.getClient().set(key, JSON.stringify(block))
-    const expirationInSeconds = 60
-    await this.redisCli.getClient().expire(key, expirationInSeconds)
-    return {error: null, signatures: sigs}
+    let ar = new AttestorReply();
+    for (let txObj of block.getTxobjList()) {
+      let vote = await this.attestorVoteOnTransaction(txObj);
+      ar.addAttestordata(vote);
+      txObj.setAttestordataList([vote]); // block:  only my vote per transaction
+    }
+    let blockBytes = block.serializeBinary();
+    this.log.debug('signing block with hash: %s', EthSig.ethHash(blockBytes));
+    const ethSig = await EthSig.signBytes(this.wallet, blockBytes); // block: sign bytes
+    let signer = new Signer();
+    signer.setSig(ethSig);
+    ar.setSigner(signer);
+
+    return ar;
   }
 
-  /**
-   * Perform a comparison of 2 feedItems, fuzzy-checking their subscribers
-   * Attester can drop ONLY fresh subscribers, and reply with RecipientsMissing field.
-   *
-   * @param itemV calculated by validator
-   * @param itemA calculated by attester
-   * @private
-   */
-  private compareSubscribersDroppingLatestIsAllowed(
-    itemV: FeedItem,
-    itemA: FeedItem
-  ): { subscribersAreEqual: boolean; comparisonResult?: RecipientsMissing; error?: string } {
-    const dbgPrefix = 'compareSubscribersDroppingLatestIsAllowed(): '
-    this.log.debug('%s comparing %o with %o', dbgPrefix, itemA, itemV)
-    const FRESH_SUBSCRIBER_THRESHOLD_MINUTES = 5
-    // V = recipient (subsciber) found in Validator block, A = in Attester
-    const recipientsV = itemV.header.recipientsResolved
-    const recipientsA = itemA.header.recipientsResolved
-    const recipientsAMap = Coll.arrayToMap(recipientsA, 'addr')
-    const recipientsToRemove: RecipientsMissing = new RecipientsMissing()
-    recipientsToRemove.sid = itemV.payload.data.sid
-    const now = DateUtil.currentTimeSeconds()
-    // check V subscribers against A subscribers
-    // every V subscriber should be in A (we can ignore fresh records)
-    for (const recipientV of recipientsV) {
-      const recipientA = recipientsAMap.get(recipientV.addr)
-      if (recipientA != null) {
-        this.log.debug('%s %s exists in V,A', dbgPrefix, recipientA)
-        recipientsAMap.delete(recipientV.addr)
-        // A knows this address, don't do anything
-        continue
-      }
-      const deltaInMinutes = (now - recipientV.ts) / 60
-      const isFreshSubscriber = deltaInMinutes < FRESH_SUBSCRIBER_THRESHOLD_MINUTES
-      if (!isFreshSubscriber) {
-        const errMsg = `${recipientV.addr} (${deltaInMinutes}mins) exists in V, missing in A`
-        this.log.error('%s %s', dbgPrefix, errMsg)
-        return {subscribersAreEqual: false, error: errMsg}
-      }
-      // V has a subscriber, while A doesn't
-      // we allow to ignore this if this subscriber is a 'fresh' one
-      this.log.debug('%s is a fresh subscriber only in A', dbgPrefix, recipientA)
-      const recipientMissing: RecipientMissing = {addr: recipientV.addr}
-      recipientsToRemove.recipients.push(recipientMissing)
+  // I approve every valid transaciton (as of now)
+  private async validatorVoteOnTransaction(txObj: TransactionObj): Promise<TxValidatorData> {
+    let result = new TxValidatorData();
+    // no additional checks are needed - since we're checking transaction while adding to block
+    result.setVote(Vote.ACCEPTED);
+    return result;
+  }
+
+  // I approve every valid transaciton (as of now)
+  private async attestorVoteOnTransaction(txObj: TransactionObj): Promise<TxAttestorData> {
+    let result = new TxAttestorData();
+
+    let txCheck = await BlockUtil.checkGenericTransaction(txObj.getTx());
+    if (!txCheck.success) {
+      result.setVote(Vote.REJECTED);
+      return result;
     }
-    // check A subscribers against V subscribers
-    // every A subscriber should be in V (we can ignore fresh records)
-    for (const recipientA of recipientsAMap.values()) {
-      const deltaInMinutes = (now - recipientA.ts) / 60
-      const isFreshSubscriber = deltaInMinutes < FRESH_SUBSCRIBER_THRESHOLD_MINUTES
-      if (!isFreshSubscriber) {
-        const errMsg = `${recipientA.addr} (${deltaInMinutes}mins) exists in A, missing in V`
-        this.log.error('%s %s', dbgPrefix, errMsg)
-        return {subscribersAreEqual: false, error: errMsg}
-      }
+
+    let payloadCheck = BlockUtil.checkTransactionPayload(txObj.getTx());
+    if (!txCheck.success) {
+      result.setVote(Vote.REJECTED);
+      return result;
     }
-    const result = {subscribersAreEqual: true, comparisonResult: recipientsToRemove}
-    this.log.debug('%s result %s', dbgPrefix, result)
-    return result
+    result.setVote(Vote.ACCEPTED);
+    return result;
   }
 
   /**

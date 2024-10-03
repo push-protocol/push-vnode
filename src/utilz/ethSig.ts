@@ -4,6 +4,9 @@ import { ObjectHasher } from './objectHasher'
 import {recoverAddress} from "@ethersproject/transactions";
 import {hashMessage} from "@ethersproject/hash";
 import {BitUtil} from "./bitUtil";
+import {Check} from "./check";
+import {Logger} from "winston";
+import {WinstonUtil} from "./winstonUtil";
 
 /**
  * Utitily class that allows
@@ -13,6 +16,8 @@ import {BitUtil} from "./bitUtil";
  * Ignores 'signature' properties
  */
 export class EthSig {
+  public static log: Logger = WinstonUtil.newLog(EthSig);
+
   // sign object
   public static async create(wallet: Wallet, ...objectsToHash: any[]): Promise<string> {
     const ethMessage = ObjectHasher.hashToSha256IgnoreSig(objectsToHash)
@@ -82,14 +87,27 @@ export class EthSig {
     }
     return true
   }
+
   // 0xAAAA == eip155:1:0xAAAAA
-  public static recoverAddress(message:Uint8Array, signature:Uint8Array):string {
+  public static recoverAddressFromMsg(message:Uint8Array, signature:Uint8Array):string {
     return recoverAddress(hashMessage(message), signature)
+  }
+
+  public static recoverAddress(hash:Uint8Array, signature:Uint8Array):string {
+    return recoverAddress(hash, signature)
+  }
+
+  public static ethHash(message: Uint8Array) {
+    return hashMessage(message);
   }
 
   public static async signBytes(wallet: Wallet, bytes: Uint8Array): Promise<Uint8Array> {
     const sig = await wallet.signMessage(bytes);
-    return BitUtil.base16ToBytes(sig);
+    Check.isTrue(sig.startsWith('0x'));
+    let sigNoPrefix = sig.slice(2);
+    let result = BitUtil.base16ToBytes(sigNoPrefix);
+    Check.isTrue(result != null && result.length > 0);
+    return result;
   }
 }
 

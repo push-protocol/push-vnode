@@ -5,6 +5,13 @@ describe('test bitUtil.xor', () => {
     it('test1', test1);
     it('testEmptyCase', testEmptyCase);
     it('testBase64', testBase64);
+    it('testParse', () => {
+        let arr = BitUtil.base16ToBytes("0x34042057163d3aebcfaa352fa1f935637fa57450c6952285e03b0589b8b7d8cd7c69fcc954109bfded37738e3fda295fe4c89875df74872eb57cb3442607bde31c");
+        console.log(arr);
+        assert.isTrue(arr.length === 65);
+        assert.isTrue(arr[0]==52);
+        assert.isTrue(arr[64]==28);
+    })
 })
 
 function testBase64() {
