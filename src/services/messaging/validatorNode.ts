@@ -267,10 +267,12 @@ export class ValidatorNode implements StorageContractListener {
     }
 
     let blockBytesToAttest = blockSignedByV.serializeBinary();
-
+    this.log.debug('sending block for attestation: %s', BitUtil.bytesToBase16(blockBytesToAttest));
     let attestorReply;
     try {
-      attestorReply = await this.attestBlock(blockBytesToAttest);
+      let cli = new ValidatorClient("http://localhost:4001");
+      attestorReply = await cli.v_attestBlock(blockBytesToAttest);
+      // attestorReply = await this.attestBlock(blockBytesToAttest);
     } catch (e) {
       this.log.error('failed to attest', e);
     }
@@ -336,20 +338,8 @@ export class ValidatorNode implements StorageContractListener {
       }
     }*/
 
-
-      // network status
-
-
-    // group same reports , take one
-    // todo
-    // const sortedNodeReports = Coll.sortMapOfArrays(nodeReportsMap, false);
-    // if(sortedNodeReports.size > 0) {
-    //   let firstEntry:[string, NodeReportSig[]] = sortedNodeReports.entries().next().value;
-    //   this.log.debug('processing entry', firstEntry);
-    //   let [key, reports] = firstEntry;
-    //
-    // }
-    // call a contract
+    // todo call every A with all signatures, collect replies
+    // todo call a contract for report or slash
 
     // 2: deliver
     await this.publishCollectivelySignedMessageBlock(blockSignedByVA);

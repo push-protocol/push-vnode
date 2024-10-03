@@ -6,18 +6,24 @@ import { MessageBlock, MessageBlockSignatures } from '../messaging-common/messag
 import { Logger } from 'winston'
 import { WinstonUtil } from '../../utilz/winstonUtil'
 import { AttestBlockResult, AttestSignaturesResult } from './validatorNode'
+import {AttestorReply} from "../../generated/push/block_pb";
+import {BitUtil} from "../../utilz/bitUtil";
+import {UrlUtil} from "../../utilz/urlUtil";
 
 /*
 External validator/attester api.
 */
 export class ValidatorClient {
   public log: Logger = WinstonUtil.newLog(ValidatorClient)
-  baseUri: string
-  timeout: number = 500000
+  baseUri: string;
+  baseRpcUri : string;
+  timeout: number = 500000;
+  requestCounter: number = 1;
 
   constructor(baseUri: string) {
-    this.baseUri = baseUri + '/api/v1'
-    this.log.level = 'error'
+    this.baseUri = UrlUtil.append(baseUri, '/api/v1');
+    this.baseRpcUri = UrlUtil.append(baseUri, '/api/v1/rpc');
+    this.log.level = 'error';
   }
 
   async addMessageAsync(data: AddPayloadRequest): Promise<boolean> {
@@ -56,15 +62,29 @@ export class ValidatorClient {
     return resp.data
   }
 
-  async attest(block: MessageBlock): Promise<AttestBlockResult | null> {
-    const url = `${this.baseUri}/messaging/attest`
-    const resp = await axios.post(url, block, { timeout: this.timeout })
+
+  public async v_attestBlock(blockRaw: Uint8Array): Promise<AttestorReply | null> {
+    const url = this.baseRpcUri;
+    const requestId = this.requestCounter++;
+    const req =
+      {
+        "jsonrpc": "2.0",
+        "method": "v_attestBlock",
+        "params": [`${BitUtil.bytesToBase16(blockRaw)}`],
+        "id": requestId
+      }
+    const resp = await axios.post(url, req, {timeout: this.timeout})
     if (resp.status != 200) {
       this.log.debug(`error status: ${resp.status} data: ${resp.data}`)
       return null
     }
-    this.log.debug('attest', url, resp.status, resp.data)
-    return resp.data
+    this.log.debug('attest %s returned %s, data: %s', url, resp.status, resp.data)
+    let resultField = resp.data?.result;
+    if (resultField == null) {
+      return null;
+    }
+    let ar = AttestorReply.deserializeBinary(BitUtil.base16ToBytes(resultField));
+    return ar;
   }
 
   async attestSignatures(blockSig: MessageBlockSignatures): Promise<AttestSignaturesResult> {

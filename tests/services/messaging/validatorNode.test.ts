@@ -5,6 +5,9 @@ import StrUtil from '../../../src/utilz/strUtil'
 import { AddPayloadRequest } from '../../../src/services/messaging/msgConverterService'
 import { MessageBlock, NetworkRole } from '../../../src/services/messaging-common/messageBlock'
 
+// todo delete or convert to protobuf
+
+
 // vars are defined at the top level for clean formatting
 
 const payload1 = <AddPayloadRequest>{
