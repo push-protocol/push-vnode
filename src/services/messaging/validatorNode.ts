@@ -70,15 +70,6 @@ export class ValidatorNode implements StorageContractListener {
   @Inject()
   private storageContractState: StorageContractState
 
-  @Inject()
-  private deliveryService: MsgDeliveryService
-
-  @Inject()
-  private converterService: MsgConverterService
-
-  @Inject()
-  private subscribers: Subscribers
-
   @Inject((type) => ValidatorRandom)
   private random: ValidatorRandom
 
@@ -202,7 +193,6 @@ export class ValidatorNode implements StorageContractListener {
     this.totalTransactionBytes += tx.serializeBinary().length;
     this.log.debug(`block contains %d transacitons, totalling as %d bytes`,
       this.currentBlock.getTxobjList().length, this.totalTransactionBytes);
-    // todo handle bad conversions
     return true
   }
 
@@ -377,7 +367,7 @@ export class ValidatorNode implements StorageContractListener {
         this.log.debug('no monitor found for id %s', txHash);
       }
     }
-    return blockSignedByVA
+    return blockSignedByVA;
   }
 
 
@@ -391,6 +381,14 @@ export class ValidatorNode implements StorageContractListener {
       object_hash: blockHashAsBase16
     });
     this.log.debug(`published message block ${blockHashAsBase16} success: ${insertResult}`)
+  }
+
+  // I approve every valid transaciton (as of now)
+  private async validatorVoteOnTransaction(txObj: TransactionObj): Promise<TxValidatorData> {
+    let result = new TxValidatorData();
+    // no additional checks are needed - since we're checking transaction while adding to block
+    result.setVote(Vote.ACCEPTED);
+    return result;
   }
 
   // ------------------------------ ATTESTOR -----------------------------------------
@@ -461,14 +459,6 @@ export class ValidatorNode implements StorageContractListener {
   }
 
   // I approve every valid transaciton (as of now)
-  private async validatorVoteOnTransaction(txObj: TransactionObj): Promise<TxValidatorData> {
-    let result = new TxValidatorData();
-    // no additional checks are needed - since we're checking transaction while adding to block
-    result.setVote(Vote.ACCEPTED);
-    return result;
-  }
-
-  // I approve every valid transaciton (as of now)
   private async attestorVoteOnTransaction(txObj: TransactionObj): Promise<TxAttestorData> {
     let result = new TxAttestorData();
 
@@ -488,6 +478,7 @@ export class ValidatorNode implements StorageContractListener {
   }
 
   /**
+   * todo migrate to jsonrpc/protobuf block logic
    * Simply receive all signatures from Validator,
    * after the block is already assembled
    * and signed by every party
@@ -531,6 +522,7 @@ export class ValidatorNode implements StorageContractListener {
   }
 
   /*
+    todo migrate to jsonrpc/protobuf block logic
     Count nodes who accept/decline that feedItem conversion
     Find which side is the majority
     If (this node decision) matches (majority) -> produce a complaint and sign it with the node private key
@@ -617,6 +609,7 @@ export class ValidatorNode implements StorageContractListener {
   ): Promise<void> {
   }
 
+  // todo migrate to new storage nodes
   public async getRecord(nsName: string, nsIndex: string, dt: string, key: string): Promise<any> {
     this.log.debug(`getRecord() nsName=${nsName}, nsIndex=${nsIndex}, dt=${dt}, key=${key}`)
     // const shardId = DbService.calculateShardForNamespaceIndex(nsName, nsIndex);
@@ -665,6 +658,7 @@ export class ValidatorNode implements StorageContractListener {
     return ar
   }
 
+  // todo migrate to new storage nodes
   // @Post('/ns/:nsName/nsidx/:nsIndex/month/:month/list/')
   public async listRecordsByMonth(
     nsName: string,
