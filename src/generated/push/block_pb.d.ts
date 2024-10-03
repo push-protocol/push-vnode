@@ -274,10 +274,31 @@ export namespace Transaction {
   }
 }
 
-export class InitDid extends jspb.Message {
-  getDid(): string;
-  setDid(value: string): void;
+export class WalletToEncDerivedKey extends jspb.Message {
+  getEncderivedprivkey(): string;
+  setEncderivedprivkey(value: string): void;
 
+  getSignature(): string;
+  setSignature(value: string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): WalletToEncDerivedKey.AsObject;
+  static toObject(includeInstance: boolean, msg: WalletToEncDerivedKey): WalletToEncDerivedKey.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: WalletToEncDerivedKey, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): WalletToEncDerivedKey;
+  static deserializeBinaryFromReader(message: WalletToEncDerivedKey, reader: jspb.BinaryReader): WalletToEncDerivedKey;
+}
+
+export namespace WalletToEncDerivedKey {
+  export type AsObject = {
+    encderivedprivkey: string,
+    signature: string,
+  }
+}
+
+export class InitDid extends jspb.Message {
   getMasterpubkey(): string;
   setMasterpubkey(value: string): void;
 
@@ -287,7 +308,7 @@ export class InitDid extends jspb.Message {
   getDerivedpubkey(): string;
   setDerivedpubkey(value: string): void;
 
-  getWallettoencderivedkeyMap(): jspb.Map<string, string>;
+  getWallettoencderivedkeyMap(): jspb.Map<string, WalletToEncDerivedKey>;
   clearWallettoencderivedkeyMap(): void;
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): InitDid.AsObject;
@@ -301,11 +322,10 @@ export class InitDid extends jspb.Message {
 
 export namespace InitDid {
   export type AsObject = {
-    did: string,
     masterpubkey: string,
     derivedkeyindex: number,
     derivedpubkey: string,
-    wallettoencderivedkeyMap: Array<[string, string]>,
+    wallettoencderivedkeyMap: Array<[string, WalletToEncDerivedKey.AsObject]>,
   }
 }
 

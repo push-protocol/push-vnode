@@ -65,11 +65,10 @@ describe('block tests', function () {
 
   it('sample transaction 1', async function () {
     const data = new InitDid();
-    data.setDid('0xAA');
     data.setMasterpubkey('0xBB');
     data.setDerivedkeyindex(1);
     data.setDerivedpubkey('0xCC');
-    data.getWallettoencderivedkeyMap().set('0xAA', '0xBB');
+    data.getWallettoencderivedkeyMap().set('0xAA', {encDerivedPrivKey: '0xDD', signature : '0xEE'});
 
     const t = new Transaction();
     t.setType(0);
@@ -129,11 +128,10 @@ describe('block tests', function () {
     console.log("building ------------------------- ");
     // build transaction data (app-dependent)
     const data = new InitDid();
-    data.setDid('0xAA');
     data.setMasterpubkey('0xBB');
     data.setDerivedkeyindex(1);
     data.setDerivedpubkey('0xCC');
-    data.getWallettoencderivedkeyMap().set('0xAA', '0xBB');
+    data.getWallettoencderivedkeyMap().set('0xAA', {encDerivedPrivKey: '0xDD', signature : '0xEE'});
     console.log("data as json", JSON.stringify(data.toObject()));
 
     // build transaction

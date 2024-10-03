@@ -187,9 +187,6 @@ export class ValidatorNode implements StorageContractListener {
 
     if (tx.getCategory() === 'INIT_DID') {
       let txData = InitDid.deserializeBinary(<any>tx.getData());
-      if (StrUtil.isEmpty(txData.getDid())) {
-        throw new TransactionError(`did missing`);
-      }
       if (StrUtil.isEmpty(txData.getMasterpubkey())) {
         throw new TransactionError(`masterPubKey missing`);
       }
