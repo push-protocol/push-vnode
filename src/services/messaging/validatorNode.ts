@@ -199,8 +199,8 @@ export class ValidatorNode implements StorageContractListener {
       if (txData.getWallettoencderivedkeyMap().size < 1) {
         throw new TransactionError(`encDerivedPrivKey missing`);
       }
-    } else if (tx.getCategory() === 'NOTIFICATION') {
-      // todo checks
+    } else if (tx.getCategory().startsWith("CUSTOM:")) {
+      // skip checks
     } else {
       throw new TransactionError(`unsupported transaction category`);
     }
