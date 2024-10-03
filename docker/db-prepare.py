@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+sql_file_path = 'mysql-init/grant-privileges.sql'
+databases = ['vnode1', 'vnode2', 'vnode3']
 
 import os
 import sys
@@ -16,17 +18,13 @@ with open('.env') as f:
             os.environ[key] = value
             print(f"reading from .env: {key}")
 
-# Path to the SQL file
-sql_file_path = 'mysql-init/grant-privileges.sql'
-
-# Get MYSQL_USER from environment variables
 MYSQL_USER = os.environ.get('DB_USER')
 
 if not MYSQL_USER:
     print("Environment variable DB_USER is not set.")
     sys.exit(1)
 
-databases = ['vnode1', 'vnode2', 'vnode3']
+
 
 lines = []
 
