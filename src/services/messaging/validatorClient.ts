@@ -14,11 +14,11 @@ import {UrlUtil} from "../../utilz/urlUtil";
 External validator/attester api.
 */
 export class ValidatorClient {
-  public log: Logger = WinstonUtil.newLog(ValidatorClient)
+  public log: Logger = WinstonUtil.newLog(ValidatorClient);
   baseUri: string;
   baseRpcUri : string;
   timeout: number = 500000;
-  requestCounter: number = 1;
+  requestCounter: number = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER / 20);
 
   constructor(baseUri: string) {
     this.baseUri = UrlUtil.append(baseUri, '/api/v1');
@@ -27,55 +27,49 @@ export class ValidatorClient {
   }
 
 
-
-  /*
-
-  Tuple<AttestorReply, RpcError> = [ar, err] , where only one of them is null
-
-  so the best way is
-
-  [ar, err] = call();
-  if(err!=null) {
-  handle err
-  }
-  handle happy path
-   */
-  public async v_attestBlock(blockRaw: Uint8Array): Promise<AttestorReply | RpcError> {
+  private async sendRpcRequest<T>(method: string, params: any[], deserializer: (data: string) => T): Promise<Tuple<T, RpcError>> {
     const url = this.baseRpcUri;
     const requestId = this.requestCounter++;
-    const method = "v_attestBlock";
-    const params = [`${BitUtil.bytesToBase16(blockRaw)}`];
-    const req =
-      {
-        "jsonrpc": "2.0",
-        "method": method,
-        "params": params,
-        "id": requestId
-      };
+    const req = {
+      jsonrpc: "2.0",
+      method,
+      params,
+      id: requestId,
+    };
     try {
-      //>> Calling GET /v1/messaging/ping {} with body: {}
-      this.log.debug(`>> Calling RPC GET ${url} (req${requestId}) with body %o`, req);
+      this.log.debug(`>> Calling RPC POST ${url} (req${requestId}) with body %o`, req);
       const resp = await axios.post(url, req, {timeout: this.timeout});
+      this.log.debug(`<< RPC Reply POST ${url} (req${requestId}) code: ${resp.status} with body: %o`, resp.data);
       if (resp.status !== 200) {
-        // << Reply 200 with body: OK
-        this.log.debug(`<< RPC Reply GET ${url} (req${requestId}) code: ${resp.status} with body: %o`, resp?.data);
-        return new RpcError(resp.data?.error?.code ?? resp.status, resp.data?.error?.message ?? 'Call error');
+        return [null, new RpcError(resp.data?.error?.code ?? resp.status, resp.data?.error?.message ?? 'Call error')];
       }
-      this.log.debug(`<< RPC Reply GET ${url} (req${requestId}) code: ${resp.status} with body: %o`, resp?.data);
       const resultField = resp.data?.result;
       if (!resultField) {
-        return new RpcError( -1, 'Missing reply data');
+        return [null, new RpcError(-1, 'Missing reply data')];
       }
-      let reply = AttestorReply.deserializeBinary(BitUtil.base16ToBytes(resultField));
-      return reply;
+      const result = deserializer(resultField);
+      return [result, null];
     } catch (error) {
       this.log.debug(`Request failed: ${error}`);
       if (axios.isAxiosError(error)) {
         const axiosError = error as AxiosError;
-        return new RpcError(axiosError.response?.status ?? -1, axiosError.message);
+        return [null, new RpcError(
+          axiosError.response?.status ?? -1,
+          axiosError.message
+        )];
       }
-      return new RpcError( -1, 'Request failed');
+      return [null, new RpcError(-1, 'Request failed')];
     }
+  }
+
+  public async v_attestBlock(blockRaw: Uint8Array): Promise<Tuple<AttestorReply, RpcError>> {
+    const method = "v_attestBlock";
+    const params = [BitUtil.bytesToBase16(blockRaw)];
+
+    return await this.sendRpcRequest<AttestorReply>(method, params,
+      (data: string): AttestorReply => {
+        return AttestorReply.deserializeBinary(BitUtil.base16ToBytes(data));
+      });
   }
 
   // todo remove

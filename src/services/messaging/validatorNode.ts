@@ -276,8 +276,8 @@ export class ValidatorNode implements StorageContractListener {
       const vi = this.valContractState.getValidatorNodesMap().get(attesterNodeId);
       Check.notNull(vi, `Validator url is empty for node: ${attesterNodeId}`);
       const apiClient = new ValidatorClient(vi.url);
-      const attestorReply = await apiClient.v_attestBlock(blockBytesToAttest); // todo make parallel
-      if (attestorReply instanceof RpcError) {
+      const [attestorReply, attestorErr] = await apiClient.v_attestBlock(blockBytesToAttest); // todo make parallel
+      if (attestorErr != null) {
         this.log.error('attestor %s failed to sign the block, reason: %s', attesterNodeId, attestorReply);
         throw new Error('failed to sign'); // todo remove
       }
@@ -313,7 +313,7 @@ export class ValidatorNode implements StorageContractListener {
       // **V merges A0 attestation into the block
       for (let txIndex = 0; txIndex < tmpBlock.getTxobjList().length; txIndex++) {
         let attestDataPerTx = attestorReply.getAttestordataList()[txIndex];
-        blockSignedByVA.getTxobjList()[txIndex].setAttestordataList([attestDataPerTx]);
+        blockSignedByVA.getTxobjList()[txIndex].getAttestordataList().push(attestDataPerTx);
       }
       blockSignedByVA.getSignersList().push(attestorReply.getSigner());
 
