@@ -274,12 +274,52 @@ export namespace Transaction {
   }
 }
 
-export class WalletToEncDerivedKey extends jspb.Message {
-  getEncderivedprivkey(): string;
-  setEncderivedprivkey(value: string): void;
+export class EncryptedText extends jspb.Message {
+  getCiphertext(): string;
+  setCiphertext(value: string): void;
 
-  getSignature(): string;
-  setSignature(value: string): void;
+  getSalt(): string;
+  setSalt(value: string): void;
+
+  getNonce(): string;
+  setNonce(value: string): void;
+
+  getVersion(): string;
+  setVersion(value: string): void;
+
+  getPrekey(): string;
+  setPrekey(value: string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): EncryptedText.AsObject;
+  static toObject(includeInstance: boolean, msg: EncryptedText): EncryptedText.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: EncryptedText, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): EncryptedText;
+  static deserializeBinaryFromReader(message: EncryptedText, reader: jspb.BinaryReader): EncryptedText;
+}
+
+export namespace EncryptedText {
+  export type AsObject = {
+    ciphertext: string,
+    salt: string,
+    nonce: string,
+    version: string,
+    prekey: string,
+  }
+}
+
+export class WalletToEncDerivedKey extends jspb.Message {
+  hasEncderivedprivkey(): boolean;
+  clearEncderivedprivkey(): void;
+  getEncderivedprivkey(): EncryptedText | undefined;
+  setEncderivedprivkey(value?: EncryptedText): void;
+
+  getSignature(): Uint8Array | string;
+  getSignature_asU8(): Uint8Array;
+  getSignature_asB64(): string;
+  setSignature(value: Uint8Array | string): void;
 
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): WalletToEncDerivedKey.AsObject;
@@ -293,8 +333,8 @@ export class WalletToEncDerivedKey extends jspb.Message {
 
 export namespace WalletToEncDerivedKey {
   export type AsObject = {
-    encderivedprivkey: string,
-    signature: string,
+    encderivedprivkey?: EncryptedText.AsObject,
+    signature: Uint8Array | string,
   }
 }
 
