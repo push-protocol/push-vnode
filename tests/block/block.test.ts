@@ -1,7 +1,9 @@
 // noinspection DuplicatedCode
 
 import 'mocha'
+
 import chai from 'chai'
+
 import {
   Block,
   InitDid,
@@ -11,11 +13,11 @@ import {
   TxAttestorData,
   TxValidatorData
 } from "../../src/generated/push/block_pb";
-import IdUtil from "../../src/utilz/idUtil";
-import {BitUtil} from "../../src/utilz/bitUtil";
-import {HashUtil} from "../../src/utilz/hashUtil";
-import DateUtil from "../../src/utilz/dateUtil";
 import {BlockUtil} from "../../src/services/messaging-common/blockUtil";
+import {BitUtil} from "../../src/utilz/bitUtil";
+import DateUtil from "../../src/utilz/dateUtil";
+import {HashUtil} from "../../src/utilz/hashUtil";
+import IdUtil from "../../src/utilz/idUtil";
 
 const expect = chai.expect;
 
@@ -65,11 +67,19 @@ describe('block tests', function () {
 
   it('sample transaction 1', async function () {
     const data = new InitDid();
-    data.setDid('0xAA');
     data.setMasterpubkey('0xBB');
     data.setDerivedkeyindex(1);
     data.setDerivedpubkey('0xCC');
-    data.getWallettoencderivedkeyMap().set('0xAA', '0xBB');
+    data.getWallettoencderivedkeyMap().set('0xAA', {      
+        encDerivedPrivKey: {
+        ciphertext: 'qwe',
+        salt: 'qaz',
+        nonce: '',
+        version: 'push:v5',
+        preKey: '',
+      },
+      signature: new Uint8Array([1, 2, 3]),
+    });
 
     const t = new Transaction();
     t.setType(0);
@@ -129,11 +139,19 @@ describe('block tests', function () {
     console.log("building ------------------------- ");
     // build transaction data (app-dependent)
     const data = new InitDid();
-    data.setDid('0xAA');
     data.setMasterpubkey('0xBB');
     data.setDerivedkeyindex(1);
     data.setDerivedpubkey('0xCC');
-    data.getWallettoencderivedkeyMap().set('0xAA', '0xBB');
+    data.getWallettoencderivedkeyMap().set('0xAA', {      
+      encDerivedPrivKey: {
+      ciphertext: 'qwe',
+      salt: 'qaz',
+      nonce: '',
+      version: 'push:v5',
+      preKey: '',
+    },
+    signature: new Uint8Array([1, 2, 3]),
+  });
     console.log("data as json", JSON.stringify(data.toObject()));
 
     // build transaction
