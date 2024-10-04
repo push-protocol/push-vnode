@@ -73,6 +73,10 @@ export class BitUtil {
     return Buffer.from(arr).toString('hex');
   }
 
+  public static bytesBufToBase16(buf: Buffer): string {
+    return buf.toString('hex');
+  }
+
   public static base64ToString(base64String:string):string {
     return Buffer.from(base64String, 'base64').toString('binary');
   }

@@ -54,6 +54,7 @@ import {BitUtil} from "../../utilz/bitUtil";
 import {TransactionError} from "./transactionError";
 import {EthUtil} from "../../utilz/EthUtil";
 import {BlockError} from "./blockError";
+import {RpcError} from "./validatorClient";
 
 // todo move read/write qurum to smart contract constants
 // todo joi validate for getRecord
@@ -251,92 +252,77 @@ export class ValidatorNode implements StorageContractListener {
     // ** V signs block
     // every reply has (attestation per each transaction) and (signature)
     let blockBytesToSign = block.serializeBinary();
-    this.log.debug('blockBytesToSign %s', BitUtil.bytesToBase16(blockBytesToSign));
     const ethSig = await EthSig.signBytes(this.wallet, blockBytesToSign);
     let vSign = new Signer();
     vSign.setSig(ethSig);
     block.setSignersList([vSign]);
     let blockSignedByV = block;
-    this.log.debug('built block: %o', blockSignedByV.toObject());
 
-    // ** A's attest block
-    // todo [local debug] attestation
+
+    // ** As perform network attestations
     Check.isTrue(blockSignedByV.getSignersList().length == 1);
     for (const txObj of blockSignedByV.getTxobjList()) {
       Check.isTrue(txObj.getAttestordataList().length == 0);
     }
-
     let blockBytesToAttest = blockSignedByV.serializeBinary();
-    this.log.debug('sending block for attestation: %s', BitUtil.bytesToBase16(blockBytesToAttest));
-    let attestorReply;
-    try {
-      let cli = new ValidatorClient("http://localhost:4001");
-      attestorReply = await cli.v_attestBlock(blockBytesToAttest);
-      // attestorReply = await this.attestBlock(blockBytesToAttest);
-    } catch (e) {
-      this.log.error('failed to attest', e);
-    }
-
-    // ** V checks attestation
-    // make a block copy; and fill it with the reply
-    // all the attestorData + signatures come only from the single source
-    // the only purpose is to check that A signed the data correctly
-    let tmpBlock = Block.deserializeBinary(blockSignedByV.serializeBinary());
-    // tx0 -> attest0, ...
-    // is restructured into
-    // block.txObj[0].tx -> attest0, ...
-    for(let txIndex = 0; txIndex < tmpBlock.getTxobjList().length; txIndex++) {
-      let attestDataPerTx = attestorReply.getAttestordataList()[txIndex];
-      tmpBlock.getTxobjList()[txIndex].setAttestordataList([attestDataPerTx]);
-    }
-
-    let aSignatureBytes = attestorReply.getSigner().getSig_asU8();
-    let tmpBlockBytes = tmpBlock.serializeBinary();
-    this.log.debug('recovery pub key from block with hash: %s', EthSig.ethHash(tmpBlockBytes));
-    const blockAttestorNodeId = EthSig.recoverAddressFromMsg(tmpBlockBytes, aSignatureBytes);
-
-    this.log.debug('blockAttestorNodeId %o', blockAttestorNodeId);
-    const validatorInfo = this.valContractState.getValidatorNodesMap().get(blockAttestorNodeId)
-    Check.notNull(validatorInfo, `Validator url is empty for node: ${blockAttestorNodeId}`)
-    // todo add additional check that this was a valid attestor from the array of attestors
-
-    let blockSignedByVA = blockSignedByV;
-    // **V merges A's attestation
-    for(let txIndex = 0; txIndex < tmpBlock.getTxobjList().length; txIndex++) {
-      let attestDataPerTx = attestorReply.getAttestordataList()[txIndex];
-      blockSignedByVA.getTxobjList()[txIndex].setAttestordataList([attestDataPerTx]);
-    }
-    blockSignedByVA.getSignersList().push(attestorReply.getSigner());
-
-    this.log.debug('block after merging attestations: %o',  blockSignedByVA.toObject());
-
-    /*
-
-
+    this.log.debug('blockSignedByV: %s', BitUtil.bytesToBase16(blockBytesToAttest));
+    this.log.debug('blockSignedByV: %o', blockSignedByV.toObject());
     const attesterArr: string[] = [];
     for (let j = 0; j < tokenObj.attestVector.length; j++) {
-      const attesterNodeId = tokenObj.attestVector[j]
-      this.log.debug('requesting attestor: %s', attesterNodeId)
-      const validatorInfo = this.valContractState.getValidatorNodesMap().get(attesterNodeId)
-      Check.notNull(validatorInfo, `Validator url is empty for node: ${attesterNodeId}`)
-      const apiClient = new ValidatorClient(validatorInfo.url)
-      const reply = await apiClient.attest(block) // todo 1) PARALLEL CALLS 2) JSON RPC
-      if (reply == null || reply.error != null) {
-        this.log.error(
-          'attestor %s failed to sign the block, reason: %s',
-          attesterNodeId,
-          reply?.error
-        )
-        throw new Error('failed to sign') // todo remove
-      } else {
-        attesterArr.push(attesterNodeId)
-        this.log.error('attestor %s successfully signed the block', attesterNodeId)
-        this.log.info('fiSignatures: %o', reply.signatures)
+
+      // ** A0 attests the block
+      const attesterNodeId = tokenObj.attestVector[j];
+      this.log.debug('requesting attestor: %s [%d / %d]', attesterNodeId, j+1, tokenObj.attestVector.length);
+      const vi = this.valContractState.getValidatorNodesMap().get(attesterNodeId);
+      Check.notNull(vi, `Validator url is empty for node: ${attesterNodeId}`);
+      const apiClient = new ValidatorClient(vi.url);
+      const attestorReply = await apiClient.v_attestBlock(blockBytesToAttest); // todo make parallel
+      if (attestorReply instanceof RpcError) {
+        this.log.error('attestor %s failed to sign the block, reason: %s', attesterNodeId, attestorReply);
+        throw new Error('failed to sign'); // todo remove
       }
-      for (let i = 0; i < block.responsesSignatures.length; i++) {
-        // todo check signatures
+      attesterArr.push(attesterNodeId);
+      this.log.debug('attestor %s successfully signed the block, %o',
+        attesterNodeId, attestorReply != null ? attestorReply.toObject() : "");
+
+      // ** V checks A0 attestation
+      // make a block copy; and fill it with the reply
+      // all the attestorData + signatures come only from the single source
+      // the only purpose is to check that A signed the data correctly
+      let tmpBlock = Block.deserializeBinary(blockBytesToAttest); // todo move outside of 'for'
+      // tx0 -> attest0, ...
+      // is restructured into
+      // block.txObj[0].tx -> attest0, ...
+      for (let txIndex = 0; txIndex < tmpBlock.getTxobjList().length; txIndex++) {
+        let attestDataPerTx = attestorReply.getAttestordataList()[txIndex];
+        tmpBlock.getTxobjList()[txIndex].setAttestordataList([attestDataPerTx]);
       }
-    }*/
+
+      let aSignatureBytes = attestorReply.getSigner().getSig_asU8();
+      let tmpBlockBytes = tmpBlock.serializeBinary();
+      this.log.debug('recovery pub key from block with hash: %s', EthSig.ethHash(tmpBlockBytes));
+      const blockAttestorNodeId = EthSig.recoverAddressFromMsg(tmpBlockBytes, aSignatureBytes);
+
+      this.log.debug('blockAttestorNodeId %o', blockAttestorNodeId);
+      const validatorInfo = this.valContractState.getValidatorNodesMap().get(blockAttestorNodeId)
+      Check.notNull(validatorInfo, `Validator url is empty for node: ${blockAttestorNodeId}`)
+      // todo add additional check that this was a valid attestor from the array of attestors
+
+      let blockSignedByVA = blockSignedByV;
+
+      // **V merges A0 attestation into the block
+      for (let txIndex = 0; txIndex < tmpBlock.getTxobjList().length; txIndex++) {
+        let attestDataPerTx = attestorReply.getAttestordataList()[txIndex];
+        blockSignedByVA.getTxobjList()[txIndex].setAttestordataList([attestDataPerTx]);
+      }
+      blockSignedByVA.getSignersList().push(attestorReply.getSigner());
+
+      this.log.debug('block after merging attestation: %o', blockSignedByVA.toObject());
+    }
+    let blockSignedByVA = blockSignedByV;
+    this.log.debug('block after merging attestations: %o', blockSignedByVA.toObject());
+    // --------------------------------------------------------
+
 
     // todo call every A with all signatures, collect replies
     // todo call a contract for report or slash

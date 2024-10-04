@@ -384,12 +384,12 @@ export class ValidatorRandom {
       .update(StrUtil.getOrDefault(seed, ''))
       .update(buf)
       .digest()
-    log.info(`buffer %o , hash (512bit) %o, nodeArr: %o`, buf.toString('hex'), hash, nodeArr)
+    log.info(`buffer %s , hash (512bit) %o, nodeArr: %o`, BitUtil.bytesBufToBase16(buf), hash, nodeArr)
     for (let i = 0; i < hashSizeInBytes && resultSet.size < randomNodesRequired; i++) {
       const random8bits = hash.readUInt8(i)
       const randomNodeIndex = nodeArr.length == 0 ? 0 : random8bits % nodeArr.length
       const randomNodeId = nodeArr[randomNodeIndex]
-      log.info(
+      log.debug(
         `random8bits %s, randomNodeIndex %s, randomNodeId %s, nodeArr: %o, resultSet: %o`,
         random8bits,
         randomNodeIndex,
