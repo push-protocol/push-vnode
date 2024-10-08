@@ -102,7 +102,7 @@ describe('block tests', function () {
     t.setSalt(BitUtil.base64ToBytes('cdYO7MAPTMisiYeEp+65jw=='));
     t.setApitoken(BitUtil.base64ToBytes('eyJub2RlcyI6W3sibm9kZUlkIjoiMHg4ZTEyZEUxMkMzNWVBQmYzNWI1NmIwNEU1M0M0RTQ2OGU0NjcyN0U4IiwidHNNaWxsaXMiOjE3MjYxNDg2NzAwMjQsInJhbmRvbUhleCI6ImIyNjdjYTFlZmFiY2Y4YmQyMGNiN2NhYzY1YzBjNTQyOGVlZmRmMzgiLCJwaW5nUmVzdWx0cyI6W3sibm9kZUlkIjoiMHhmREFFYWY3YWZDRmJiNGU0ZDE2REM2NmJEMjAzOWZkNjAwNENGY2U4IiwidHNNaWxsaXMiOjE3MjYxNDg2NzAwMjAsInN0YXR1cyI6MX0seyJub2RlSWQiOiIweDk4RjlEOTEwQWVmOUIzQjlBNDUxMzdhZjFDQTc2NzVlRDkwYTUzNTUiLCJ0c01pbGxpcyI6MTcyNjE0ODY3MDAxNiwic3RhdHVzIjoxfV0sInNpZ25hdHVyZSI6IjB4NDZjMWQyNzFmYzg2NzQ0NTkxODVhMmFiZWNmNzc3NjI5YTAxMzcwZjQzZjA3ZjQ5ZWI0MTYyNWFlZWVmMWQwMzVkMTlmZDJhZDJkNzIyMjcxYjQxZjNlNmNiMWU3NTAzODQ3MDZhYjgzNjY0NzY4N2U1OTRjYmNkYmNmMjFhZWYxYiJ9LHsibm9kZUlkIjoiMHg5OEY5RDkxMEFlZjlCM0I5QTQ1MTM3YWYxQ0E3Njc1ZUQ5MGE1MzU1IiwidHNNaWxsaXMiOjE3MjYxNDg2NzAwMjksInJhbmRvbUhleCI6ImMxZmIzOWE4MjJiOWQ4MmFkMmQ3NDczMjBiYWU4NjQwNjQ4ZjI1YTciLCJwaW5nUmVzdWx0cyI6W3sibm9kZUlkIjoiMHg4ZTEyZEUxMkMzNWVBQmYzNWI1NmIwNEU1M0M0RTQ2OGU0NjcyN0U4IiwidHNNaWxsaXMiOjE3MjYxNDg2NzAwMTcsInN0YXR1cyI6MX0seyJub2RlSWQiOiIweGZEQUVhZjdhZkNGYmI0ZTRkMTZEQzY2YkQyMDM5ZmQ2MDA0Q0ZjZTgiLCJ0c01pbGxpcyI6MTcyNjE0ODY3MDAyNCwic3RhdHVzIjoxfV0sInNpZ25hdHVyZSI6IjB4ZmY3NzZlYzk3NjBiNWRhNDcyODIxMDM4YmRmMWRjY2VhYjMxMGZlMTIwMDdiYjNmNDNmNjRiNjQ1NTAyZGY0ZjM3MzIyNDMwZmUzMzZlNTE2YTVjNmE3NDYwODU0ZTQwMzBiNTYzNDQ2M2RjOGEwZGExNThhMWIwYzc4YTI2MGUxYiJ9LHsibm9kZUlkIjoiMHhmREFFYWY3YWZDRmJiNGU0ZDE2REM2NmJEMjAzOWZkNjAwNENGY2U4IiwidHNNaWxsaXMiOjE3MjYxNDg2NzAwMzUsInJhbmRvbUhleCI6ImI5MzFlYzQxYjM5N2NiMWRlYjQ5ZTY1N2Q5ZDdiNzk4N2QxY2E3NTAiLCJwaW5nUmVzdWx0cyI6W3sibm9kZUlkIjoiMHg4ZTEyZEUxMkMzNWVBQmYzNWI1NmIwNEU1M0M0RTQ2OGU0NjcyN0U4IiwidHNNaWxsaXMiOjE3MjYxNDg2NzAwMTUsInN0YXR1cyI6MX0seyJub2RlSWQiOiIweDk4RjlEOTEwQWVmOUIzQjlBNDUxMzdhZjFDQTc2NzVlRDkwYTUzNTUiLCJ0c01pbGxpcyI6MTcyNjE0ODY3MDAyNSwic3RhdHVzIjoxfV0sInNpZ25hdHVyZSI6IjB4N2M5ZDQ4MjljNmFhYTY1NTlkZWQ4MzI0M2I2ZThkOGI2ZWIzMzZkOTA5MmEyYTBkZjI1MzFkYzNjZDllMmIzNTU3NWJkYjhiYTExNDIyYzJmYzRiYjY3N2UwZDljZTViZjQ0ZDU0ZmU1ODcyZjllMDc2YWMzOWQ1MDFiNzQ5NDMxYyJ9XX0=')); // fake token
     t.setFee("0"); // tbd
-    // todo fake signature ; grab real wallet
+    // todo fake signature ; grab real eth wallet here
     t.setSignature(BitUtil.base64ToBytes('JZKvMMYqxzAl43gm1golDnxPRMNpfShoMHJVvP9SpLYemj+gFXYevYmz2dHOPkp61GkcUlnlb4vi55pIah6wGxs='));
 
     printObj('new Transaction', t);
@@ -115,7 +115,7 @@ describe('block tests', function () {
       const vd1 = new TxValidatorData();
       vd1.setVote(1);
 
-      // block
+      // block (BE VERY CAREFUL WITH THIS TEST)
       const block1 = new Block();
       block1.setTs(1728313380013);
       block1.setTxobjList([to1]);
@@ -126,8 +126,18 @@ describe('block tests', function () {
       let ar1 = await BlockUtil.signBlockAsAttestor(getNodeWallet(1), block1);
       let ar2 = await BlockUtil.signBlockAsAttestor(getNodeWallet(2), block1);
 
-      await BlockUtil.applySignatureAsValidator(getNodeWallet(0), ar1, block1);
-      await BlockUtil.applySignatureAsValidator(getNodeWallet(0), ar2, block1);
+      let addr1 = await BlockUtil.recoverPatchAddress(getNodeWallet(0), block1, ar1);
+      expect(addr1).to.equal(getNodeWallet(1).address);
+
+      let addr2 = await BlockUtil.recoverPatchAddress(getNodeWallet(0), block1, ar2);
+      expect(addr2).to.equal(getNodeWallet(2).address);
+
+      await BlockUtil.appendPatchAsValidator(getNodeWallet(0), block1, ar1);
+      await BlockUtil.appendPatchAsValidator(getNodeWallet(0), block1, ar2);
+
+      expect(await BlockUtil.recoverSignerAddress(block1, 0)).to.be.equal(getNodeWallet(0).address);
+      expect(await BlockUtil.recoverSignerAddress(block1, 1)).to.be.equal(getNodeWallet(1).address);
+      expect(await BlockUtil.recoverSignerAddress(block1, 2)).to.be.equal(getNodeWallet(2).address);
 
       printObj('new Block', block1);
       printObj('old Block', oldBlock);

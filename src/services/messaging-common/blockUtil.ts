@@ -246,12 +246,63 @@ export class BlockUtil {
   }
 
   // for tests
-  public static async applySignatureAsValidator(wallet: Wallet, ar: AttestBlockResult, blockSignedByVA: Block): Promise<void> {
+  public static async appendPatchAsValidator(wallet: Wallet, blockSignedByVA: Block, ar: AttestBlockResult): Promise<void> {
     for (let txIndex = 0; txIndex < blockSignedByVA.getTxobjList().length; txIndex++) {
       let attestDataPerTx = ar.getAttestordataList()[txIndex];
       blockSignedByVA.getTxobjList()[txIndex].getAttestordataList().push(attestDataPerTx);
     }
     blockSignedByVA.getSignersList().push(ar.getSigner());
+  }
+
+  public static async recoverPatchAddress(wallet: Wallet, blockSignedByVA: Readonly<Block>, ar: AttestBlockResult): Promise<string> {
+    let tmpBlock = Block.deserializeBinary(blockSignedByVA.serializeBinary());
+    // tx0 -> attest0, ...
+    // is restructured into
+    // block.txObj[0].tx -> attest0, ...
+    for (let txIndex = 0; txIndex < tmpBlock.getTxobjList().length; txIndex++) {
+      let attestDataPerTx = ar.getAttestordataList()[txIndex];
+      tmpBlock.getTxobjList()[txIndex].setAttestordataList([attestDataPerTx]);
+    }
+
+    let aSignatureBytes = ar.getSigner().getSig_asU8();
+    let tmpBlockBytes = tmpBlock.serializeBinary();
+    this.log.debug('recovery pub key from block with hash: %s', EthSig.ethHash(tmpBlockBytes));
+    const attestorNodeId = EthSig.recoverAddressFromMsg(tmpBlockBytes, aSignatureBytes);
+    this.log.debug('attestorNodeId %o', attestorNodeId);
+    return attestorNodeId;
+  }
+
+  public static async recoverSignerAddress(blockSignedByVA: Readonly<Block>, signerIndex: number): Promise<string> {
+    Check.isTrue(signerIndex >= 0 && signerIndex < blockSignedByVA.getSignersList().length, 'signer out of index');
+    if (signerIndex == 0) {
+      // validator
+      const validatorSignature = blockSignedByVA.getSignersList()[0]?.getSig_asU8();
+      Check.notNull(validatorSignature, "validator signature is required");
+      let tmpBlock = Block.deserializeBinary(blockSignedByVA.serializeBinary());
+      tmpBlock.clearSignersList();
+      for (const txObj of tmpBlock.getTxobjList()) {
+        txObj.clearAttestordataList();
+      }
+      let blockBytesNoSigners = tmpBlock.serializeBinary();
+      const blockValidatorNodeId = EthSig.recoverAddressFromMsg(blockBytesNoSigners, validatorSignature);
+      BlockUtil.log.debug('signature # %s by %s (validator) ', 0, blockValidatorNodeId);
+      return blockValidatorNodeId;
+    } else {
+      let tmpBlock = Block.deserializeBinary(blockSignedByVA.serializeBinary());
+      let onlyVSignature = [blockSignedByVA.getSignersList()[0]];
+      tmpBlock.setSignersList(onlyVSignature);
+      for (let txIndex = 0; txIndex < tmpBlock.getTxobjList().length; txIndex++) {
+        const txObj = tmpBlock.getTxobjList()[txIndex];
+        let onlyOneAttestation = blockSignedByVA.getTxobjList()[txIndex].getAttestordataList()[signerIndex - 1];
+        txObj.setAttestordataList([onlyOneAttestation]);
+      }
+
+      let blockBytesNoSignersAnd1Attest = tmpBlock.serializeBinary();
+      let attSignature = blockSignedByVA.getSignersList()[signerIndex].getSig_asU8();
+      const attNodeId = EthSig.recoverAddressFromMsg(blockBytesNoSignersAnd1Attest, attSignature);
+      BlockUtil.log.debug('signature # %s by %s ', signerIndex - 1, attNodeId);
+      return attNodeId;
+    }
   }
 
   public static async checkBlockAsAttestor(blockSignedByV: Block, validatorsFromContract: Set<string>): Promise<CheckResult> {
@@ -309,17 +360,7 @@ export class BlockUtil {
       }
     }
     // do a v signature check
-    // this requires clearing all signatures + all attestor data
-    const validatorSignature = blockSignedByV.getSignersList()[0]?.getSig_asU8();
-    Check.notNull(validatorSignature, "validator signature is required");
-    let blockSignedByVBytes = blockSignedByV.serializeBinary();
-    let tmpBlock = Block.deserializeBinary(blockSignedByVBytes);
-    tmpBlock.clearSignersList();
-    for (const txObj of tmpBlock.getTxobjList()) {
-      txObj.clearAttestordataList();
-    }
-    let blockBytesNoSigners = tmpBlock.serializeBinary();
-    const blockValidatorNodeId = EthSig.recoverAddressFromMsg(blockBytesNoSigners, validatorSignature);
+    const blockValidatorNodeId = await BlockUtil.recoverSignerAddress(blockSignedByV, 0);
     BlockUtil.log.debug('signature # %s by %s (validator) ', 0, blockValidatorNodeId);
     const allowed = validatorsFromContract.has(blockValidatorNodeId);
     Check.isTrue(allowed, `unregistered validator: ${blockValidatorNodeId}`);
@@ -363,22 +404,10 @@ export class BlockUtil {
     let onlyVSignature = [blockSignedByVA.getSignersList()[0]];
     tmpBlock.setSignersList(onlyVSignature);
     for (let attIndex = 1; attIndex < sigCount; attIndex++) {
-
-      for (let txIndex = 0; txIndex < tmpBlock.getTxobjList().length; txIndex++) {
-        const txObj = tmpBlock.getTxobjList()[txIndex];
-        let onlyOneAttestation = blockSignedByVA.getTxobjList()[txIndex].getAttestordataList()[attIndex - 1];
-        txObj.setAttestordataList([onlyOneAttestation]);
-      }
-
-      let blockBytesNoSignersAnd1Attest = tmpBlock.serializeBinary();
-      let attSignature = blockSignedByVA.getSignersList()[attIndex].getSig_asU8();
-      const attNodeId = EthSig.recoverAddressFromMsg(blockBytesNoSignersAnd1Attest, attSignature);
+      const attNodeId = await BlockUtil.recoverSignerAddress(blockSignedByVA, attIndex);
       BlockUtil.log.debug('signature # %s by %s ', attIndex - 1, attNodeId);
-
-      // check vs valid nodes
       const allowed = validatorsFromContract.has(attNodeId)
       Check.isTrue(allowed, `unregistered validator_: ${attNodeId}`)
-
       // check attestation token
       /*
     TODO enable it!!!!!!!!!!!!!!
@@ -393,7 +422,6 @@ export class BlockUtil {
       throw new BlockError('block attest token is invalid');
     }*/
     }
-
     return CheckResult.ok();
   }
 }

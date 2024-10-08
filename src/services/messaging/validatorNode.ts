@@ -76,7 +76,7 @@ export class ValidatorNode implements StorageContractListener {
   // block (cleared on every cron event)
   private currentBlock: Block;
   // total serialized length of all transactions; used as a watermark (cleared on every cron event)
-  private totalTransactionBytes : number;
+  private totalTransactionBytes: number;
   // objects used to wait on block
   private blockMonitors: Map<string, WaitNotify> = new Map<string, WaitNotify>()
 
@@ -163,12 +163,12 @@ export class ValidatorNode implements StorageContractListener {
       }
     }
     let txCheck = await BlockUtil.checkGenericTransaction(tx);
-    if(!txCheck.success) {
+    if (!txCheck.success) {
       throw new BlockError(txCheck.err);
     }
 
     let payloadCheck = BlockUtil.checkTransactionPayload(tx);
-    if(!txCheck.success) {
+    if (!txCheck.success) {
       throw new BlockError(txCheck.err);
     }
 
@@ -184,22 +184,21 @@ export class ValidatorNode implements StorageContractListener {
   }
 
 
-
   /**
    * This method blocks for a long amount of time,
    * until processBlock() gets executed
    */
   public async sendTransactionBlocking(txRaw: Uint8Array): Promise<string> {
-      const monitor = new WaitNotify();
-      let txHash = BlockUtil.hashTransactionAsHex(txRaw);
-      this.blockMonitors.set(txHash, monitor)
-      this.log.debug('adding monitor for transaction hash: %s', txHash)
-      const success = await this.sendTransaction(txRaw, true);
-      if (!success) {
-        return null;
-      }
-      await monitor.wait(this.ADD_PAYLOAD_BLOCKING_TIMEOUT); // block until processBlock()
-      return txHash;
+    const monitor = new WaitNotify();
+    let txHash = BlockUtil.hashTransactionAsHex(txRaw);
+    this.blockMonitors.set(txHash, monitor)
+    this.log.debug('adding monitor for transaction hash: %s', txHash)
+    const success = await this.sendTransaction(txRaw, true);
+    if (!success) {
+      return null;
+    }
+    await monitor.wait(this.ADD_PAYLOAD_BLOCKING_TIMEOUT); // block until processBlock()
+    return txHash;
   }
 
   /**
@@ -244,21 +243,12 @@ export class ValidatorNode implements StorageContractListener {
     Check.isTrue(tokenObj.attestVector?.length > 0, 'attest vector is empty');
     Check.isTrue(tokenObj.attestVector[0] != null, 'attest vector is empty');
     block.setAttesttoken(BitUtil.stringToBytes(tokenObj.attestToken));
-    for (let txObj of block.getTxobjList()) {
-      let vote = await this.validatorVoteOnTransaction(txObj);
-      txObj.setValidatordata(vote);
-    }
 
     // ** V signs block
     // every reply has (attestation per each transaction) and (signature)
-    let blockBytesToSign = block.serializeBinary();
-    const ethSig = await EthSig.signBytes(this.wallet, blockBytesToSign);
-    let vSign = new Signer();
-    vSign.setSig(ethSig);
-    block.setSignersList([vSign]);
-    let blockSignedByV = block;
+    await BlockUtil.signBlockAsValidator(this.wallet, block);
 
-
+    let blockSignedByV:Readonly<Block> = Block.deserializeBinary(block.serializeBinary());
     // ** As perform network attestations
     Check.isTrue(blockSignedByV.getSignersList().length == 1);
     for (const txObj of blockSignedByV.getTxobjList()) {
@@ -274,7 +264,7 @@ export class ValidatorNode implements StorageContractListener {
 
       // ** A0 attests the block
       const attesterNodeId = tokenObj.attestVector[j];
-      this.log.debug('requesting attestor: %s [%d / %d]', attesterNodeId, j+1, tokenObj.attestVector.length);
+      this.log.debug('requesting attestor: %s [%d / %d]', attesterNodeId, j + 1, tokenObj.attestVector.length);
       const vi = this.valContractState.getValidatorNodesMap().get(attesterNodeId);
       Check.notNull(vi, `Validator url is empty for node: ${attesterNodeId}`);
       const apiClient = new ValidatorClient(vi.url);
@@ -286,52 +276,19 @@ export class ValidatorNode implements StorageContractListener {
       attestersWhichSignedBlock.push(attesterNodeId);
       this.log.debug('attestor %s successfully signed the block, %o',
         attesterNodeId, attestorReply != null ? attestorReply.toObject() : "");
-
       // ** V checks A0 attestation
-      // todo extract common logic with BlockUtil.checkBlockFinalized
-      // make a block copy; and fill it with the reply
-      // all the attestorData + signatures come only from the single source
-      // the only purpose is to check that A signed the data correctly
-      let tmpBlock = Block.deserializeBinary(blockSignedByVBytes); // todo move outside of 'for'
-      // tx0 -> attest0, ...
-      // is restructured into
-      // block.txObj[0].tx -> attest0, ...
-      for (let txIndex = 0; txIndex < tmpBlock.getTxobjList().length; txIndex++) {
-        let attestDataPerTx = attestorReply.getAttestordataList()[txIndex];
-        tmpBlock.getTxobjList()[txIndex].setAttestordataList([attestDataPerTx]);
-      }
-
-      let aSignatureBytes = attestorReply.getSigner().getSig_asU8();
-      let tmpBlockBytes = tmpBlock.serializeBinary();
-      this.log.debug('recovery pub key from block with hash: %s', EthSig.ethHash(tmpBlockBytes));
-      const blockAttestorNodeId = EthSig.recoverAddressFromMsg(tmpBlockBytes, aSignatureBytes);
-
-      this.log.debug('blockAttestorNodeId %o', blockAttestorNodeId);
-      const validatorInfo = this.valContractState.getValidatorNodesMap().get(blockAttestorNodeId)
-      Check.notNull(validatorInfo, `Validator url is empty for node: ${blockAttestorNodeId}`)
-      // todo add additional check that this was a valid attestor from the array of attestors
-
-      let blockSignedByVA = blockSignedByV;
-
-      // **V merges A0 attestation into the block
-      for (let txIndex = 0; txIndex < tmpBlock.getTxobjList().length; txIndex++) {
-        let attestDataPerTx = attestorReply.getAttestordataList()[txIndex];
-        blockSignedByVA.getTxobjList()[txIndex].getAttestordataList().push(attestDataPerTx);
-      }
-      blockSignedByVA.getSignersList().push(attestorReply.getSigner());
-
-      this.log.debug('block after merging attestation: %o', blockSignedByVA.toObject());
+      let nodeAddress = await BlockUtil.recoverPatchAddress(this.wallet, blockSignedByV, attestorReply);
+      const validatorInfo = this.valContractState.getValidatorNodesMap().get(nodeAddress)
+      Check.notNull(validatorInfo, `Validator url is empty for node: ${nodeAddress}`)
+      await BlockUtil.appendPatchAsValidator(this.wallet, block, attestorReply);
     }
-    let blockSignedByVA = blockSignedByV;
+    let blockSignedByVA = block;
     this.log.debug('block after merging attestations: %o', blockSignedByVA.toObject());
     // --------------------------------------------------------
 
 
-
-
     // todo call every A with all signatures, collect replies
     // pass blockHashForCache so that Attestor could recover the previous block data from cache
-
     // todo call a contract for report or slash
 
     // safety check: full validation ONCE again
@@ -374,14 +331,6 @@ export class ValidatorNode implements StorageContractListener {
     this.log.debug(`published message block ${blockHashAsBase16} success: ${insertResult}`)
   }
 
-  // I approve every valid transaciton (as of now)
-  private async validatorVoteOnTransaction(txObj: TransactionObj): Promise<TxValidatorData> {
-    let result = new TxValidatorData();
-    // no additional checks are needed - since we're checking transaction while adding to block
-    result.setVote(Vote.ACCEPTED);
-    return result;
-  }
-
   // ------------------------------ ATTESTOR -----------------------------------------
 
   /**
@@ -412,17 +361,16 @@ export class ValidatorNode implements StorageContractListener {
 
     // ** check attest token
     // TODO enable it!!!!!!!!!!!!!!
-/*    if (
-      !this.random.checkAttestToken(
-        block.getAttesttoken_asB64(),
-        blockValidatorNodeId,
-        this.valContractState.nodeId
-      )
-    ) {
-      this.log.error('block attest token is invalid')
-      throw new BlockError('block attest token is invalid');
-    }*/
-
+    /*    if (
+          !this.random.checkAttestToken(
+            block.getAttesttoken_asB64(),
+            blockValidatorNodeId,
+            this.valContractState.nodeId
+          )
+        ) {
+          this.log.error('block attest token is invalid')
+          throw new BlockError('block attest token is invalid');
+        }*/
 
 
     // ** vote on every transaction; put a signature;
@@ -466,24 +414,11 @@ export class ValidatorNode implements StorageContractListener {
     return result;
   }
 
-
-  public static applyAttestation(mutableBlock: Block, attResult: AttestBlockResult) {
-    // todo handle errors correctly if attestation is damaged
-    Check.isTrue(mutableBlock.getSignersList().length >= 1, 'block should have a validator signature at least');
-    Check.isTrue(mutableBlock.getTxobjList().length == attResult.getAttestordataList().length,
-      'num of transaction should equal num of tx in attestation reply');
-    for (let txIndex = 0; txIndex < mutableBlock.getTxobjList().length; txIndex++) {
-      let attestDataPerTx = attResult.getAttestordataList()[txIndex];
-      mutableBlock.getTxobjList()[txIndex].getAttestordataList().push(attestDataPerTx);
-    }
-    mutableBlock.getSignersList().push(attResult.getSigner());
-  }
-
   /**
    * Saves block to redis, by its incomplete hash.
    * @returns block hash to fetch it later
    */
-  public async cacheBlock(blockBytes: Uint8Array) : Promise<string> {
+  public async cacheBlock(blockBytes: Uint8Array): Promise<string> {
     let blockHashForCache = BlockUtil.hashBlockAsHex(blockBytes);
     const key = 'node' + this.nodeId + 'blockId' + blockHashForCache;
     await this.redisCli.getClient().set(key, BitUtil.bytesToBase16(blockBytes));
