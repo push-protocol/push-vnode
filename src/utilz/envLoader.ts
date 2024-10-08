@@ -3,6 +3,7 @@ import StrUtil from './strUtil'
 import {NumUtil} from "./numUtil";
 
 export class EnvLoader {
+
   public static loadEnvOrFail() {
     const envFound = dotenv.config()
     if (envFound.error) {

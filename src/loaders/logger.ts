@@ -1,7 +1,6 @@
 import Transport from 'winston-transport'
 import winston from 'winston'
 
-import config from '../config'
 import { WinstonUtil } from '../utilz/winstonUtil'
 import { EnvLoader } from '../utilz/envLoader'
 import StrUtil from '../utilz/strUtil'
@@ -138,7 +137,7 @@ if (EnvLoader.getPropertyAsBool('VALIDATOR_DEBUG_LOG')) {
 }
 
 const LoggerInstance = winston.createLogger({
-  level: config.logs.level,
+  level: EnvLoader.getPropertyOrDefault('LOG_LEVEL', 'debug'),
   levels: customLevels.levels,
   format: winston.format.combine(
     winston.format.timestamp({

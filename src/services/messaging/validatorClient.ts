@@ -6,7 +6,7 @@ import {MessageBlock, MessageBlockSignatures} from '../messaging-common/messageB
 import {Logger} from 'winston'
 import {WinstonUtil} from '../../utilz/winstonUtil'
 import {AttestSignaturesResult} from './validatorNode'
-import {AttestorReply} from "../../generated/push/block_pb";
+import {AttestBlockResult} from "../../generated/push/block_pb";
 import {BitUtil} from "../../utilz/bitUtil";
 import {UrlUtil} from "../../utilz/urlUtil";
 
@@ -27,7 +27,7 @@ export class ValidatorClient {
   }
 
 
-  private async sendRpcRequest<T>(method: string, params: any[], deserializer: (data: string) => T): Promise<Tuple<T, RpcError>> {
+  private async sendRpcRequest<T>(method: string, params: any[], deserializer: (data: any) => T): Promise<Tuple<T, RpcError>> {
     const url = this.baseRpcUri;
     const requestId = this.requestCounter++;
     const req = {
@@ -62,14 +62,12 @@ export class ValidatorClient {
     }
   }
 
-  public async v_attestBlock(blockRaw: Uint8Array): Promise<Tuple<AttestorReply, RpcError>> {
+  public async v_attestBlock(blockRaw: Uint8Array): Promise<Tuple<AttestBlockResult, RpcError>> {
     const method = "v_attestBlock";
     const params = [BitUtil.bytesToBase16(blockRaw)];
 
-    return await this.sendRpcRequest<AttestorReply>(method, params,
-      (data: string): AttestorReply => {
-        return AttestorReply.deserializeBinary(BitUtil.base16ToBytes(data));
-      });
+    return await this.sendRpcRequest<AttestBlockResult>(method, params,
+      (data: any): AttestBlockResult => AttestBlockResult.deserializeBinary(BitUtil.base16ToBytes(data)));
   }
 
   // todo remove

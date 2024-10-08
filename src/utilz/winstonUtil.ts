@@ -1,7 +1,6 @@
 import { Format, TransformableInfo } from 'logform'
 import { DateTime } from 'ts-luxon'
 import winston from 'winston'
-import config from '../config'
 import { consoleTransport, customLevels, jsonLogTransport } from '../loaders/logger'
 import StrUtil from './strUtil'
 import { EnvLoader } from './envLoader'
@@ -106,7 +105,7 @@ export class WinstonUtil {
 
   public static debugFileTransport = new winston.transports.File({
     level: 'debug',
-    filename: `${EnvLoader.getPropertyOrFail('LOG_DIR')}/debug.log`,
+    filename: `${EnvLoader.getPropertyOrDefault('LOG_DIR', 'log')}/debug.log`,
     handleExceptions: true,
     json: false,
     maxsize: 5242880,
@@ -118,7 +117,7 @@ export class WinstonUtil {
 
   public static errorFileTransport = new winston.transports.File({
     level: 'error',
-    filename: `${EnvLoader.getPropertyOrFail('LOG_DIR')}/error.log`,
+    filename: `${EnvLoader.getPropertyOrDefault('LOG_DIR', "log")}/error.log`,
     handleExceptions: true,
     json: false,
     maxsize: 5242880,
@@ -142,7 +141,7 @@ export class WinstonUtil {
       return loggerObj
     }
     loggerObj = winston.createLogger({
-      level: config.logs.level,
+      level: EnvLoader.getPropertyOrDefault('LOG_LEVEL', 'debug'),
       levels: customLevels.levels, // from loaders/logger
       format: this.createFormat1WhichSetsClassName(loggerName), // puts a class name into the log object + formats in loaders/logger format
       transports: [

@@ -6,7 +6,7 @@ import {ValidatorRandom} from "../../services/messaging/validatorRandom";
 import {BitUtil} from "../../utilz/bitUtil";
 import {NumUtil} from "../../utilz/numUtil";
 import {QueueManager} from "../../services/messaging/QueueManager";
-import {AttestorReply, AttestorReplies, Signer, TxAttestorData} from "../../generated/push/block_pb";
+import {AttestBlockResult, Signer, TxAttestorData} from "../../generated/push/block_pb";
 
 type RpcResult = {
   result: string;
