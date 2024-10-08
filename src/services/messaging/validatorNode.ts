@@ -108,7 +108,7 @@ export class ValidatorNode implements StorageContractListener {
       try {
         await this.batchProcessBlock(true)
       } catch (e) {
-        console.log(e)
+        this.log.error('error %o', e);
       }
     })
   }
@@ -168,9 +168,9 @@ export class ValidatorNode implements StorageContractListener {
       throw new BlockError(txCheck.err);
     }
 
-    let payloadCheck = BlockUtil.checkTransactionPayload(tx);
-    if (!txCheck.success) {
-      throw new BlockError(txCheck.err);
+    let payloadCheck = await BlockUtil.checkTransactionPayload(tx);
+    if (!payloadCheck.success) {
+      throw new BlockError(payloadCheck.err);
     }
 
     // append transaction
@@ -254,9 +254,9 @@ export class ValidatorNode implements StorageContractListener {
     this.log.debug('blockSignedByV: %s', BitUtil.bytesToBase16(blockSignedByVBytes));
     this.log.debug('blockSignedByV: %o', blockSignedByV.toObject());
     this.log.debug('blockSignedByVHash: %s', blockSignedByVHash);
-    Check.isTrue(blockSignedByV.getSignersList().length == 1);
+    Check.isTrue(blockSignedByV.getSignersList().length == 1, '1 sig is required');
     for (const txObj of blockSignedByV.getTxobjList()) {
-      Check.isTrue(txObj.getAttestordataList().length == 0);
+      Check.isTrue(txObj.getAttestordataList().length == 0, 'no att data is required');
     }
 
     // ** A1-AN get patches (network attestations)
@@ -386,9 +386,9 @@ export class ValidatorNode implements StorageContractListener {
 
     // ** vote on every transaction; put a signature;
     // fill a temp object which contains only [votes] + [sig] to reduce the network usage
-    Check.isTrue(blockSignedByV.getSignersList().length == 1);
+    Check.isTrue(blockSignedByV.getSignersList().length == 1, '1 signer');
     for (const txObj of blockSignedByV.getTxobjList()) {
-      Check.isTrue(txObj.getAttestordataList().length == 0);
+      Check.isTrue(txObj.getAttestordataList().length == 0, '0 attestations');
     }
     let ar = new AttestBlockResult();
     for (let txObj of blockSignedByV.getTxobjList()) {
@@ -614,7 +614,7 @@ export class ValidatorNode implements StorageContractListener {
     const result = new Set<NodeReportSig>()
     const minorityReplies = groupVote ? declineReplies : acceptReplies
     for (const [nodeId, fiSig] of minorityReplies) {
-      Check.isTrue(this.nodeId != nodeId)
+      Check.isTrue(this.nodeId != nodeId, 'wrong nodeid')
       const reportData = VoteDataV.encode(new VoteDataV(blockId, nodeId))
       const reportDataSig = await EthSig.signForContract(this.wallet, reportData)
       const report: NodeReportSig = {

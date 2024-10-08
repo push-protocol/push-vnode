@@ -187,9 +187,6 @@ export class BlockUtil {
   public static async checkTransactionPayload(tx: Transaction): Promise<CheckResult> {
     if (tx.getCategory() === 'INIT_DID') {
       let txData = InitDid.deserializeBinary(tx.getData_asU8());
-      if (StrUtil.isEmpty(txData.getDid())) {
-        CheckResult.failWithText(`did missing`);
-      }
       if (StrUtil.isEmpty(txData.getMasterpubkey())) {
         CheckResult.failWithText(`masterPubKey missing`);
       }

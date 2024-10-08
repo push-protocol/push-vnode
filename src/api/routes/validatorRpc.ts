@@ -38,9 +38,14 @@ export class ValidatorRpc {
 
 
   public async push_sendTransaction([ transactionDataBase16 ]) {
-    let txRaw = BitUtil.base16ToBytes(transactionDataBase16);
-    let txHash = await this.validatorNode.sendTransactionBlocking(txRaw);
-    return txHash;
+    try {
+      let txRaw = BitUtil.base16ToBytes(transactionDataBase16);
+      let txHash = await this.validatorNode.sendTransactionBlocking(txRaw);
+      return txHash;
+    } catch (e) {
+      this.log.error('error %o', e);
+      throw new BlockError(e.message);
+    }
   }
 
   public async push_readBlockQueue([ offsetStr ]) {
@@ -65,11 +70,16 @@ export class ValidatorRpc {
   }
 
   public async v_attestBlock([blockDataBase16]) {
-    let bRaw = BitUtil.base16ToBytes(blockDataBase16);
+    try {
+      let bRaw = BitUtil.base16ToBytes(blockDataBase16);
 
-    let result = await this.validatorNode.attestBlock(bRaw);
+      let result = await this.validatorNode.attestBlock(bRaw);
 
-    return BitUtil.bytesToBase16(result.serializeBinary());
+      return BitUtil.bytesToBase16(result.serializeBinary());
+    } catch (e) {
+      this.log.error('error %o', e);
+      throw new BlockError(e.message);
+    }
   }
 
   public async v_attestSignatures([asr]) {
