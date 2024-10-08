@@ -67,7 +67,7 @@ A quorum is the minimum number of validator approvals required for a block to be
 ### Storage and Indexing
 After the block is validated, it is stored in the queue storage of the validator node. Blocks are picked up from this queue by storage nodes who store and index them.
 
-![Network Interaction](assets/nodeInteraction.jpg)
+![Network Interaction](wiki/nodeInteraction.jpg)
 
 ### Security Mechanisms
 1. Slashing:
@@ -75,7 +75,7 @@ If a validator node is found to be acting maliciously—such as approving fraudu
 2. Random Selection:
 The random selection of validators for both the initial verification and subsequent attestation adds an extra layer of security. It prevents collusion among validators and ensures that the validation process remains fair and unbiased.
   
-![Slashing](assets/slashing.jpg)
+![Slashing](wiki/slashing.jpg)
 
 ## Installation
 

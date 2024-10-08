@@ -2,25 +2,9 @@ import { celebrate, errors, Joi } from 'celebrate'
 import { NextFunction, Request, Response, Router } from 'express'
 import { Container } from 'typedi'
 import { Logger } from 'winston'
-import config from '../../config'
-import { convertCaipToAddress } from '../../helpers/caipHelper'
-import { AddPayloadRequest } from '../../services/messaging/msgConverterService'
-import { ValidatorNode } from '../../services/messaging/validatorNode'
-import middlewares from '../middlewares'
-import StrUtil from '../../utilz/strUtil'
-import IdUtil from '../../utilz/idUtil'
 import { ValidatorRandom } from '../../services/messaging/validatorRandom'
 import { ValidatorPing } from '../../services/messaging/validatorPing'
-import { MessageBlock, PayloadItem, SenderType } from '../../services/messaging-common/messageBlock'
-import { WinstonUtil } from '../../utilz/winstonUtil'
-import jsonRouter from "express-json-rpc-router";
-import {ValidatorRpc} from "./validatorRpc";
-// /apis/v1/messaging
-const route = Router()
 
-const SOURCE_TYPE = config.supportedSourceTypes
-
-// todo replace with interceptor (already existing)
 function logRequestStarted(log: Logger, req: Request) {
   log.debug(`>>> Calling ${req.method} ${req.url} with body: %o`, req.body)
 }
@@ -29,27 +13,11 @@ function logResponseFinished(log: Logger, status: number, responseObj: any) {
   log.debug(`=== Reply ${status} with body: %o`, responseObj)
 }
 
-function initRpc(app: Router) {
-  const validatorRpc = Container.get(ValidatorRpc);
-  app.use(`/v1/rpc`, jsonRouter({ methods: validatorRpc }));
-}
 
-export default (app: Router) => {
-  initRpc(app);
-
-  // Load the rest
+export function initMessaging (app: Router) {
+  const route = Router()
   app.use(`/v1/messaging`, route)
   app.use(errors())
-
-  // todo replace with json rpc ?
-
-  // todo remove after debug
-  route.post('/attestSignatures', async (req: Request, res: Response, next: NextFunction) => {
-    return one(req, res, next, async () => {
-      await Container.get(ValidatorNode).attestSignatures(req.body)
-      return ''
-    })
-  })
 
   route.get('/ping', async (req: Request, res: Response, next: NextFunction) => {
     return oneEx(req, res, next, false, async () => {

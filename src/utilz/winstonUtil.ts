@@ -1,9 +1,9 @@
 import { Format, TransformableInfo } from 'logform'
 import { DateTime } from 'ts-luxon'
 import winston from 'winston'
-import { consoleTransport, customLevels, jsonLogTransport } from '../loaders/logger'
-import StrUtil from './strUtil'
+
 import { EnvLoader } from './envLoader'
+import StrUtil from './strUtil'
 
 /*
 Example usage:
@@ -52,10 +52,40 @@ format2 with class name:
 I 230811 174624 [MyClass] Got alias List (SendMessage)
 
 */
+
 export class WinstonUtil {
   private static readonly CLASS_NAME_LENGTH = 23
+  private static readonly LOG_DIR = EnvLoader.getPropertyOrFail('LOG_DIR')
+  private static readonly LOG_LEVEL = EnvLoader.getPropertyOrFail('LOG_LEVEL')
+  private static loggerMap: Map<string, winston.Logger> = new Map()
 
-  static loggerMap: Map<string, winston.Logger> = new Map()
+  // all console writes drop here
+  public static consoleTransport = new winston.transports.Console({
+    format: WinstonUtil.createFormat2WhichRendersClassName()
+  })
+
+  // add debug writes drop here
+
+  public static debugFileTransport = new winston.transports.File({
+    level: 'debug',
+    filename: `${WinstonUtil.LOG_DIR}/debug.log`,
+    handleExceptions: true,
+    maxsize: 5242880,
+    maxFiles: 5,
+    tailable: true,
+    format: WinstonUtil.createFormat2WhichRendersClassName()
+  })
+
+  // all exceptions drop here
+  public static errorFileTransport = new winston.transports.File({
+    level: 'error',
+    filename: `${WinstonUtil.LOG_DIR}/error.log`,
+    handleExceptions: true,
+    maxsize: 5242880,
+    maxFiles: 5,
+    tailable: true,
+    format: WinstonUtil.createFormat2WhichRendersClassName()
+  })
 
   /*
   { "message": "Checking Node Version", "level": "info", "timestamp": "230809 180338", className?: "myClass"}
@@ -103,30 +133,6 @@ export class WinstonUtil {
     )
   }
 
-  public static debugFileTransport = new winston.transports.File({
-    level: 'debug',
-    filename: `${EnvLoader.getPropertyOrDefault('LOG_DIR', 'log')}/debug.log`,
-    handleExceptions: true,
-    json: false,
-    maxsize: 5242880,
-    maxFiles: 5,
-    colorize: false,
-    tailable: true,
-    format: WinstonUtil.createFormat2WhichRendersClassName()
-  })
-
-  public static errorFileTransport = new winston.transports.File({
-    level: 'error',
-    filename: `${EnvLoader.getPropertyOrDefault('LOG_DIR', "log")}/error.log`,
-    handleExceptions: true,
-    json: false,
-    maxsize: 5242880,
-    maxFiles: 5,
-    colorize: false,
-    tailable: true,
-    format: WinstonUtil.createFormat2WhichRendersClassName()
-  })
-
   public static newLog(classNameOrClass: string | { name: string }): winston.Logger {
     let loggerName = null
     if (typeof classNameOrClass === 'string') {
@@ -141,14 +147,12 @@ export class WinstonUtil {
       return loggerObj
     }
     loggerObj = winston.createLogger({
-      level: EnvLoader.getPropertyOrDefault('LOG_LEVEL', 'debug'),
-      levels: customLevels.levels, // from loaders/logger
-      format: this.createFormat1WhichSetsClassName(loggerName), // puts a class name into the log object + formats in loaders/logger format
+      level: WinstonUtil.LOG_LEVEL,
+      format: this.createFormat1WhichSetsClassName(loggerName), //winston.format.json(),
       transports: [
-        consoleTransport,
-        jsonLogTransport,
-        this.debugFileTransport, // formats a class name from the log object
-        this.errorFileTransport // formats a class name from the log object
+        WinstonUtil.consoleTransport,
+        WinstonUtil.debugFileTransport,
+        WinstonUtil.errorFileTransport
       ]
     })
     WinstonUtil.loggerMap.set(loggerName, loggerObj)

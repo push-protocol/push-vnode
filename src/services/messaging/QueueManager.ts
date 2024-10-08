@@ -1,7 +1,6 @@
 import { Inject, Service } from 'typedi'
 import { MySqlUtil } from '../../utilz/mySqlUtil'
 import { Logger } from 'winston'
-import ChannelsService from '../channelsService'
 import { ValidatorContractState } from '../messaging-common/validatorContractState'
 import { WinstonUtil } from '../../utilz/winstonUtil'
 import { QueueServer } from '../messaging-dset/queueServer'
@@ -12,8 +11,6 @@ import { QueueServer } from '../messaging-dset/queueServer'
 export class QueueManager {
   public log: Logger = WinstonUtil.newLog(QueueManager)
 
-  @Inject('channelService')
-  public channelService: ChannelsService
   @Inject((type) => ValidatorContractState)
   private contractState: ValidatorContractState
 
@@ -80,10 +77,5 @@ export class QueueManager {
   public async readItems(dsetName: string, firstOffset: number) {
     const q = this.getQueue(dsetName)
     return await q.readWithLastOffset(firstOffset)
-  }
-
-  public async pollRemoteQueues(): Promise<any> {
-    const result = await this.subscribersQueueClient.pollRemoteQueue(1)
-    return result
   }
 }

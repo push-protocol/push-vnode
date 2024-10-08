@@ -21,9 +21,6 @@ import {AxiosResponse} from 'axios'
 import {PromiseUtil} from '../../utilz/promiseUtil'
 import SNodeClient from './snodeClient'
 import {AggregatedReplyHelper, NodeHttpStatus} from './AggregatedReplyHelper'
-import {SubscribersItem} from '../channelsCompositeClasses/subscribersClass'
-import config from '../../config'
-import ChannelsService from '../channelsService'
 import {MySqlUtil} from '../../utilz/mySqlUtil'
 import {EnvLoader} from "../../utilz/envLoader";
 import {
@@ -747,22 +744,6 @@ export class ValidatorNode implements StorageContractListener {
     return ar
   }
 
-  public async listSubscribers(channel: string, chainName: string): Promise<SubscribersItem[]> {
-    const chainId = config.MAP_BLOCKCHAIN_STRING_TO_ID[chainName]
-    const channelDbField = ChannelsService.isEthBlockchain(chainId) ? 'channel' : 'alias'
-    const rows = await MySqlUtil.queryArr<{
-      subscriber: string
-      userSettings: string
-      ts: number
-    }>(
-      `select subscriber, user_settings as userSettings, UNIX_TIMESTAMP(timestamp) as ts
-       from subscribers
-       where (${channelDbField} = ? AND is_currently_subscribed = 1)`,
-      channel
-    )
-    // let res = await this.subscribers.getSubscribers(channel, chainId); todo decide which impl is better
-    return rows
-  }
 }
 
 export class NodeReportSig {
