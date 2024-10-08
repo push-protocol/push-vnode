@@ -196,6 +196,16 @@ export class AttestSignaturesRequest extends jspb.Message {
   setAttestationsList(value: Array<AttestBlockResult>): void;
   addAttestations(value?: AttestBlockResult, index?: number): AttestBlockResult;
 
+  getInitialblockhash(): Uint8Array | string;
+  getInitialblockhash_asU8(): Uint8Array;
+  getInitialblockhash_asB64(): string;
+  setInitialblockhash(value: Uint8Array | string): void;
+
+  getFinalblockhash(): Uint8Array | string;
+  getFinalblockhash_asU8(): Uint8Array;
+  getFinalblockhash_asB64(): string;
+  setFinalblockhash(value: Uint8Array | string): void;
+
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): AttestSignaturesRequest.AsObject;
   static toObject(includeInstance: boolean, msg: AttestSignaturesRequest): AttestSignaturesRequest.AsObject;
@@ -209,6 +219,8 @@ export class AttestSignaturesRequest extends jspb.Message {
 export namespace AttestSignaturesRequest {
   export type AsObject = {
     attestationsList: Array<AttestBlockResult.AsObject>,
+    initialblockhash: Uint8Array | string,
+    finalblockhash: Uint8Array | string,
   }
 }
 

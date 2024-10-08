@@ -105,15 +105,4 @@ export class BitUtil {
     return Buffer.from(base64String, 'base64').toString('hex');
   }
 
-  private static isArrayEmpty(array: Uint8Array | null): boolean {
-    return array == null || array.length === 0;
-  }
-
-  public static hasMinSize(array: Uint8Array, minSize: number): boolean {
-    if (minSize === 0) {
-      return BitUtil.isArrayEmpty(array);
-    }
-    return array.length >= minSize;
-  }
-
 }

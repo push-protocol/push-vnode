@@ -1,14 +1,11 @@
 import axios, {AxiosError} from 'axios'
-import {AddPayloadRequest} from './msgConverterService'
 import {PingReply} from './validatorPing'
 import {NodeRandom} from './validatorRandom'
-import {MessageBlock, MessageBlockSignatures} from '../messaging-common/messageBlock'
 import {Logger} from 'winston'
 import {WinstonUtil} from '../../utilz/winstonUtil'
-import {AttestSignaturesResult} from './validatorNode'
-import {AttestBlockResult} from "../../generated/push/block_pb";
 import {BitUtil} from "../../utilz/bitUtil";
 import {UrlUtil} from "../../utilz/urlUtil";
+import {AttestBlockResult, AttestSignaturesRequest, AttestSignaturesResponse} from "../../generated/push/block_pb";
 
 /*
 External validator/attester api.
@@ -17,8 +14,8 @@ export class ValidatorClient {
   public log: Logger = WinstonUtil.newLog(ValidatorClient);
   baseUri: string;
   baseRpcUri : string;
-  timeout: number = 500000;
-  requestCounter: number = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER / 20);
+  timeout: number = 200000;
+  requestCounter: number = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER / 10000);
 
   constructor(baseUri: string) {
     this.baseUri = UrlUtil.append(baseUri, '/api/v1');
@@ -70,59 +67,19 @@ export class ValidatorClient {
       (data: any): AttestBlockResult => AttestBlockResult.deserializeBinary(BitUtil.base16ToBytes(data)));
   }
 
-  // todo remove
-  async addMessageAsync(data: AddPayloadRequest): Promise<boolean> {
-    const url = `${this.baseUri}/messaging/addAsync`
-    this.log.debug(`addMessage() ${url} ${data}`)
-    const resp = await axios.post(url, data, { timeout: this.timeout })
-    if (resp.status != 200) {
-      this.log.debug(`error status: ${resp.status} data: ${resp.data}`)
-      return false
-    }
-    this.log.debug(resp.status)
-    return true
+
+  async v_attestSignatures(asr: AttestSignaturesRequest): Promise<Tuple<AttestSignaturesResponse, RpcError>> {
+    const method = "v_attestSignatures";
+    const params = [BitUtil.bytesToBase16(asr.serializeBinary())];
+
+    return await this.sendRpcRequest<AttestSignaturesResponse>(method, params,
+      (data: any): AttestSignaturesResponse => {
+        return data == null
+          ? null : AttestSignaturesResponse.deserializeBinary(BitUtil.base16ToBytes(data));
+      });
   }
 
-  // todo remove
-  async addMessageBlocking(data: AddPayloadRequest): Promise<boolean> {
-    const url = `${this.baseUri}/messaging/addBlocking`
-    this.log.debug(`addMessage() ${url} ${data}`)
-    const resp = await axios.post(url, data, { timeout: this.timeout })
-    if (resp.status != 200) {
-      this.log.debug(`error status: ${resp.status} data: ${resp.data}`)
-      return false
-    }
-    this.log.debug(resp.status)
-    return true
-  }
-
-  // for test
-  // todo remove
-  async batchProcessBlock(): Promise<MessageBlock | null> {
-    const url = `${this.baseUri}/messaging/batchProcessBlock`
-    const resp = await axios.post(url, null, { timeout: this.timeout })
-    if (resp.status != 200) {
-      this.log.debug(`error status: ${resp.status} data: ${resp.data}`)
-      return null
-    }
-    this.log.debug('batchProcessBlock %s %s %s', url, resp.status, resp.data)
-    return resp.data
-  }
-
-
-  // todo remove
-  async attestSignatures(blockSig: MessageBlockSignatures): Promise<AttestSignaturesResult> {
-    const url = `${this.baseUri}/messaging/attestSignatures`
-    const resp = await axios.post(url, blockSig, { timeout: this.timeout })
-    if (resp.status != 200) {
-      this.log.debug(`error status: ${resp.status} data: ${resp.data}`)
-      return null
-    }
-    this.log.debug('attest %s %s %s', url, resp.status, resp.data)
-    return resp.data
-  }
-
-  // todo replace
+  // todo replace with json rpc
   async ping(): Promise<PingReply | null> {
     const url = `${this.baseUri}/messaging/ping`
     const resp = await axios.get(url, { timeout: 5000 }).catch(() => null)
@@ -133,7 +90,7 @@ export class ValidatorClient {
     return resp.data
   }
 
-  // todo replace
+  // todo replace with json rpc
   async random(): Promise<NodeRandom | null> {
     const url = `${this.baseUri}/messaging/random`
     const resp = await axios.get(url, { timeout: 5000 }).catch(() => null)

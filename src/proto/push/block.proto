@@ -80,6 +80,8 @@ message AttestBlockResult {
 // SIGNATURE ATTESTATION
 message AttestSignaturesRequest {
     repeated AttestBlockResult attestations = 1;
+    bytes initialBlockHash = 2;
+    bytes finalBlockHash = 3;
 }
 
 message AttestSignaturesResponse {

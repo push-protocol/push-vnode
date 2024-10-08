@@ -1823,7 +1823,9 @@ proto.push.AttestSignaturesRequest.prototype.toObject = function(opt_includeInst
 proto.push.AttestSignaturesRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
     attestationsList: jspb.Message.toObjectList(msg.getAttestationsList(),
-    proto.push.AttestBlockResult.toObject, includeInstance)
+    proto.push.AttestBlockResult.toObject, includeInstance),
+    initialblockhash: msg.getInitialblockhash_asB64(),
+    finalblockhash: msg.getFinalblockhash_asB64()
   };
 
   if (includeInstance) {
@@ -1865,6 +1867,14 @@ proto.push.AttestSignaturesRequest.deserializeBinaryFromReader = function(msg, r
       reader.readMessage(value,proto.push.AttestBlockResult.deserializeBinaryFromReader);
       msg.addAttestations(value);
       break;
+    case 2:
+      var value = /** @type {!Uint8Array} */ (reader.readBytes());
+      msg.setInitialblockhash(value);
+      break;
+    case 3:
+      var value = /** @type {!Uint8Array} */ (reader.readBytes());
+      msg.setFinalblockhash(value);
+      break;
     default:
       reader.skipField();
       break;
@@ -1900,6 +1910,20 @@ proto.push.AttestSignaturesRequest.serializeBinaryToWriter = function(message, w
       1,
       f,
       proto.push.AttestBlockResult.serializeBinaryToWriter
+    );
+  }
+  f = message.getInitialblockhash_asU8();
+  if (f.length > 0) {
+    writer.writeBytes(
+      2,
+      f
+    );
+  }
+  f = message.getFinalblockhash_asU8();
+  if (f.length > 0) {
+    writer.writeBytes(
+      3,
+      f
     );
   }
 };
@@ -1940,6 +1964,90 @@ proto.push.AttestSignaturesRequest.prototype.addAttestations = function(opt_valu
  */
 proto.push.AttestSignaturesRequest.prototype.clearAttestationsList = function() {
   return this.setAttestationsList([]);
+};
+
+
+/**
+ * optional bytes initialBlockHash = 2;
+ * @return {!(string|Uint8Array)}
+ */
+proto.push.AttestSignaturesRequest.prototype.getInitialblockhash = function() {
+  return /** @type {!(string|Uint8Array)} */ (jspb.Message.getFieldWithDefault(this, 2, ""));
+};
+
+
+/**
+ * optional bytes initialBlockHash = 2;
+ * This is a type-conversion wrapper around `getInitialblockhash()`
+ * @return {string}
+ */
+proto.push.AttestSignaturesRequest.prototype.getInitialblockhash_asB64 = function() {
+  return /** @type {string} */ (jspb.Message.bytesAsB64(
+      this.getInitialblockhash()));
+};
+
+
+/**
+ * optional bytes initialBlockHash = 2;
+ * Note that Uint8Array is not supported on all browsers.
+ * @see http://caniuse.com/Uint8Array
+ * This is a type-conversion wrapper around `getInitialblockhash()`
+ * @return {!Uint8Array}
+ */
+proto.push.AttestSignaturesRequest.prototype.getInitialblockhash_asU8 = function() {
+  return /** @type {!Uint8Array} */ (jspb.Message.bytesAsU8(
+      this.getInitialblockhash()));
+};
+
+
+/**
+ * @param {!(string|Uint8Array)} value
+ * @return {!proto.push.AttestSignaturesRequest} returns this
+ */
+proto.push.AttestSignaturesRequest.prototype.setInitialblockhash = function(value) {
+  return jspb.Message.setProto3BytesField(this, 2, value);
+};
+
+
+/**
+ * optional bytes finalBlockHash = 3;
+ * @return {!(string|Uint8Array)}
+ */
+proto.push.AttestSignaturesRequest.prototype.getFinalblockhash = function() {
+  return /** @type {!(string|Uint8Array)} */ (jspb.Message.getFieldWithDefault(this, 3, ""));
+};
+
+
+/**
+ * optional bytes finalBlockHash = 3;
+ * This is a type-conversion wrapper around `getFinalblockhash()`
+ * @return {string}
+ */
+proto.push.AttestSignaturesRequest.prototype.getFinalblockhash_asB64 = function() {
+  return /** @type {string} */ (jspb.Message.bytesAsB64(
+      this.getFinalblockhash()));
+};
+
+
+/**
+ * optional bytes finalBlockHash = 3;
+ * Note that Uint8Array is not supported on all browsers.
+ * @see http://caniuse.com/Uint8Array
+ * This is a type-conversion wrapper around `getFinalblockhash()`
+ * @return {!Uint8Array}
+ */
+proto.push.AttestSignaturesRequest.prototype.getFinalblockhash_asU8 = function() {
+  return /** @type {!Uint8Array} */ (jspb.Message.bytesAsU8(
+      this.getFinalblockhash()));
+};
+
+
+/**
+ * @param {!(string|Uint8Array)} value
+ * @return {!proto.push.AttestSignaturesRequest} returns this
+ */
+proto.push.AttestSignaturesRequest.prototype.setFinalblockhash = function(value) {
+  return jspb.Message.setProto3BytesField(this, 3, value);
 };
 
 

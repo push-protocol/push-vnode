@@ -6,7 +6,8 @@ import {ValidatorRandom} from "../../services/messaging/validatorRandom";
 import {BitUtil} from "../../utilz/bitUtil";
 import {NumUtil} from "../../utilz/numUtil";
 import {QueueManager} from "../../services/messaging/QueueManager";
-import {AttestBlockResult, Signer, TxAttestorData} from "../../generated/push/block_pb";
+import {AttestBlockResult, AttestSignaturesRequest, Signer, TxAttestorData} from "../../generated/push/block_pb";
+import {BlockError} from "../../services/messaging/blockError";
 
 type RpcResult = {
   result: string;
@@ -63,16 +64,27 @@ export class ValidatorRpc {
     }
   }
 
-  public async v_attestBlock([ blockDataBase16 ]) {
+  public async v_attestBlock([blockDataBase16]) {
     let bRaw = BitUtil.base16ToBytes(blockDataBase16);
+
     let result = await this.validatorNode.attestBlock(bRaw);
+
     return BitUtil.bytesToBase16(result.serializeBinary());
   }
 
-  public async v_attestSignatures([ blockHashBase16,  attestorRepliesBase16]) {
-    let raw = BitUtil.base16ToBytes(attestorRepliesBase16);
-    let result = await this.validatorNode.attestBlock(raw);
-    return BitUtil.bytesToBase16(result.serializeBinary());
+  public async v_attestSignatures([asr]) {
+    try {
+      let raw = BitUtil.base16ToBytes(asr);
+      let asrObj = AttestSignaturesRequest.deserializeBinary(raw);
+      this.log.debug('v_attestSignatures() started');
+      let result = await this.validatorNode.attestSignatures(asrObj);
+      this.log.debug('v_attestSignatures() finished');
+      let resultStr = BitUtil.bytesToBase16(result.serializeBinary());
+      return resultStr;
+    } catch (e) {
+      this.log.error('error %o', e);
+      throw new BlockError(e.message);
+    }
   }
 
   // todo NETWORK CALLS TO STORAGE NODES

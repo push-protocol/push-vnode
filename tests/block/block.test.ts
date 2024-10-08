@@ -123,17 +123,17 @@ describe('block tests', function () {
 
       await BlockUtil.signBlockAsValidator(getNodeWallet(0), block1);
 
-      let ar1 = await BlockUtil.signBlockAsAttestor(getNodeWallet(1), block1);
-      let ar2 = await BlockUtil.signBlockAsAttestor(getNodeWallet(2), block1);
+      let patch1 = await BlockUtil.signBlockAsAttestor(getNodeWallet(1), block1);
+      let patch2 = await BlockUtil.signBlockAsAttestor(getNodeWallet(2), block1);
 
-      let addr1 = await BlockUtil.recoverPatchAddress(getNodeWallet(0), block1, ar1);
+      let addr1 = await BlockUtil.recoverPatchAddress(getNodeWallet(0), block1, patch1);
       expect(addr1).to.equal(getNodeWallet(1).address);
 
-      let addr2 = await BlockUtil.recoverPatchAddress(getNodeWallet(0), block1, ar2);
+      let addr2 = await BlockUtil.recoverPatchAddress(getNodeWallet(0), block1, patch2);
       expect(addr2).to.equal(getNodeWallet(2).address);
 
-      await BlockUtil.appendPatchAsValidator(getNodeWallet(0), block1, ar1);
-      await BlockUtil.appendPatchAsValidator(getNodeWallet(0), block1, ar2);
+      await BlockUtil.appendPatchAsValidator(getNodeWallet(0), block1, patch1);
+      await BlockUtil.appendPatchAsValidator(getNodeWallet(0), block1, patch2);
 
       expect(await BlockUtil.recoverSignerAddress(block1, 0)).to.be.equal(getNodeWallet(0).address);
       expect(await BlockUtil.recoverSignerAddress(block1, 1)).to.be.equal(getNodeWallet(1).address);

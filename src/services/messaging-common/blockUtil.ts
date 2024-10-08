@@ -20,6 +20,7 @@ import {Logger} from "winston";
 import {WinstonUtil} from "../../utilz/winstonUtil";
 import DateUtil from "../../utilz/dateUtil";
 import {Wallet} from "ethers";
+import {ArrayUtil} from "../../utilz/arrayUtil";
 
 
 export class BlockUtil {
@@ -312,10 +313,10 @@ export class BlockUtil {
     }
     if (BlockUtil.ATTESTOR_MAX_BLOCK_AGE_SECONDS != null &&
       BlockUtil.ATTESTOR_MAX_BLOCK_AGE_SECONDS > 0 &&
-      Math.abs(blockSignedByV.getTs() - DateUtil.currentTimeMillis()) > BlockUtil.ATTESTOR_MAX_BLOCK_AGE_SECONDS) {
+      Math.abs(blockSignedByV.getTs() - DateUtil.currentTimeMillis()) > 1000 * BlockUtil.ATTESTOR_MAX_BLOCK_AGE_SECONDS) {
       return CheckResult.failWithText(`block is too old: ${blockSignedByV.getTs()}`);
     }
-    if (!BitUtil.hasMinSize(blockSignedByV.getAttesttoken_asU8(), 4)) {
+    if (!ArrayUtil.hasMinSize(blockSignedByV.getAttesttoken_asU8(), 4)) {
       return CheckResult.failWithText('attest token is missing or too small (4bytes min)');
     }
     // all tx should be valid
