@@ -1,9 +1,10 @@
 import { celebrate, errors, Joi } from 'celebrate'
-import { NextFunction, Request, Response, Router } from 'express'
+import {Application, NextFunction, Request, Response, Router} from 'express'
 import { Container } from 'typedi'
 import { Logger } from 'winston'
 import { ValidatorRandom } from '../../services/messaging/validatorRandom'
 import { ValidatorPing } from '../../services/messaging/validatorPing'
+import {WinstonUtil} from "../../utilz/winstonUtil";
 
 function logRequestStarted(log: Logger, req: Request) {
   log.debug(`>>> Calling ${req.method} ${req.url} with body: %o`, req.body)
@@ -13,10 +14,11 @@ function logResponseFinished(log: Logger, status: number, responseObj: any) {
   log.debug(`=== Reply ${status} with body: %o`, responseObj)
 }
 
+const log = WinstonUtil.newLog('SERVER');
 
-export function initMessaging (app: Router) {
+export function initMessaging (app: Application) {
   const route = Router()
-  app.use(`/v1/messaging`, route)
+  app.use(`/api/v1/messaging`, route)
   app.use(errors())
 
   route.get('/ping', async (req: Request, res: Response, next: NextFunction) => {
@@ -69,7 +71,6 @@ async function oneEx(
   logRequest: boolean,
   returnOneObject: Function
 ) {
-  const log: Logger = Container.get('logger')
   try {
     if (logRequest) {
       logRequestStarted(log, req)

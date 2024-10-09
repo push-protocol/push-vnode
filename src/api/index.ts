@@ -9,17 +9,3 @@ import {ValidatorRpc} from "./routes/validatorRpc";
 import jsonRouter from "express-json-rpc-router";
 
 
-export function initRoutes (app: Application) {
-  if (EnvLoader.getPropertyAsBool('VALIDATOR_HTTP_LOG')) {
-    app.use(ExpressUtil.handle)
-  }
-  initMessaging(app);
-  initRpc(app);
-  // app.use(notFoundMiddleware)
-  return app;
-}
-
-function initRpc(app: Router) {
-  const validatorRpc = Container.get(ValidatorRpc);
-  app.use(`/v1/rpc`, jsonRouter({ methods: validatorRpc }));
-}
