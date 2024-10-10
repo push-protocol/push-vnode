@@ -21,6 +21,7 @@ import {ExpressUtil} from "./utilz/expressUtil";
 import {QueueManager} from "./services/messaging/QueueManager";
 
 let server: Server;
+let log = WinstonUtil.newLog("SERVER");
 
 // RUN
 startServer().catch((err) => {
@@ -40,10 +41,10 @@ async function startServer(logLevel: string = null, testMode = false, padder = 0
   initRoutes(app);
 
   let PORT = EnvLoader.getPropertyAsNumber("PORT", 4001);
-  let logger = WinstonUtil.newLog("SERVER");
+
   server.listen(PORT, (err) => {
     if (err) {
-      logger.error("error %o", err);
+      log.error("error %o", err);
     }
 
     let artwork = `
@@ -55,7 +56,7 @@ async function startServer(logLevel: string = null, testMode = false, padder = 0
       ╚═╝      ╚═════╝ ╚══════╝╚═╝  ╚═╝    ╚═╝  ╚═══╝ ╚═════╝ ╚═════╝ ╚══════╝                                                                          
     `;
 
-    logger.info(`
+    log.info(`
       ################################################
 
       
@@ -114,5 +115,18 @@ export function initRoutes(app: Application) {
 
 function initRpc(app: Router) {
   const validatorRpc = Container.get(ValidatorRpc);
-  app.use(`/api/v1/rpc`, jsonRouter({methods: validatorRpc}));
+
+  //todo add single before/after method for every method from validatorRpc and log params
+  //this.log.debug(`>> Calling RPC POST ${url} (req${requestId}) with body %o`, req);
+  //const resp = await axios.post(url, req, {timeout: this.timeout});
+  //this.log.debug(`<< RPC Reply POST ${url} (req${requestId}) code: ${resp.status} with body: %o`, resp.data);
+  app.use(`/api/v1/rpc`,
+    jsonRouter({
+      methods: validatorRpc,
+      beforeMethods: {},
+      afterMethods: {},
+      onError: (err, body) => {
+        log.error('Error in JSON-RPC route: %o', err);
+      }
+    }));
 }
