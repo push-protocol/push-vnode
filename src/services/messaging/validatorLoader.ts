@@ -1,11 +1,4 @@
-import {Container} from 'typedi'
-import {QueueManager} from './QueueManager'
 import {MySqlUtil} from '../../utilz/mySqlUtil'
-import {ValidatorNode} from './validatorNode'
-import {ValidatorRpc} from "../../api/routes/validatorRpc";
-import {Check} from "../../utilz/check";
-import {EnvLoader} from "../../utilz/envLoader";
-import mysql from "mysql";
 
 
 

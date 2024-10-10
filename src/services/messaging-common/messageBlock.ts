@@ -372,7 +372,11 @@ export class MessageBlockUtil {
       return null
     }
     let shardId: number = null
-    const addrObj = EthUtil.parseCaipAddress(recipientAddr)
+    let res = EthUtil.parseCaipAddress(recipientAddr);
+    if (res[1] != null) {
+      throw new Error('invalid caip address:' + res[1]);
+    }
+    const addrObj = res[0];
     if (
       addrObj != null &&
       !StrUtil.isEmpty(addrObj.addr) &&

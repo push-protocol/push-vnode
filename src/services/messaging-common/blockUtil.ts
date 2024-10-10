@@ -74,6 +74,7 @@ export class BlockUtil {
 
   // when the block has not been signed, we still need a valid immutable hash based on tx data
   // this is used to cache the block contents
+  // Deprecated
   public static hashBlockIncomplete(blockObj: Block): string {
     let txHashes: Uint8Array[] = [];
     for (let txObj of blockObj.getTxobjList()) {
@@ -111,7 +112,11 @@ export class BlockUtil {
       return null
     }
     let shardId: number = null
-    const addrObj = EthUtil.parseCaipAddress(wallet)
+    const res = EthUtil.parseCaipAddress(wallet);
+    if (res[1] != null) {
+      throw new Error('invalid caip address:' + res[1]);
+    }
+    const addrObj = res[0];
     if (
       addrObj != null &&
       !StrUtil.isEmpty(addrObj.addr) &&
@@ -165,13 +170,15 @@ export class BlockUtil {
     if (tx.getType() != 0) {
       CheckResult.failWithText(`Only non-value transactions are supported`);
     }
-    let senderAddr = EthUtil.parseCaipAddress(tx.getSender());
-    let recipientAddrs = tx.getRecipientsList().map(value => EthUtil.parseCaipAddress(value));
-    let goodSender = !StrUtil.isEmpty(senderAddr.chainId) && !StrUtil.isEmpty(senderAddr.namespace)
-      && !StrUtil.isEmpty(senderAddr.addr);
-    if (!goodSender) {
-      CheckResult.failWithText(`sender field is invalid ${tx.getSender()}`);
+    if (!EthUtil.isFullCAIPAddress(tx.getSender())) {
+      CheckResult.failWithText(`sender ${tx.getSender()} is not in full CAIP format ${tx.getSender()}`);
     }
+    for (const recipientAddr of tx.getRecipientsList()) {
+      if (!EthUtil.isFullCAIPAddress(recipientAddr)) {
+        CheckResult.failWithText(`recipient ${recipientAddr} is not in full CAIP format ${tx.getSender()}`);
+      }
+    }
+
     if (StrUtil.isEmpty(BitUtil.bytesToBase16(tx.getSalt_asU8()))) {
       CheckResult.failWithText(`salt field is invalid`);
     }
@@ -384,15 +391,20 @@ export class BlockUtil {
     }
 
     let attestorCount = sigCount - 1;
-    for (let i = 0; i < blockSignedByVA.getTxobjList().length; i++) {
-      const txObj = blockSignedByVA.getTxobjList()[i];
+    for (let txIndex = 0; txIndex < blockSignedByVA.getTxobjList().length; txIndex++) {
+      const txObj = blockSignedByVA.getTxobjList()[txIndex];
       let tx = txObj.getTx();
       if (tx == null) {
         return CheckResult.failWithText('empty transaction found!');
       }
       if (txObj.getAttestordataList() == null || txObj.getAttestordataList().length != attestorCount) {
         return CheckResult.failWithText(
-          `tx # ${i} has invalid number of attestations; ${txObj.getAttestordataList().length} instead of ${attestorCount}`);
+          `tx # ${txIndex} has invalid number of attestations; ${txObj.getAttestordataList().length} instead of ${attestorCount}`);
+      }
+      for (const txAttData of txObj.getAttestordataList()) {
+        if (txAttData == null || !BlockUtil.VALID_ATTESTOR_VOTES.has(txAttData.getVote())) {
+          return CheckResult.failWithText(`tx # ${txIndex} has invalid attestor data`);
+        }
       }
     }
 
