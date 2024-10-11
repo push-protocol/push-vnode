@@ -57,9 +57,11 @@ function test2() {
                 }
             }
             console.log(StrUtil.fmt(a1));
-            let a2:any = a1;
-            a2.self = a1;
-            console.log(StrUtil.fmt(a2));
+
+            let circularObj:any = a1;
+            circularObj.self = circularObj;
+            circularObj.subObj.val1 = circularObj;
+            console.log(StrUtil.fmt(circularObj));
         }
     }
 }
