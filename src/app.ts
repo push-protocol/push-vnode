@@ -20,6 +20,10 @@ import jsonRouter from "express-json-rpc-router";
 import {ExpressUtil} from "./utilz/expressUtil";
 import {QueueManager} from "./services/messaging/QueueManager";
 
+import v8 from "v8";
+
+import util from "util";
+
 let server: Server;
 let log = WinstonUtil.newLog("SERVER");
 
@@ -30,8 +34,13 @@ startServer().catch((err) => {
   process.exit(1)
 })
 
-
 async function startServer(logLevel: string = null, testMode = false, padder = 0) {
+
+  printMemoryUsage();
+
+  setInterval(() => {
+    printMemoryUsage();
+  }, 5 * 60 * 1000);
 
   await initValidator();
 
@@ -72,6 +81,15 @@ async function startServer(logLevel: string = null, testMode = false, padder = 0
   });
 }
 
+function printMemoryUsage() {
+  const memoryUsage = process.memoryUsage();
+  const gib = 1024 ** 3;
+  console.log(`Rss: ${(memoryUsage.rss / gib).toFixed(2)} GB`);
+  console.log(`Heap Total: ${(memoryUsage.heapTotal / gib).toFixed(2)} GB`);
+  console.log(`Heap Used: ${(memoryUsage.heapUsed / gib).toFixed(2)} GB`);
+  console.log(`Heap Limit %d`, v8.getHeapStatistics().heap_size_limit / gib);
+  console.log(`Heap stats %o`, v8.getHeapStatistics());
+}
 
 async function initDb() {
   const dbpool = mysql.createPool({

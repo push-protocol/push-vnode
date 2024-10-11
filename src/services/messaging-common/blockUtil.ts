@@ -128,7 +128,7 @@ export class BlockUtil {
     }
     // 2) try to get sha256 otherwise
     if (shardId == null) {
-      let walletBytes = BitUtil.stringToBytes(wallet);
+      let walletBytes = BitUtil.stringToBytesUtf(wallet);
       let hashBase16 = BitUtil.bytesToBase16(HashUtil.sha256AsBytes(walletBytes));
       Check.isTrue(hashBase16.length >= 2, "hash is too short");
       const firstByteAsHex = hashBase16.toLowerCase().substring(0, 2);

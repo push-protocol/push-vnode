@@ -8,7 +8,7 @@ import {NodeInfo, ValidatorContractState} from '../messaging-common/validatorCon
 import {ValidatorRandom} from './validatorRandom'
 import {ValidatorPing} from './validatorPing'
 import StrUtil from '../../utilz/strUtil'
-import {FeedItem, FeedItemSig, MessageBlock, MessageBlockUtil,} from '../messaging-common/messageBlock'
+import {FeedItem, FeedItemSig, MessageBlockUtil} from '../messaging-common/messageBlock'
 import {WinstonUtil} from '../../utilz/winstonUtil'
 import {RedisClient} from '../messaging-common/redisClient'
 import {Coll} from '../../utilz/coll'
@@ -240,7 +240,7 @@ export class ValidatorNode implements StorageContractListener {
     this.log.debug('random token: %o', tokenObj);
     Check.isTrue(tokenObj.attestVector?.length > 0, 'attest vector is empty');
     Check.isTrue(tokenObj.attestVector[0] != null, 'attest vector is empty');
-    block.setAttesttoken(BitUtil.stringToBytes(tokenObj.attestToken));
+    block.setAttesttoken(BitUtil.stringToBytesUtf(tokenObj.attestToken));
 
     // ** V signs block
     // every reply has (attestation per each transaction) and (signature)
@@ -483,14 +483,22 @@ export class ValidatorNode implements StorageContractListener {
     // process signatures from validator
     // take them only if they are valid
     let gotOwnSignature = false;
+    let vNodeId;
     for (let sigIndex = 0; sigIndex < asr.getAttestationsList().length; sigIndex++) {
       let patch = asr.getAttestationsList()[sigIndex];
       let nodeId = await BlockUtil.recoverPatchAddress(this.wallet, blockSignedByV, patch);
+      const isValidatorSignature = sigIndex == 0;
+      if (isValidatorSignature) {
+        vNodeId = nodeId;
+      }
       if (nodeId == this.wallet.address) {
         this.log.debug('got my own signature');
         gotOwnSignature = true;
       }
-      await this.checkSignerNodeId(nodeId, blockSignedByV);
+      await this.checkAddrInContract(nodeId);
+      if (!isValidatorSignature) {
+        await this.checkAttestorInToken(nodeId, vNodeId, blockSignedByV.getAttesttoken_asU8());
+      }
       await BlockUtil.appendPatchAsValidator(this.wallet, blockSignedByVA, patch);
     }
     if (!gotOwnSignature) {
@@ -522,24 +530,23 @@ export class ValidatorNode implements StorageContractListener {
     return response;
   }
 
-  // todo check attest token!
-  private async checkSignerNodeId(nodeId: string, block: Block): Promise<boolean> {
+  // checks that nodeId is registered in a smart contract as an active validator node
+  // todo BlockUtil?
+  // todo return type
+  private async checkAddrInContract(nodeId: string): Promise<boolean> {
     const vi = this.valContractState.getValidatorNodesMap().get(nodeId);
     Check.notNull(vi, `Validator url is empty for node: ${nodeId}`);
+    return true;
+  }
 
-    // ** check attest token
-    // TODO enable it!!!!!!!!!!!!!!
-    /*    if (
-          !this.random.checkAttestToken(
-            block.getAttesttoken_asB64(),
-            blockValidatorNodeId,
-            this.valContractState.nodeId
-          )
-        ) {
-          this.log.error('block attest token is invalid')
-          throw new BlockError('block attest token is invalid');
-        }*/
-
+  // checks that nodeId is registered in attestToken as a participant of the current block validation
+  // todo BlockUtil?
+  // todo return type
+  private async checkAttestorInToken(nodeId: string, validatorIdToExclude: string, attestTokenB64: Uint8Array): Promise<boolean> {
+    if (!this.random.checkAttestToken(nodeId, validatorIdToExclude, BitUtil.bytesUtfToString(attestTokenB64))) {
+      this.log.error('block attest token is invalid')
+      throw new BlockError('block attest token is invalid');
+    }
     return true;
   }
 
