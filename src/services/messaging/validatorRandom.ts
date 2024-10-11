@@ -27,7 +27,8 @@ import { Check } from '../../utilz/check'
 @Service()
 export class ValidatorRandom {
   private static readonly RANDOM_SIZE_IN_BYTES = 20;
-  public static readonly ATT_TOKEN_PREFIX = 'T1';
+  public static readonly ATT_TOKEN_PREFIX = 'AT1';
+  public static readonly VAL_TOKEN_PREFIX = 'VT1';
 
   // PING: schedule
   private static readonly RANDOM_SCHEDULE = '*/30 * * * * *'
@@ -118,8 +119,8 @@ export class ValidatorRandom {
     }
     const result = new ValidatorToken()
     const v1 = validationVector[0]
-    result.validatorToken = NetworkRandom.write(nr)
-    result.validatorUrl = this.contractState.getValidatorNodesMap().get(v1).url
+    result.validatorToken = ValidatorRandom.VAL_TOKEN_PREFIX + NetworkRandom.write(nr);
+    result.validatorUrl = this.contractState.getValidatorNodesMap().get(v1).url;
     return result
   }
 
@@ -135,6 +136,11 @@ export class ValidatorRandom {
 
   // checks that token - leads to a (1) validator - nodeIdTarget
   public checkValidatorToken(validatorToken: string, expectedNodeId: string): boolean {
+    if (StrUtil.isEmpty(validatorToken) || !validatorToken.startsWith(ValidatorRandom.VAL_TOKEN_PREFIX)) {
+      this.log.error('invalid validator token; should start with %s %s', ValidatorRandom.VAL_TOKEN_PREFIX, validatorToken);
+      return false;
+    }
+    validatorToken = validatorToken.substring(ValidatorRandom.VAL_TOKEN_PREFIX.length);
     const nr = NetworkRandom.read(validatorToken);
     const validationVector = ValidatorRandom.createValidationVector(
       this.log,
@@ -146,26 +152,10 @@ export class ValidatorRandom {
       this.contractState.contractCli.nodeRandomPingCount,
       []
     )
-    const actual = validationVector && validationVector.length == 1 ? validationVector[0] : null
-    const success = actual === expectedNodeId
-    return success
-  }
-
-  public static async checkValidatorToken(validatorToken: string, expectedNodeId: string): boolean {
-    const nr = NetworkRandom.read(validatorToken);
-    const validationVector = ValidatorRandom.createValidationVector(
-      this.log,
-      this.contractState.getValidatorNodesMap(),
-      1,
-      nr,
-      'client',
-      this.contractState.contractCli.nodeRandomMinCount,
-      this.contractState.contractCli.nodeRandomPingCount,
-      []
-    )
-    const actual = validationVector && validationVector.length == 1 ? validationVector[0] : null
-    const success = actual === expectedNodeId
-    return success
+    this.log.debug('recovered attest vector %s', StrUtil.fmt(validationVector));
+    const actual = validationVector && validationVector.length == 1 ? validationVector[0] : null;
+    const success = actual === expectedNodeId;
+    return success;
   }
 
   // for validator
@@ -217,7 +207,7 @@ export class ValidatorRandom {
       this.contractState.contractCli.nodeRandomPingCount,
       [validatorToExclude]
     )
-    this.log.debug('recovered attest vector %s', StrUtil.fmt(attestVector))
+    this.log.debug('recovered attest vector %s', StrUtil.fmt(attestVector));
     if (attestVector == null) {
       return false
     }
@@ -313,6 +303,7 @@ export class ValidatorRandom {
       seed,
       nodesToSkip
     )
+    log.debug('created api token vector %s', StrUtil.fmt(result));
     return result
   }
 
@@ -393,31 +384,22 @@ export class ValidatorRandom {
     log.info(`randomNodesRequired %s`, randomNodesRequired)
     log.info(`nodes: %s`, StrUtil.fmt(nodeArr))
     // xor all random values (xor works like add, so the order doesn't really matter)
-    let buf: Buffer = null
+    const hasher = crypto.createHash('sha512').update(StrUtil.getOrDefault(seed, ''));
     for (const nodeId of nodeArr) {
       const randomHex = mapIdToRandom.get(nodeId)
       const tmp = Buffer.from(randomHex, 'hex')
-      if (buf == null) {
-        buf = tmp
-      } else {
-        buf = BitUtil.xor(buf, tmp)
-      }
+      hasher.update(tmp);
     }
+    const hash = hasher.digest();
     // collapse all into 512 bit / 64 bytes
     // let's assume that we will always have less than 50 signing nodes (8 bits per node)
     // so that we have enough randomness to read 64x times even with duplicates
-    const hashSizeInBytes = 64
+    const hashSizeInNodeOffsets = 64; // 1byte
     const banSet = new Set<string>(nodesToSkip)
     const resultSet = new Set<string>()
-    const hash = crypto
-      .createHash('sha512')
-      .update(StrUtil.getOrDefault(seed, ''))
-      .update(buf)
-      .digest()
-    log.info(`buffer %s , hash (512bit) %o, !nodeArr: %s`,
-      StrUtil.fmt(buf), StrUtil.fmt(hash), StrUtil.fmt(nodeArr))
-    for (let i = 0; i < hashSizeInBytes && resultSet.size < randomNodesRequired; i++) {
-      const random8bits = hash.readUInt8(i)
+    log.info(`hashBytes %s`, StrUtil.fmt(hash));
+    for (let i = 0; i < hashSizeInNodeOffsets && resultSet.size < randomNodesRequired; i++) {
+      const random8bits = hash.readUInt8(i); // 1byte
       const randomNodeIndex = nodeArr.length == 0 ? 0 : random8bits % nodeArr.length
       const randomNodeId = nodeArr[randomNodeIndex]
       log.debug(

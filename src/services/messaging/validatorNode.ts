@@ -144,7 +144,7 @@ export class ValidatorNode implements StorageContractListener {
     if (validatorTokenRequired) {
       // check that this Validator is a valid target, according to validatorToken
       let valid = true;
-      let validatorToken = BitUtil.bytesToBase64(tx.getApitoken_asU8());
+      let validatorToken = BitUtil.bytesUtfToString(tx.getApitoken_asU8());
       try {
         valid = this.random.checkValidatorToken(validatorToken, this.nodeId);
       } catch (e) {
@@ -372,6 +372,14 @@ export class ValidatorNode implements StorageContractListener {
     const check1 = await BlockUtil.checkBlockAsAttestor(blockSignedByV, activeValidators);
     if (!check1.success) {
       throw new BlockError(check1.err); //todo reply with error here ?
+    }
+    const blockValidatorNodeId = await BlockUtil.recoverSignerAddress(blockSignedByV, 0);
+    for (let i = 0; i < blockSignedByV.getTxobjList().length; i++) {
+      const txObj = blockSignedByV.getTxobjList()[i];
+      const apiToken = BitUtil.bytesUtfToString(txObj.getTx().getApitoken_asU8());
+      if (!this.random.checkValidatorToken(apiToken, blockValidatorNodeId)) {
+        throw new BlockError('invalid validator for transaction #'+ i);
+      }
     }
     // ** check validator signature,
     // todo MOVE IT TO BlockUtil.attestBlockFully
