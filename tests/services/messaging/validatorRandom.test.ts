@@ -56,7 +56,7 @@ function doRunTest(nodeIdAndRandomValue: string[][], randomNodesRequired: number
         nodeIds.push(tuple[0])
         mapIdToRandom.set(tuple[0], tuple[1]);
     }
-    let result = ValidatorRandom.calculateValidationVector(log, nodeIds, mapIdToRandom, randomNodesRequired, seed, nodesToSkip);
+    let result = ValidatorRandom.calculateValidationVector(nodeIds, mapIdToRandom, randomNodesRequired, seed, nodesToSkip);
     console.log('result', result);
     return result;
 }

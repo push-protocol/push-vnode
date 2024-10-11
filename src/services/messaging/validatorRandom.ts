@@ -33,7 +33,7 @@ export class ValidatorRandom {
   // PING: schedule
   private static readonly RANDOM_SCHEDULE = '*/30 * * * * *'
 
-  public log: Logger = WinstonUtil.newLog(ValidatorRandom)
+  public static log: Logger = WinstonUtil.newLog(ValidatorRandom)
 
   @Inject((type) => ValidatorContractState)
   private contractState: ValidatorContractState
@@ -56,7 +56,7 @@ export class ValidatorRandom {
     setTimeout(() => {
       cronJob.invoke()
     }, 6000)
-    this.log.level = 'error' // todo
+    ValidatorRandom.log.level = 'error' // todo
     this.validatorPing.log.level = 'error' // todo
   }
 
@@ -104,16 +104,7 @@ export class ValidatorRandom {
   // returns a token which defines which (1) validator can be queried
   public createValidatorToken(): ValidatorToken {
     const nr = this.getNetworkRandomForValidatorToken()
-    const validationVector = ValidatorRandom.createValidationVector(
-      this.log,
-      this.contractState.getValidatorNodesMap(),
-      1,
-      nr,
-      'client',
-      this.contractState.contractCli.nodeRandomMinCount,
-      this.contractState.contractCli.nodeRandomPingCount,
-      []
-    )
+    const validationVector = ValidatorRandom.createValidationVector(this.contractState.getValidatorNodesMap(), 1, nr, 'client', this.contractState.contractCli.nodeRandomMinCount, this.contractState.contractCli.nodeRandomPingCount, [])
     if (validationVector == null) {
       throw new Error('failed to create validation vector')
     }
@@ -137,22 +128,13 @@ export class ValidatorRandom {
   // checks that token - leads to a (1) validator - nodeIdTarget
   public checkValidatorToken(validatorToken: string, expectedNodeId: string): boolean {
     if (StrUtil.isEmpty(validatorToken) || !validatorToken.startsWith(ValidatorRandom.VAL_TOKEN_PREFIX)) {
-      this.log.error('invalid validator token; should start with %s %s', ValidatorRandom.VAL_TOKEN_PREFIX, validatorToken);
+      ValidatorRandom.log.error('invalid validator token; should start with %s %s', ValidatorRandom.VAL_TOKEN_PREFIX, validatorToken);
       return false;
     }
     validatorToken = validatorToken.substring(ValidatorRandom.VAL_TOKEN_PREFIX.length);
     const nr = NetworkRandom.read(validatorToken);
-    const validationVector = ValidatorRandom.createValidationVector(
-      this.log,
-      this.contractState.getValidatorNodesMap(),
-      1,
-      nr,
-      'client',
-      this.contractState.contractCli.nodeRandomMinCount,
-      this.contractState.contractCli.nodeRandomPingCount,
-      []
-    )
-    this.log.debug('recovered attest vector %s', StrUtil.fmt(validationVector));
+    const validationVector = ValidatorRandom.createValidationVector(this.contractState.getValidatorNodesMap(), 1, nr, 'client', this.contractState.contractCli.nodeRandomMinCount, this.contractState.contractCli.nodeRandomPingCount, [])
+    ValidatorRandom.log.debug('recovered attest vector %s', StrUtil.fmt(validationVector));
     const actual = validationVector && validationVector.length == 1 ? validationVector[0] : null;
     const success = actual === expectedNodeId;
     return success;
@@ -165,16 +147,7 @@ export class ValidatorRandom {
     }
 
     const nr = NetworkRandom.readMap(this.randomMap)
-    const attestVector = ValidatorRandom.createValidationVector(
-      this.log,
-      this.contractState.getValidatorNodesMap(),
-      this.contractState.contractCli.valPerBlock - 1,
-      nr,
-      'attest',
-      this.contractState.contractCli.nodeRandomMinCount,
-      this.contractState.contractCli.nodeRandomPingCount,
-      [this.contractState.nodeId]
-    )
+    const attestVector = ValidatorRandom.createValidationVector(this.contractState.getValidatorNodesMap(), this.contractState.contractCli.valPerBlock - 1, nr, 'attest', this.contractState.contractCli.nodeRandomMinCount, this.contractState.contractCli.nodeRandomPingCount, [this.contractState.nodeId])
     if (attestVector == null) {
       throw new Error('failed to create attest vector')
     }
@@ -190,24 +163,15 @@ export class ValidatorRandom {
   ): boolean {
     Check.isTrue(validatorToExclude == validatorToExclude, 'validator=nodeIdForLookup');
     if (StrUtil.isEmpty(attestTokenBase64) || !attestTokenBase64.startsWith(ValidatorRandom.ATT_TOKEN_PREFIX)) {
-      this.log.error('invalid attest token; should start with ' + ValidatorRandom.ATT_TOKEN_PREFIX);
+      ValidatorRandom.log.error('invalid attest token; should start with ' + ValidatorRandom.ATT_TOKEN_PREFIX);
       return false;
     }
     attestTokenBase64 = attestTokenBase64.toString().substring(ValidatorRandom.ATT_TOKEN_PREFIX.length);
-    this.log.debug('checkAttestToken:() nodeIdForLookUp: %s validatorNodeId:%s attestTokenBase64: %s',
+    ValidatorRandom.log.debug('checkAttestToken:() nodeIdForLookUp: %s validatorNodeId:%s attestTokenBase64: %s',
       nodeId, validatorToExclude, this.contractState.contractCli.nodeRandomMinCount, attestTokenBase64);
     const nr = NetworkRandom.read(attestTokenBase64)
-    const attestVector = ValidatorRandom.createValidationVector(
-      this.log,
-      this.contractState.getValidatorNodesMap(),
-      this.contractState.contractCli.valPerBlock - 1,
-      nr,
-      'attest',
-      this.contractState.contractCli.nodeRandomMinCount,
-      this.contractState.contractCli.nodeRandomPingCount,
-      [validatorToExclude]
-    )
-    this.log.debug('recovered attest vector %s', StrUtil.fmt(attestVector));
+    const attestVector = ValidatorRandom.createValidationVector(this.contractState.getValidatorNodesMap(), this.contractState.contractCli.valPerBlock - 1, nr, 'attest', this.contractState.contractCli.nodeRandomMinCount, this.contractState.contractCli.nodeRandomPingCount, [validatorToExclude])
+    ValidatorRandom.log.debug('recovered attest vector %s', StrUtil.fmt(attestVector));
     if (attestVector == null) {
       return false
     }
@@ -229,7 +193,6 @@ export class ValidatorRandom {
    * 1 can return duplicates
    * 2 can return first address at any position
    *
-   * @param log
    * @param allValidators all validators defined on a smart contract
    * @param validatorsRequired how many do we need
    * @param networkRandom a network random
@@ -243,7 +206,6 @@ export class ValidatorRandom {
    * @returns a list of nodeIds
    */
   public static createValidationVector(
-    log: Logger,
     allValidators: Map<string, NodeInfo>,
     validatorsRequired: number,
     networkRandom: NetworkRandom,
@@ -261,7 +223,7 @@ export class ValidatorRandom {
       if (EnvLoader.getPropertyAsBool('VALIDATOR_DISABLE_TOKEN_TIMEOUT')) {
         goodTimestamp = true
       }
-      log.error('nodeRandom from %s is outdated by more than 1hr', nodeRandom.nodeId)
+      ValidatorRandom.log.error('nodeRandom from %s is outdated by more than 1hr', nodeRandom.nodeId)
       const validNodeId = allValidators.has(nodeRandom.nodeId)
       // todo on review stage: double check that we check the 'real thing' here
       const validSignature = EthSig.check(nodeRandom.signature, nodeRandom.nodeId, nodeRandom)
@@ -275,7 +237,7 @@ export class ValidatorRandom {
         goodNodesOnline.push(nodeRandom.nodeId)
         randomMap.set(nodeRandom.nodeId, nodeRandom)
       } else {
-        log.error(
+        ValidatorRandom.log.error(
           'invalid nodeRandom: %o, ' +
             'goodTimestamp: %s, validNodeId: %s, validSignature: %s,' +
             'validRandomHex: %o',
@@ -288,22 +250,15 @@ export class ValidatorRandom {
       }
     }
     if (nodeRandomRequired != 0 && goodNodesOnline.length < nodeRandomRequired) {
-      log.error('not enough Node Random replies to build a random vector')
+      ValidatorRandom.log.error('not enough Node Random replies to build a random vector')
       throw new Error('not enough Node Random replies to build a random vector')
     }
     const mapIdToRandom = new Map<string, string>()
     for (const nodeId of goodNodesOnline) {
       mapIdToRandom.set(nodeId, randomMap.get(nodeId)?.randomHex)
     }
-    const result = ValidatorRandom.calculateValidationVector(
-      log,
-      goodNodesOnline,
-      mapIdToRandom,
-      validatorsRequired,
-      seed,
-      nodesToSkip
-    )
-    log.debug('created api token vector %s', StrUtil.fmt(result));
+    const result = ValidatorRandom.calculateValidationVector(goodNodesOnline, mapIdToRandom, validatorsRequired, seed, nodesToSkip)
+    ValidatorRandom.log.debug('created api token vector %s', StrUtil.fmt(result));
     return result
   }
 
@@ -339,7 +294,6 @@ export class ValidatorRandom {
    * seed
    * nodesToSkip
    *
-   * @param log logger
    * @param nodes array node nodeIds, i.e. [1,2,3]
    * @param mapIdToRandom  a mapping of nodeId->NodeRandom.randomHex value
    * @param randomNodesRequired number of uniq nodeIds to produce
@@ -350,7 +304,6 @@ export class ValidatorRandom {
    * todo replace sha512 with shake_256 if arbitrary output size is needed (>50 signing nodes)
    */
   static calculateValidationVector(
-    log: Logger,
     nodes: string[],
     mapIdToRandom: Map<string, string>,
     randomNodesRequired: number,
@@ -381,8 +334,8 @@ export class ValidatorRandom {
     const nodeArr = nodes.slice(0);
 
     ValidatorRandom.sortAsc(nodeArr)
-    log.info(`randomNodesRequired %s`, randomNodesRequired)
-    log.info(`nodes: %s`, StrUtil.fmt(nodeArr))
+    ValidatorRandom.log.info(`randomNodesRequired %s`, randomNodesRequired)
+    ValidatorRandom.log.info(`nodes: %s`, StrUtil.fmt(nodeArr))
     // xor all random values (xor works like add, so the order doesn't really matter)
     const hasher = crypto.createHash('sha512').update(StrUtil.getOrDefault(seed, ''));
     for (const nodeId of nodeArr) {
@@ -397,12 +350,12 @@ export class ValidatorRandom {
     const hashSizeInNodeOffsets = 64; // 1byte
     const banSet = new Set<string>(nodesToSkip)
     const resultSet = new Set<string>()
-    log.info(`hashBytes %s`, StrUtil.fmt(hash));
+    ValidatorRandom.log.info(`hashBytes %s`, StrUtil.fmt(hash));
     for (let i = 0; i < hashSizeInNodeOffsets && resultSet.size < randomNodesRequired; i++) {
       const random8bits = hash.readUInt8(i); // 1byte
       const randomNodeIndex = nodeArr.length == 0 ? 0 : random8bits % nodeArr.length
       const randomNodeId = nodeArr[randomNodeIndex]
-      log.debug(
+      ValidatorRandom.log.debug(
         `random8bits %s, randomNodeIndex %s, randomNodeId %s, nodeArr: %s, resultSet: %o`,
         random8bits,
         randomNodeIndex,
@@ -413,9 +366,9 @@ export class ValidatorRandom {
       Check.notNull(randomNodeId, `invalid random node at ${randomNodeIndex}`)
       nodeArr.splice(randomNodeIndex, 1) // use each only once
       if (banSet.has(randomNodeId)) {
-        log.debug('skipping id because of nodesToSkip')
+        ValidatorRandom.log.debug('skipping id because of nodesToSkip')
       } else if (resultSet.has(randomNodeId)) {
-        log.debug('skipping id because of duplicate')
+        ValidatorRandom.log.debug('skipping id because of duplicate')
       } else {
         resultSet.add(randomNodeId)
       }
