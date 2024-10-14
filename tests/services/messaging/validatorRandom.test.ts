@@ -2,7 +2,7 @@ import {NetworkRandom, NodeRandom, ValidatorRandom} from "../../../src/services/
 import winston from "winston";
 import {createLogger, format, Logger, transports} from "winston";
 import {assert} from "chai";
-import {RandomUtil} from "../../utilz/randomUtil";
+import {RandomUtil} from "../../../src/utilz/randomUtil";
 import {assertType} from "graphql/type";
 import {WinstonUtil} from "../../../src/utilz/winstonUtil";
 
