@@ -16,6 +16,7 @@ import StrUtil from '../../utilz/strUtil'
 import { WinstonUtil } from '../../utilz/winstonUtil'
 import { EnvLoader } from '../../utilz/envLoader'
 import { Check } from '../../utilz/check'
+import {BlockUtil} from "../messaging-common/blockUtil";
 
 
 
@@ -27,8 +28,8 @@ import { Check } from '../../utilz/check'
 @Service()
 export class ValidatorRandom {
   private static readonly RANDOM_SIZE_IN_BYTES = 20;
-  public static readonly ATT_TOKEN_PREFIX = 'AT1';
-  public static readonly VAL_TOKEN_PREFIX = 'VT1';
+  public static readonly ATT_TOKEN_PREFIX = BlockUtil.ATT_TOKEN_PREFIX;
+  public static readonly VAL_TOKEN_PREFIX =  BlockUtil.VAL_TOKEN_PREFIX;
 
   // PING: schedule
   private static readonly RANDOM_SCHEDULE = '*/30 * * * * *'
