@@ -7,6 +7,7 @@ import {BitUtil} from "../../src/utilz/bitUtil";
 import {readFileSync} from "fs";
 import {EthUtil} from "../../src/utilz/EthUtil";
 import {Check} from "../../src/utilz/check";
+import {BlockUtil} from "../../src/services/messaging-common/blockUtil";
 
 describe('api test3', function () {
   it('testSig', async function () {
@@ -52,6 +53,8 @@ describe('api test3', function () {
       let c = EthUtil.parseCaipAddress(addr);
       expect(c).to.deep.equal([{ namespace: "eip155", chainId: null, addr: "0xab16a96D359eC26a11e2C2b3d8f8B8942d5Bfcdb" }, null]);
       expect(EthUtil.isFullCAIPAddress(addr)).to.be.false;
+      let shardId = BlockUtil.calculateAffectedShard(addr, 32);
+      console.log('shardId: %s', shardId);
     }
     {
       // incorrect

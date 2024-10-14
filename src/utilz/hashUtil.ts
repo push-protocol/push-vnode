@@ -1,4 +1,7 @@
 import * as CryptoJS from 'crypto-js'
+import crypto from "crypto";
+import StrUtil from "./strUtil";
+import {BitUtil} from "./bitUtil";
 
 // todo use a better lib
 export class HashUtil {
@@ -29,5 +32,23 @@ export class HashUtil {
     }
     const shaAsWordArray = sha256.finalize();
     return HashUtil.wordArrayToArray(shaAsWordArray);
+  }
+
+  // todo compare this hash with crypto-js
+  public static sha512ArrayAsBytes(data: Uint8Array[]): Uint8Array {
+    const hasher = crypto.createHash('sha512');
+    for (const arr of data) {
+      hasher.update(arr);
+    }
+    const hash = hasher.digest();
+    return new Uint8Array(hash);
+  }
+
+  // todo compare this hash with crypto-js
+  public static sha256AsBytesEx(data: Uint8Array): Uint8Array {
+    const hasher = crypto.createHash('sha256');
+    hasher.update(data);
+    const hash = hasher.digest();
+    return new Uint8Array(hash);
   }
 }

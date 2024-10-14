@@ -113,32 +113,25 @@ export class BlockUtil {
     if (StrUtil.isEmpty(walletInCaip)) {
       return null
     }
-    let shardId: number = null
+
     const [caip, err] = EthUtil.parseCaipAddress(walletInCaip);
     if (err != null) {
       throw new Error('invalid caip address:' + err);
     }
     if (
-      caip != null &&
-      !StrUtil.isEmpty(caip.addr) &&
-      caip.addr.startsWith('0x') &&
-      caip.addr.length > 4
+      !(caip != null &&
+        !StrUtil.isEmpty(caip.addr) &&
+        caip.addr.length > 4)
     ) {
-      const firstByteAsHex = caip.addr.substring(2, 4).toLowerCase()
-      shardId = Number.parseInt(firstByteAsHex, 16)
+      return null;
     }
-    // 2) try to get sha256 otherwise
-    if (shardId == null) {
-      let walletBytes = BitUtil.stringToBytesUtf(walletInCaip);
-      let hashBase16 = BitUtil.bytesToBase16(HashUtil.sha256AsBytes(walletBytes));
-      Check.isTrue(hashBase16.length >= 2, "hash is too short");
-      const firstByteAsHex = hashBase16.toLowerCase().substring(0, 2);
-      shardId = Number.parseInt(firstByteAsHex, 16);
-    }
+    let addrWithoutPrefix = !caip.addr.startsWith('0x') ? caip.addr : caip.addr.substring(2);
+    const sha = HashUtil.sha256AsBytesEx(BitUtil.stringToBytesUtf(addrWithoutPrefix));
+    let shardId = sha[0];
     Check.notNull(shardId)
     Check.isTrue(shardId >= 0 && shardId <= 255 && NumUtil.isRoundedInteger(shardId))
     Check.isTrue(shardCount >= 1)
-    return shardId % shardCount
+    return shardId % shardCount;
   }
 
   /**

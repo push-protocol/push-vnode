@@ -1,7 +1,7 @@
 // noinspection DuplicatedCode
 
 import 'mocha'
-import chai, {expect} from 'chai'
+import chai, {assert, expect} from 'chai'
 import {
   Block, EncryptedText,
   InitDid,
@@ -22,6 +22,8 @@ import {Check} from "../../src/utilz/check";
 import * as jspb from "google-protobuf";
 import StrUtil from "../../src/utilz/strUtil";
 import {NetworkRandom, NodeRandom, ValidatorRandom} from "../../src/services/messaging/validatorRandom";
+import {EthUtil} from "../../src/utilz/EthUtil";
+import {RandomUtil} from "../../src/utilz/randomUtil";
 
 const expect = chai.expect;
 
@@ -419,3 +421,66 @@ async function loadWalletInfos(): Promise<WalletInfo[]> {
   );
   return walletInfos;
 }
+
+
+describe('sharding tests', function () {
+  it('calculate shard', async function () {
+
+
+    // # Ethereum mainnet (canonicalized with [EIP-55][] checksum)
+    let sample = [
+      'eip155:1:0xab16a96D359eC26a11e2C2b3d8f8B8942d5Bfcdb',
+      'eip155:0xab16a96D359eC26a11e2C2b3d8f8B8942d5Bfcdb',
+      'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
+      'cosmos:cosmoshub-3:cosmos1t2uflqwqe0fsj0shcfkrvpukewcw40yjj6hdc0',
+      'polkadot:b0a8d493285c2df73290dfb7e61f870f:5hmuyxw9xdgbpptgypokw4thfyoe3ryenebr381z9iaegmfy',
+      'starknet:SN_GOERLI:0x02dd1b492765c064eac4039e3841aa5f382773b598097a40073bd8b48170ab57',
+      'hedera:mainnet:0.0.1234567890-zbhlt'
+    ];
+
+    let newSize = 200;
+    let addrs = [];
+    for (let i = 0; i < newSize; i++) {
+      const randomIndex = RandomUtil.getRandomInt(0, sample.length);
+      addrs.push(sample[randomIndex]);
+    }
+
+    const MAX_SHARDS = 64;
+    for (let shardCount = 1; shardCount < MAX_SHARDS; shardCount++) {
+
+
+      /*
+      Map checks for this case
+        shard1 -> 5 addresses
+        shard2 -> 3 addresses
+        shard0 -> 0 addresses (bad!)
+       */
+      let shardToNumOfAddresses: Map<number, number> = new Map();
+      for (const a of addrs) {
+        let shardId = BlockUtil.calculateAffectedShard(a, shardCount);
+        // console.log('shardId: %s -> %s', a, shardId);
+        assert.isTrue(shardId != null && shardId >= 0);
+        assert.isTrue(shardId < shardCount);
+
+        let oldCounter = shardToNumOfAddresses.get(shardId);
+        if (oldCounter == null) {
+          shardToNumOfAddresses.set(shardId, 1);
+        } else {
+          shardToNumOfAddresses.set(shardId, ++oldCounter);
+        }
+      }
+      if (shardCount > 4) {
+        let minSize = 100000000000;
+        let maxSize = 0;
+        for (const [shardId, count] of shardToNumOfAddresses) {
+          console.log('shardId: %s has %s addresses', shardId, count);
+          minSize = Math.min(minSize, count);
+          maxSize = Math.max(maxSize, count);
+        }
+        const delta = maxSize - minSize;
+        const maxDelta = addrs.length / 4;
+      }
+    }
+
+  })
+});
