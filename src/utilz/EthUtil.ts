@@ -38,7 +38,7 @@ export class EthUtil {
     }
 
     let addrNoPrefix = addr.startsWith('0x') ? addr.substring(2) : addr;
-    if (!StrUtil.hasSize(addrNoPrefix, 1, this.ADDR_MAX)) {
+    if (!StrUtil.hasSize(addrNoPrefix, 4, this.ADDR_MAX)) {
       return [null, `Invalid address value: ${addr}`];
     }
 
@@ -52,11 +52,10 @@ export class EthUtil {
   e:1:0
    */
   public static isFullCAIPAddress(fullCaipAddress: string): boolean {
-    let res = EthUtil.parseCaipAddress(fullCaipAddress);
-    if (res[1] != null) {
+    let [caip, err] = EthUtil.parseCaipAddress(fullCaipAddress);
+    if (err != null) {
       return false;
     }
-    let caip = res[0];
     let valid = !StrUtil.isEmpty(caip.chainId)
       && !StrUtil.isEmpty(caip.namespace)
       && !StrUtil.isEmpty(caip.addr);
@@ -67,9 +66,9 @@ export class EthUtil {
 // ex: eip155:5:0xD8634C39BBFd4033c0d3289C4515275102423681
 export class CaipAddr {
   // ex: eip155
-  namespace: string
+  namespace: string;
   // ex: 5
-  chainId: string | null
+  chainId: string | null;
   // ex: 0xD8634C39BBFd4033c0d3289C4515275102423681
-  addr: string
+  addr: string;
 }

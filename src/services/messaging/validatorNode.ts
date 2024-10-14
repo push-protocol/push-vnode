@@ -422,7 +422,7 @@ export class ValidatorNode implements StorageContractListener {
       return result;
     }
 
-    let payloadCheck = BlockUtil.checkTransactionPayload(txObj.getTx());
+    let payloadCheck = await BlockUtil.checkTransactionPayload(txObj.getTx());
     if (!txCheck.success) {
       result.setVote(Vote.REJECTED);
       return result;

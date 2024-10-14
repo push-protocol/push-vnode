@@ -46,6 +46,8 @@ export class BlockUtil {
 
   public static readonly VALID_VALIDATOR_VOTES: Set<number> = new Set<number>([1]);
   public static readonly VALID_ATTESTOR_VOTES: Set<number> = new Set<number>([1, 2]);
+  public static readonly ATT_TOKEN_PREFIX = 'AT1';
+  public static readonly VAL_TOKEN_PREFIX = 'VT1';
 
   public static parseTransaction(txRaw: Uint8Array): Transaction {
     if (txRaw == null || txRaw.length > BlockUtil.MAX_TRANSACTION_SIZE_BYTES) {
@@ -107,28 +109,27 @@ export class BlockUtil {
   // 2) take sha256(addr) ->
   // shard count is a smart contract constant; normally it should never change
   // lets read this value from a contract
-  public static calculateAffectedShard(wallet: string, shardCount: number): number | null {
-    if (StrUtil.isEmpty(wallet)) {
+  public static calculateAffectedShard(walletInCaip: string, shardCount: number): number | null {
+    if (StrUtil.isEmpty(walletInCaip)) {
       return null
     }
     let shardId: number = null
-    const res = EthUtil.parseCaipAddress(wallet);
-    if (res[1] != null) {
-      throw new Error('invalid caip address:' + res[1]);
+    const [caip, err] = EthUtil.parseCaipAddress(walletInCaip);
+    if (err != null) {
+      throw new Error('invalid caip address:' + err);
     }
-    const addrObj = res[0];
     if (
-      addrObj != null &&
-      !StrUtil.isEmpty(addrObj.addr) &&
-      addrObj.addr.startsWith('0x') &&
-      addrObj.addr.length > 4
+      caip != null &&
+      !StrUtil.isEmpty(caip.addr) &&
+      caip.addr.startsWith('0x') &&
+      caip.addr.length > 4
     ) {
-      const firstByteAsHex = addrObj.addr.substring(2, 4).toLowerCase()
+      const firstByteAsHex = caip.addr.substring(2, 4).toLowerCase()
       shardId = Number.parseInt(firstByteAsHex, 16)
     }
     // 2) try to get sha256 otherwise
     if (shardId == null) {
-      let walletBytes = BitUtil.stringToBytesUtf(wallet);
+      let walletBytes = BitUtil.stringToBytesUtf(walletInCaip);
       let hashBase16 = BitUtil.bytesToBase16(HashUtil.sha256AsBytes(walletBytes));
       Check.isTrue(hashBase16.length >= 2, "hash is too short");
       const firstByteAsHex = hashBase16.toLowerCase().substring(0, 2);
@@ -162,53 +163,113 @@ export class BlockUtil {
         shards.add(shardId);
       }
     }
-    return shards
+    return shards;
+  }
+
+  public static checkValidatorTokenFormat(apiTokenBytes: Uint8Array): CheckR {
+    let token = BitUtil.bytesUtfToString(apiTokenBytes)
+    if (StrUtil.isEmpty(token) || !token.startsWith(BlockUtil.VAL_TOKEN_PREFIX)) {
+      return CheckR.failWithText(`invalid attestor token; ${StrUtil.fmt(apiTokenBytes)} should start with ${BlockUtil.ATT_TOKEN_PREFIX}`);
+    }
+    return CheckR.ok();
+  }
+
+  public static checkAttestTokenFormat(attestorTokenBytes: Uint8Array): CheckR {
+    let token = BitUtil.bytesUtfToString(attestorTokenBytes)
+    if (StrUtil.isEmpty(token) || !token.startsWith(BlockUtil.ATT_TOKEN_PREFIX)) {
+      return CheckR.failWithText(`invalid attestor token; ${StrUtil.fmt(attestorTokenBytes)} should start with ${BlockUtil.ATT_TOKEN_PREFIX}`);
+    }
+    return CheckR.ok();
+  }
+
+  public static async signGenericTransaction(tx: Transaction, wallet: Wallet) {
+    Check.isTrue(ArrayUtil.isEmpty(tx.getSignature_asU8()), ' clear the signature field first, signature is:' + tx.getSignature());
+    let tmpBytes = tx.serializeBinary();
+    let sig = await EthSig.signBytes(wallet, tmpBytes);
+    tx.setSignature(sig);
+  }
+
+  public static async checkGenericTransactionSignature(tx: Transaction): Promise<CheckR> {
+    if (tx.getCategory() === 'INIT_DID') {
+      const [caip, err] = EthUtil.parseCaipAddress(tx.getSender());
+      if (err != null) {
+        return CheckR.failWithText('failed to parse caip address');
+      }
+      if (caip.namespace !== 'eip155') {
+        return CheckR.failWithText(`unsupported chain id: ${tx.getSender()}`);
+      }
+      this.log.debug("checking signature `%s`", StrUtil.fmt(tx.getSignature_asU8()));
+      if (!ArrayUtil.hasMinSize(tx.getSignature_asU8(), 4)) {
+        return CheckR.failWithText('signature should have at least 4 bytes size');
+      }
+      // EVM SIGNATURES
+      let sig = tx.getSignature_asU8();
+      let tmp = Transaction.deserializeBinary(tx.serializeBinary());
+      tmp.setSignature(null);
+      let tmpBytes = tmp.serializeBinary();
+      const recoveredAddr = EthSig.recoverAddressFromMsg(tmpBytes, sig);
+      const valid = recoveredAddr === caip.addr;
+      this.log.debug('recoveredAddr %s; valid: %s', StrUtil.fmt(recoveredAddr), valid);
+      if (!valid) {
+        return CheckR.failWithText(`sender address${tx.getSender()} does not match recovered address ${recoveredAddr} 
+        signature was: ${StrUtil.fmt(`${tx.getSignature()}`)}`);
+      }
+    } else {
+      // todo other transaction types require check using storage nodes TBD
+      return CheckR.ok();
+    }
+    return CheckR.ok();
   }
 
 
-  public static async checkGenericTransaction(tx: Transaction): Promise<CheckResult> {
+  public static async checkGenericTransaction(tx: Transaction): Promise<CheckR> {
+    const checkToken = BlockUtil.checkValidatorTokenFormat(tx.getApitoken_asU8());
+    if (!checkToken.success) {
+      return checkToken;
+    }
     if (tx.getType() != 0) {
-      CheckResult.failWithText(`Only non-value transactions are supported`);
+      return CheckR.failWithText(`Only non-value transactions are supported`);
     }
     if (!EthUtil.isFullCAIPAddress(tx.getSender())) {
-      CheckResult.failWithText(`sender ${tx.getSender()} is not in full CAIP format ${tx.getSender()}`);
+      return CheckR.failWithText(`sender ${tx.getSender()} is not in full CAIP format ${tx.getSender()}`);
     }
+    // todo how many recipients are required per each tx type?
     for (const recipientAddr of tx.getRecipientsList()) {
       if (!EthUtil.isFullCAIPAddress(recipientAddr)) {
-        CheckResult.failWithText(`recipient ${recipientAddr} is not in full CAIP format ${tx.getSender()}`);
+        return CheckR.failWithText(`recipient ${recipientAddr} is not in full CAIP format ${tx.getSender()}`);
       }
     }
 
-    if (StrUtil.isEmpty(BitUtil.bytesToBase16(tx.getSalt_asU8()))) {
-      CheckResult.failWithText(`salt field is invalid`);
+    if (!ArrayUtil.hasMinSize(tx.getSalt_asU8(), 4)) {
+      return CheckR.failWithText(`salt field requires >=4 bytes ; ` + StrUtil.fmt(tx.getSalt_asU8()));
     }
 
-    let validSignature = true; // todo check signature
-    if (!validSignature) {
-      CheckResult.failWithText(`signature field is invalid`);
+    let validSignature = await BlockUtil.checkGenericTransactionSignature(tx);
+    if (!validSignature.success) {
+      return CheckR.failWithText(`signature field is invalid`);
     }
-    return CheckResult.ok();
+    return CheckR.ok();
   }
 
 
-  public static async checkTransactionPayload(tx: Transaction): Promise<CheckResult> {
+  public static async checkTransactionPayload(tx: Transaction): Promise<CheckR> {
     if (tx.getCategory() === 'INIT_DID') {
       let txData = InitDid.deserializeBinary(tx.getData_asU8());
       if (StrUtil.isEmpty(txData.getMasterpubkey())) {
-        CheckResult.failWithText(`masterPubKey missing`);
+        CheckR.failWithText(`masterPubKey missing`);
       }
       if (StrUtil.isEmpty(txData.getDerivedpubkey())) {
-        CheckResult.failWithText(`derivedPubKey missing`);
+        CheckR.failWithText(`derivedPubKey missing`);
       }
       if (txData.getWallettoencderivedkeyMap().size < 1) {
-        CheckResult.failWithText(`encDerivedPrivKey missing`);
+        CheckR.failWithText(`encDerivedPrivKey missing`);
       }
     } else if (tx.getCategory().startsWith("CUSTOM:")) {
       // no checks for user-defined transactions
     } else {
-      CheckResult.failWithText(`unsupported transaction category`);
+      CheckR.failWithText(`unsupported transaction category`);
     }
-    return CheckResult.ok();
+    return CheckR.ok();
   }
 
 
@@ -310,18 +371,22 @@ export class BlockUtil {
     }
   }
 
-  public static async checkBlockAsAttestor(blockSignedByV: Block, validatorsFromContract: Set<string>): Promise<CheckResult> {
+  public static async checkBlockAsAttestor(blockSignedByV: Block, validatorsFromContract: Set<string>): Promise<CheckR> {
+    const checkToken = BlockUtil.checkAttestTokenFormat(blockSignedByV.getAttesttoken_asU8());
+    if (!checkToken.success) {
+      return checkToken;
+    }
     if (blockSignedByV.getTxobjList().length >= BlockUtil.MAX_TRANSACTIONS_PER_BLOCK) {
-      return CheckResult.failWithText(
+      return CheckR.failWithText(
         `block is full; tx count: ${blockSignedByV.getTxobjList().length} ; limit: ${BlockUtil.MAX_TRANSACTIONS_PER_BLOCK} `);
     }
     if (BlockUtil.ATTESTOR_MAX_BLOCK_AGE_SECONDS != null &&
       BlockUtil.ATTESTOR_MAX_BLOCK_AGE_SECONDS > 0 &&
       Math.abs(blockSignedByV.getTs() - DateUtil.currentTimeMillis()) > 1000 * BlockUtil.ATTESTOR_MAX_BLOCK_AGE_SECONDS) {
-      return CheckResult.failWithText(`block is too old: ${blockSignedByV.getTs()}`);
+      return CheckR.failWithText(`block is too old: ${blockSignedByV.getTs()}`);
     }
     if (!ArrayUtil.hasMinSize(blockSignedByV.getAttesttoken_asU8(), 4)) {
-      return CheckResult.failWithText('attest token is missing or too small (4bytes min)');
+      return CheckR.failWithText('attest token is missing or too small (4bytes min)');
     }
     // all tx should be valid
     let totalTxBytes = 0;
@@ -329,16 +394,16 @@ export class BlockUtil {
       const txObj = blockSignedByV.getTxobjList()[i];
       let tx = txObj.getTx();
       if (tx == null) {
-        return CheckResult.failWithText('empty transaction found!');
+        return CheckR.failWithText('empty transaction found!');
       }
       const txBytes = tx.serializeBinary().length;
       totalTxBytes += txBytes;
       if (txBytes > BlockUtil.MAX_TRANSACTION_SIZE_BYTES) {
-        return CheckResult.failWithText(
+        return CheckR.failWithText(
           `transaction size exceeds the limit: ${txBytes} ; limit: ${BlockUtil.MAX_TRANSACTION_SIZE_BYTES}`);
       }
       if (txObj.getValidatordata() == null || !BlockUtil.VALID_VALIDATOR_VOTES.has(txObj.getValidatordata().getVote())) {
-        return CheckResult.failWithText(`tx # ${i} has invalid validator data`);
+        return CheckR.failWithText(`tx # ${i} has invalid validator data`);
       }
       let check1 = await BlockUtil.checkGenericTransaction(tx);
       if (!check1.success) {
@@ -350,17 +415,17 @@ export class BlockUtil {
       }
     }
     if (totalTxBytes > BlockUtil.MAX_TOTAL_TRANSACTION_SIZE_BYTES) {
-      return CheckResult.failWithText(
+      return CheckR.failWithText(
         `total transaction size exceeds the limit: ${totalTxBytes} ; limit: ${BlockUtil.MAX_TOTAL_TRANSACTION_SIZE_BYTES}`);
     }
     // number of signatures should be equal to number of attestations
     if (blockSignedByV.getSignersList().length == 0) {
-      return CheckResult.failWithText(`at least validator signature is required`);
+      return CheckR.failWithText(`at least validator signature is required`);
     }
     const sigCount = blockSignedByV.getSignersList().length;
     for (const txObj of blockSignedByV.getTxobjList()) {
       if (txObj.getAttestordataList().length != sigCount - 1) {
-        return CheckResult.failWithText(
+        return CheckR.failWithText(
           `number of tx attestations (salt=${txObj.getTx().getSalt()}) does not match with signature count`);
       }
     }
@@ -369,7 +434,7 @@ export class BlockUtil {
     BlockUtil.log.debug('signature # %s by %s (validator) ', 0, blockValidatorNodeId);
     const allowed = validatorsFromContract.has(blockValidatorNodeId);
     Check.isTrue(allowed, `unregistered validator: ${blockValidatorNodeId}`);
-    return CheckResult.ok();
+    return CheckR.ok();
   }
 
   public static async checkBlockFinalized(blockSignedByVA: Block,
@@ -381,11 +446,11 @@ export class BlockUtil {
     }
     const sigCount = blockSignedByVA.getSignersList().length;
     if (sigCount != valPerBlockFromContract) {
-      return CheckResult.failWithText(`block has only ${sigCount} signatures; expected ${valPerBlockFromContract} signatures `);
+      return CheckR.failWithText(`block has only ${sigCount} signatures; expected ${valPerBlockFromContract} signatures `);
     }
     for (const txObj of blockSignedByVA.getTxobjList()) {
       if (txObj.getAttestordataList().length != sigCount - 1) {
-        return CheckResult.failWithText(
+        return CheckR.failWithText(
           `number of tx attestations (salt=${txObj.getTx().getSalt()}) does not match with signature count`);
       }
     }
@@ -395,15 +460,15 @@ export class BlockUtil {
       const txObj = blockSignedByVA.getTxobjList()[txIndex];
       let tx = txObj.getTx();
       if (tx == null) {
-        return CheckResult.failWithText('empty transaction found!');
+        return CheckR.failWithText('empty transaction found!');
       }
       if (txObj.getAttestordataList() == null || txObj.getAttestordataList().length != attestorCount) {
-        return CheckResult.failWithText(
+        return CheckR.failWithText(
           `tx # ${txIndex} has invalid number of attestations; ${txObj.getAttestordataList().length} instead of ${attestorCount}`);
       }
       for (const txAttData of txObj.getAttestordataList()) {
         if (txAttData == null || !BlockUtil.VALID_ATTESTOR_VOTES.has(txAttData.getVote())) {
-          return CheckResult.failWithText(`tx # ${txIndex} has invalid attestor data`);
+          return CheckR.failWithText(`tx # ${txIndex} has invalid attestor data`);
         }
       }
     }
@@ -432,20 +497,20 @@ export class BlockUtil {
       throw new BlockError('block attest token is invalid');
     }*/
     }
-    return CheckResult.ok();
+    return CheckR.ok();
   }
 }
 
 
-export class CheckResult {
+export class CheckR {
   success: boolean
   err: string
 
-  static failWithText(err: string): CheckResult {
+  static failWithText(err: string): CheckR {
     return {success: false, err: err}
   }
 
-  static ok(): CheckResult {
+  static ok(): CheckR {
     return {success: true, err: ''}
   }
 }

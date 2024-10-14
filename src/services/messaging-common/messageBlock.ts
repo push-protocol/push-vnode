@@ -347,18 +347,8 @@ export class MessageBlockUtil {
    * @returns a set of shard ids
    */
   static calculateAffectedShards(block: Readonly<MessageBlock>, shardCount: number): Set<number> {
-    const shards = new Set<number>()
-    for (const fi of block.responses) {
-      for (const recipient of fi.header.recipientsResolved) {
-        const shardId = this.calculateAffectedShard(recipient.addr, shardCount)
-        if (shardId == null) {
-          this.log.error('cannot calculate shardId for recipient %o in %o', recipient, fi)
-          continue
-        }
-        shards.add(shardId)
-      }
-    }
-    return shards
+    // todo remove it
+     return null;
   }
 
   // 1) try to get first byte from caip address
@@ -368,33 +358,8 @@ export class MessageBlockUtil {
   // shard count is a smart contract constant; normally it should never change
   // lets read this value from a contract
   public static calculateAffectedShard(recipientAddr: string, shardCount: number): number | null {
-    if (StrUtil.isEmpty(recipientAddr)) {
-      return null
-    }
-    let shardId: number = null
-    let res = EthUtil.parseCaipAddress(recipientAddr);
-    if (res[1] != null) {
-      throw new Error('invalid caip address:' + res[1]);
-    }
-    const addrObj = res[0];
-    if (
-      addrObj != null &&
-      !StrUtil.isEmpty(addrObj.addr) &&
-      addrObj.addr.startsWith('0x') &&
-      addrObj.addr.length > 4
-    ) {
-      const firstByteAsHex = addrObj.addr.substring(2, 4).toLowerCase()
-      shardId = Number.parseInt(firstByteAsHex, 16)
-    }
-    // 2) try to get sha256 otherwise
-    if (shardId == null) {
-      const firstByteAsHex = ObjectHasher.hashToSha256(recipientAddr).toLowerCase().substring(0, 2)
-      shardId = Number.parseInt(firstByteAsHex, 16)
-    }
-    Check.notNull(shardId)
-    Check.isTrue(shardId >= 0 && shardId <= 255 && NumUtil.isRoundedInteger(shardId))
-    Check.isTrue(shardCount >= 1)
-    return shardId % shardCount
+    // todo remove it
+    return null;
   }
 
   public static getBlockCreationTimeMillis(block: MessageBlock): number | null {
