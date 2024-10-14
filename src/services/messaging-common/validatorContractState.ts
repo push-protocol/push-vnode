@@ -29,8 +29,8 @@ export class ValidatorContractState {
     this.contractCli = await this.contractFactory.buildRWClient(this.log)
     await this.contractCli.connect()
     // this.log.info('loaded %o ', this.contractCli.nodeMap)
-    this.wallet = this.contractFactory.nodeWallet
-    this.nodeId = this.wallet.address
+    this.wallet = this.contractFactory.nodeWallet;
+    this.nodeId = this.wallet.address;
     if (!this.wallet) throw new Error('wallet is not loaded')
     if (this.contractCli.vnodes == null) throw new Error('Nodes are not initialized')
   }

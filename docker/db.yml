@@ -32,24 +32,6 @@ services:
         aliases:
           - phpmyadmin.local
 
-  hardhat:
-    image: hardhat-main
-    container_name: hardhat
-    networks:
-      push-shared-network:
-        aliases:
-          - hardhat.local
-    ports:
-      - "8545:8545"
-    restart: always
-    environment:
-      SEPOLIA_RPC_URL: 11
-      SEPOLIA_PRIVATE_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-    depends_on:
-      - mysql
-      - phpmyadmin
-      - redis
-
 
   # for V nodes we use mysql
   mysql:
@@ -85,7 +67,6 @@ services:
     volumes:
       - ./external/postgresql:/var/lib/postgresql/data
       - ./pg-init:/docker-entrypoint-initdb.d/
-#      - ./pg-init/create_databases.sh:/docker-entrypoint-initdb.d/create_databases.sh
     networks:
       push-shared-network:
         aliases:

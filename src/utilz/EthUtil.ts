@@ -1,26 +1,66 @@
 import StrUtil from './strUtil'
 
 export class EthUtil {
-  public static parseCaipAddress(addressinCAIP: string): CaipAddr | null {
-    if (StrUtil.isEmpty(addressinCAIP)) {
-      return null
+
+  static readonly ADDR_MAX = 64;
+  static readonly NAMESPACE_MAX = 8;
+  static readonly CHAINID_MAX = 32;
+
+
+  /**
+   * caip10 spec https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-10.md
+   *
+   * @param addressinCAIP or error message
+   */
+  public static parseCaipAddress(addressinCAIP: string): Tuple<CaipAddr, string> {
+    if (StrUtil.isEmpty(addressinCAIP) || addressinCAIP.trim() === '') {
+      return [null, 'Address is empty'];
     }
-    const addressComponent = addressinCAIP.split(':')
-    if (addressComponent.length === 3) {
-      return {
-        namespace: addressComponent[0],
-        chainId: addressComponent[1],
-        addr: addressComponent[2]
-      }
-    } else if (addressComponent.length === 2) {
-      return {
-        namespace: addressComponent[0],
-        chainId: null,
-        addr: addressComponent[1]
-      }
+
+    const addressComponents = addressinCAIP.split(':');
+    let namespace: string;
+    let chainId: string = null;
+    let addr: string;
+
+    if (addressComponents.length === 3) {
+      [namespace, chainId, addr] = addressComponents;
+    } else if (addressComponents.length === 2) {
+      [namespace, addr] = addressComponents;
     } else {
-      return null
+      return [null, 'Invalid CAIP address format'];
     }
+
+    if (!StrUtil.hasSize(namespace, 1, this.NAMESPACE_MAX)) {
+      return [null, `Invalid namespace value: ${namespace}`];
+    }
+    if (addressComponents.length == 3 && !StrUtil.hasSize(chainId, 1, this.CHAINID_MAX)) {
+      return [null, `Invalid chainId value: ${chainId}`];
+    }
+
+    let addrNoPrefix = addr.startsWith('0x') ? addr.substring(2) : addr;
+    if (!StrUtil.hasSize(addrNoPrefix, 1, this.ADDR_MAX)) {
+      return [null, `Invalid address value: ${addr}`];
+    }
+
+    return [{ namespace, chainId, addr }, null];
+  }
+
+
+  /*
+  Valid addresses:
+  eip155:5:0xAAAAAA
+  e:1:0
+   */
+  public static isFullCAIPAddress(fullCaipAddress: string): boolean {
+    let res = EthUtil.parseCaipAddress(fullCaipAddress);
+    if (res[1] != null) {
+      return false;
+    }
+    let caip = res[0];
+    let valid = !StrUtil.isEmpty(caip.chainId)
+      && !StrUtil.isEmpty(caip.namespace)
+      && !StrUtil.isEmpty(caip.addr);
+    return valid;
   }
 }
 

@@ -1,0 +1,20 @@
+version: '3'
+services:
+
+  hardhat:
+    image: hardhat-main
+    container_name: hardhat
+    networks:
+      push-shared-network:
+        aliases:
+          - hardhat.local
+    ports:
+      - "8545:8545"
+    restart: always
+    environment:
+      SEPOLIA_RPC_URL: 11
+      SEPOLIA_PRIVATE_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+
+networks:
+  push-shared-network:
+    external: true

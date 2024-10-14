@@ -73,8 +73,12 @@ export class BitUtil {
     return Buffer.from(arr).toString('hex');
   }
 
+  public static bytesBufToBase16(buf: Buffer): string {
+    return buf.toString('hex');
+  }
+
   public static base64ToString(base64String:string):string {
-    return Buffer.from(base64String, 'base64').toString('binary');
+    return Buffer.from(base64String, 'base64').toString('utf8');
   }
 
   public static bytesToBase64(bytes:Uint8Array):string {
@@ -85,16 +89,16 @@ export class BitUtil {
     return new Uint8Array(Buffer.from(base64String, 'base64'));
   }
 
-  public static bytesToString(bytes:Uint8Array):string {
+  public static bytesUtfToString(bytes:Uint8Array):string {
     return Buffer.from(bytes).toString('utf8');
   }
 
-  public static stringToBytes(str:string):Uint8Array {
+  public static stringToBytesUtf(str:string):Uint8Array {
     return new Uint8Array(Buffer.from(str, 'utf-8'));
   }
 
   public static stringToBase64(str:string):string {
-    return Buffer.from(str, 'binary').toString('base64');
+    return Buffer.from(str, 'utf-8').toString('base64');
   }
 
   public static base64ToBase16(base64String:string):string {

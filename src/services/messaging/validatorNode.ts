@@ -1,9 +1,6 @@
-import {MsgConverterService} from './msgConverterService'
-import {ObjectHasher} from '../../utilz/objectHasher'
 import {ethers, Wallet} from 'ethers'
 import {Inject, Service} from 'typedi'
 import {Logger} from 'winston'
-import {MsgDeliveryService} from './msgDeliveryService'
 import {EthSig} from '../../utilz/ethSig'
 import {ValidatorClient} from './validatorClient'
 import {WaitNotify} from '../../utilz/waitNotify'
@@ -11,18 +8,7 @@ import {NodeInfo, ValidatorContractState} from '../messaging-common/validatorCon
 import {ValidatorRandom} from './validatorRandom'
 import {ValidatorPing} from './validatorPing'
 import StrUtil from '../../utilz/strUtil'
-import {
-  FeedItem,
-  FeedItemSig,
-  FISData,
-  MessageBlock,
-  MessageBlockSignatures,
-  MessageBlockUtil,
-  NetworkRole,
-  NodeMeta,
-  RecipientMissing,
-  RecipientsMissing
-} from '../messaging-common/messageBlock'
+import {FeedItem, FeedItemSig, MessageBlockUtil} from '../messaging-common/messageBlock'
 import {WinstonUtil} from '../../utilz/winstonUtil'
 import {RedisClient} from '../messaging-common/redisClient'
 import {Coll} from '../../utilz/coll'
@@ -35,29 +21,30 @@ import {AxiosResponse} from 'axios'
 import {PromiseUtil} from '../../utilz/promiseUtil'
 import SNodeClient from './snodeClient'
 import {AggregatedReplyHelper, NodeHttpStatus} from './AggregatedReplyHelper'
-import Subscribers, {SubscribersItem} from '../channelsCompositeClasses/subscribersClass'
-import config from '../../config'
-import ChannelsService from '../channelsService'
 import {MySqlUtil} from '../../utilz/mySqlUtil'
 import {EnvLoader} from "../../utilz/envLoader";
 import {
+  AttestBlockResult, AttestorReport,
+  AttestSignaturesRequest,
+  AttestSignaturesResponse,
   Block,
-  InitDid, Signer,
-  Transaction,
+  Signer,
   TransactionObj,
   TxAttestorData,
-  TxValidatorData
+  TxValidatorData,
+  Vote
 } from "../../generated/push/block_pb";
 import {BlockUtil} from "../messaging-common/blockUtil";
 import {BitUtil} from "../../utilz/bitUtil";
 import {TransactionError} from "./transactionError";
-import {EthUtil} from "../../utilz/EthUtil";
+import {BlockError} from "./blockError";
+import {ArrayUtil} from "../../utilz/arrayUtil";
 
 // todo move read/write qurum to smart contract constants
 // todo joi validate for getRecord
 @Service()
 export class ValidatorNode implements StorageContractListener {
-  public log: Logger = WinstonUtil.newLog(ValidatorNode)
+  public log: Logger = WinstonUtil.newLog(ValidatorNode);
 
   private readonly ADD_PAYLOAD_BLOCKING_TIMEOUT = 45000
   private readonly BLOCK_SCHEDULE = EnvLoader.getPropertyOrDefault("BLOCK_SCHEDULE", '*/30 * * * * *');
@@ -67,15 +54,6 @@ export class ValidatorNode implements StorageContractListener {
 
   @Inject()
   private storageContractState: StorageContractState
-
-  @Inject()
-  private deliveryService: MsgDeliveryService
-
-  @Inject()
-  private converterService: MsgConverterService
-
-  @Inject()
-  private subscribers: Subscribers
 
   @Inject((type) => ValidatorRandom)
   private random: ValidatorRandom
@@ -93,8 +71,10 @@ export class ValidatorNode implements StorageContractListener {
   nodeId: string
 
   // state
-  // block
+  // block (cleared on every cron event)
   private currentBlock: Block;
+  // total serialized length of all transactions; used as a watermark (cleared on every cron event)
+  private totalTransactionBytes: number;
   // objects used to wait on block
   private blockMonitors: Map<string, WaitNotify> = new Map<string, WaitNotify>()
 
@@ -125,7 +105,7 @@ export class ValidatorNode implements StorageContractListener {
       try {
         await this.batchProcessBlock(true)
       } catch (e) {
-        console.log(e)
+        this.log.error('error %o', e);
       }
     })
   }
@@ -140,6 +120,23 @@ export class ValidatorNode implements StorageContractListener {
   public async sendTransaction(txRaw: Uint8Array, validatorTokenRequired: boolean): Promise<boolean> {
     if (this.currentBlock == null) {
       this.currentBlock = new Block();
+      this.totalTransactionBytes = 0;
+    }
+    if (this.currentBlock.getTxobjList().length >= BlockUtil.MAX_TRANSACTIONS_PER_BLOCK) {
+      // todo improve
+      // as of now - we simply reject the transaction
+      // it's the sender's responsibility to retry in a while
+      this.log.info('block is full; tx count: %d ; limit: %d ',
+        this.currentBlock.getTxobjList().length, BlockUtil.MAX_TRANSACTIONS_PER_BLOCK);
+      return false;
+    }
+    if (this.totalTransactionBytes >= BlockUtil.MAX_TOTAL_TRANSACTION_SIZE_BYTES) {
+      // todo improve
+      // as of now - we simply reject the transaction
+      // it's the sender's responsibility to retry in a while
+      this.log.info('block is full; totalTransactionBytes: %d ; limit: %d ',
+        this.totalTransactionBytes, BlockUtil.MAX_TOTAL_TRANSACTION_SIZE_BYTES);
+      return false;
     }
     // check
     const tx = BlockUtil.parseTransaction(txRaw);
@@ -147,7 +144,7 @@ export class ValidatorNode implements StorageContractListener {
     if (validatorTokenRequired) {
       // check that this Validator is a valid target, according to validatorToken
       let valid = true;
-      let validatorToken = BitUtil.bytesToBase64(<any>tx.getApitoken());
+      let validatorToken = BitUtil.bytesUtfToString(tx.getApitoken_asU8());
       try {
         valid = this.random.checkValidatorToken(validatorToken, this.nodeId);
       } catch (e) {
@@ -163,81 +160,62 @@ export class ValidatorNode implements StorageContractListener {
         throw new TransactionError(err);
       }
     }
-    this.checkValidTransactionFields(tx);
+    let txCheck = await BlockUtil.checkGenericTransaction(tx);
+    if (!txCheck.success) {
+      throw new BlockError(txCheck.err);
+    }
+
+    let payloadCheck = await BlockUtil.checkTransactionPayload(tx);
+    if (!payloadCheck.success) {
+      throw new BlockError(payloadCheck.err);
+    }
+
     // append transaction
     let txObj = new TransactionObj();
     txObj.setTx(tx);
     this.currentBlock.addTxobj(txObj);
-    // todo handle bad conversions
+    // note: were he serialize 1 transaction to increment the total size
+    this.totalTransactionBytes += tx.serializeBinary().length;
+    this.log.debug(`block contains %d transacitons, totalling as %d bytes`,
+      this.currentBlock.getTxobjList().length, this.totalTransactionBytes);
     return true
-  }
-
-  private checkValidTransactionFields(tx: Transaction) {
-
-    if (tx.getType() != 0) {
-      throw new TransactionError(`Only non-value transactions are supported`);
-    }
-    let senderAddr = EthUtil.parseCaipAddress(tx.getSender());
-    let recipientAddrs = tx.getRecipientsList().map(value => EthUtil.parseCaipAddress(value));
-    let goodSender = !StrUtil.isEmpty(senderAddr.chainId) && !StrUtil.isEmpty(senderAddr.namespace)
-      && !StrUtil.isEmpty(senderAddr.addr);
-    if (!goodSender) {
-      throw new TransactionError(`sender field is invalid ${tx.getSender()}`);
-    }
-
-    if (tx.getCategory() === 'INIT_DID') {
-      let txData = InitDid.deserializeBinary(<any>tx.getData());
-      if (StrUtil.isEmpty(txData.getMasterpubkey())) {
-        throw new TransactionError(`masterPubKey missing`);
-      }
-      if (StrUtil.isEmpty(txData.getDerivedpubkey())) {
-        throw new TransactionError(`derivedPubKey missing`);
-      }
-      if (txData.getWallettoencderivedkeyMap().size < 1) {
-        throw new TransactionError(`encDerivedPrivKey missing`);
-      }
-    } else if (tx.getCategory().startsWith("CUSTOM:")) {
-      // skip checks
-    } else {
-      throw new TransactionError(`unsupported transaction category`);
-    }
-    if (StrUtil.isEmpty(BitUtil.bytesToBase16(<any>tx.getSalt()))) {
-      throw new TransactionError(`salt field is invalid`);
-    }
-
-    let validSignature = true; // todo check signature
-    if (!validSignature) {
-      throw new TransactionError(`signature field is invalid`);
-    }
   }
 
 
   /**
    * This method blocks for a long amount of time,
    * until processBlock() gets executed
-   * @param p
    */
   public async sendTransactionBlocking(txRaw: Uint8Array): Promise<string> {
-    // try {
-      const monitor = new WaitNotify();
-      let txHash = BlockUtil.calculateTransactionHashBase16(txRaw);
-      this.blockMonitors.set(txHash, monitor)
-      this.log.debug('adding monitor for transaction hash: %s', txHash)
-      const success = await this.sendTransaction(txRaw, true);
-      if (!success) {
-        return null;
-      }
-      await monitor.wait(this.ADD_PAYLOAD_BLOCKING_TIMEOUT) // block until processBlock()
-      return txHash;
-    // } catch (e) {
-    //   this.log.error(e)
-    //   return null;
-    // }
+    const monitor = new WaitNotify();
+    let txHash = BlockUtil.hashTransactionAsHex(txRaw);
+    this.blockMonitors.set(txHash, monitor)
+    this.log.debug('adding monitor for transaction hash: %s', txHash)
+    const success = await this.sendTransaction(txRaw, true);
+    if (!success) {
+      return null;
+    }
+    await monitor.wait(this.ADD_PAYLOAD_BLOCKING_TIMEOUT); // block until processBlock()
+    return txHash;
   }
 
   /**
-   * Add first signature and start processing
-   * @param cronJob
+   * Grabs all accumulated transactions (at the time of the cron job)
+   * Creates a block
+   * Signs a block as Validator
+   *
+   * round1
+   * Collects signatures (patches) from all Attestors
+   * Checks everyhting
+   *
+   * round2
+   * Sends total signatures to all Attestors
+   * Collects their votes agains bad signatures
+   *
+   * round3
+   * Submits votes to the Validator.sol
+   *
+   * Pushes the block to the public queue
    */
   public async batchProcessBlock(cronJob: boolean): Promise<Block> {
     this.log.info('batch started');
@@ -256,159 +234,100 @@ export class ValidatorNode implements StorageContractListener {
     this.blockMonitors = new Map<string, WaitNotify>();
 
 
-    // populate block
+    // ** populate block
     block.setTs(DateUtil.currentTimeMillis());
-    for (let txObj of block.getTxobjList()) {
-      let vd = new TxValidatorData();
-      vd.setVote(1);
-      txObj.setValidatordata(vd);
-
-      // todo fake attestation as of now (todo remove)
-      let ad = new TxAttestorData();
-      ad.setVote(1);
-      txObj.setAttestordataList([ad, ad]);
-    }
     const tokenObj = this.random.createAttestToken();
     this.log.debug('random token: %o', tokenObj);
     Check.isTrue(tokenObj.attestVector?.length > 0, 'attest vector is empty');
     Check.isTrue(tokenObj.attestVector[0] != null, 'attest vector is empty');
-    block.setAttesttoken(BitUtil.stringToBytes(tokenObj.attestToken));
+    block.setAttesttoken(BitUtil.stringToBytesUtf(tokenObj.attestToken));
 
-    // collect attestation per each transaction
-    // and signature per block
-    // from every attestor
-    // todo
-    // todo fake attestation as of now (todo remove)
-    for (let txObj of block.getTxobjList()) {
-
-      let ad = new TxAttestorData();
-      ad.setVote(1);
-      txObj.setAttestordataList([ad, ad]);
+    // ** V signs block
+    // every reply has (attestation per each transaction) and (signature)
+    await BlockUtil.signBlockAsValidator(this.wallet, block);
+    let blockSignedByV: Readonly<Block> = Block.deserializeBinary(block.serializeBinary());
+    let blockSignedByVBytes = blockSignedByV.serializeBinary();
+    let blockSignedByVHash = BlockUtil.hashBlockAsHex(blockSignedByVBytes);
+    this.log.debug('blockSignedByV: %s', BitUtil.bytesToBase16(blockSignedByVBytes));
+    this.log.debug('blockSignedByV: %o', blockSignedByV.toObject());
+    this.log.debug('blockSignedByVHash: %s', blockSignedByVHash);
+    Check.isTrue(blockSignedByV.getSignersList().length == 1, '1 sig is required');
+    for (const txObj of blockSignedByV.getTxobjList()) {
+      Check.isTrue(txObj.getAttestordataList().length == 0, 'no att data is required');
     }
-    // todo fake signing as of now
-    let vSign = new Signer();
-    vSign.setSig("AA11");
 
-    let aSign1 = new Signer();
-    aSign1.setSig("11");
-
-    let aSign2 = new Signer();
-    aSign1.setSig("22");
-
-    block.setSignersList([vSign, aSign1, aSign2]);
-
-    /*
-    // sign every response
-    for (let i = 0; i < block.getTxobjList().length; i++) {
-      const txObj = block.getTxobjList()[i];
-      // TODO START FROM HERE !!!!!!!!!!!!!!!!!!!!!!!
-      const nodeMeta = <NodeMeta>{
-        nodeId: this.nodeId,
-        role: NetworkRole.VALIDATOR,
-        tsMillis: Date.now()
-      }
-      const fisData: FISData = {vote: 'ACCEPT'}
-      const ethSig = await EthSig.create(this.wallet, feedItem, fisData, nodeMeta)
-      const fiSig = new FeedItemSig(fisData, nodeMeta, ethSig)
-      block.responsesSignatures.push([fiSig])
-    }
-    // network status
-
-    const attestCount = 1
-    const safeAttestCountToAvoidDuplicates = attestCount + 5
-    // todo handle if some M amount of nodes refuses to attest!
-
-    // attestor.attestBlock()
-    const attesterArr: string[] = []
+    // ** A1-AN get patches (network attestations)
+    const attestersWhichSignedBlock: string[] = [];
+    const patches: AttestBlockResult[] = [];
     for (let j = 0; j < tokenObj.attestVector.length; j++) {
-      const attesterNodeId = tokenObj.attestVector[j]
-      this.log.debug('requesting attestor: %s', attesterNodeId)
-      const validatorInfo = this.valContractState.getValidatorNodesMap().get(attesterNodeId)
-      Check.notNull(validatorInfo, `Validator url is empty for node: ${attesterNodeId}`)
-      const apiClient = new ValidatorClient(validatorInfo.url)
-      const reply = await apiClient.attest(block) // todo make parallel
-      if (reply == null || reply.error != null) {
-        this.log.error(
-          'attestor %s failed to sign the block, reason: %s',
-          attesterNodeId,
-          reply?.error
-        )
-        throw new Error('failed to sign') // todo remove
-      } else {
-        attesterArr.push(attesterNodeId)
-        this.log.error('attestor %s successfully signed the block', attesterNodeId)
-        this.log.info('fiSignatures: %o', reply.signatures)
+      // ** A0 attests the block
+      const attesterNodeId = tokenObj.attestVector[j];
+      this.log.debug('requesting attestor: %s [%d / %d]', attesterNodeId, j + 1, tokenObj.attestVector.length);
+      const vi = this.valContractState.getValidatorNodesMap().get(attesterNodeId);
+      Check.notNull(vi, `Validator url is empty for node: ${attesterNodeId}`);
+      const apiClient = new ValidatorClient(vi.url);
+      const [patch, attestorErr] = await apiClient.v_attestBlock(blockSignedByVBytes); // todo make parallel
+      if (attestorErr != null) {
+        this.log.error('attestor %s failed to attest the block, reason: %s', attesterNodeId, patch);
+        throw new Error('failed to sign'); // todo remove
       }
-      for (let i = 0; i < block.responsesSignatures.length; i++) {
-        const fi = block.responses[i]
-        const fiSig = reply.signatures[i]
-        {
-          // note: double safety check, don't merge incorrect signatures into the message block
-          const valid = EthSig.check(
-            fiSig.signature,
-            fiSig.nodeMeta.nodeId,
-            fi,
-            fiSig.data,
-            fiSig.nodeMeta
-          )
-          if (!valid) {
-            const err = `attester ${attesterNodeId} produced invalid signature for response ${i}`
-            this.log.error('%s %o for %o', err, fiSig, fi)
-            throw new Error(err)
-          }
-          this.log.info(
-            'attester %s produced valid signature for responses[%d]',
-            attesterNodeId,
-            i,
-            fiSig
-          )
-        }
-        block.responsesSignatures[i].push(fiSig)
-      }
+      attestersWhichSignedBlock.push(attesterNodeId);
+      this.log.debug('attestor %s successfully signed the block, %o',
+        attesterNodeId, patch != null ? patch.toObject() : "");
+      // ** V checks A0 attestation
+      let nodeAddress = await BlockUtil.recoverPatchAddress(this.wallet, blockSignedByV, patch);
+      const validatorInfo = this.valContractState.getValidatorNodesMap().get(nodeAddress)
+      Check.notNull(validatorInfo, `Validator url is empty for node: ${nodeAddress}`)
+      await BlockUtil.appendPatchAsValidator(this.wallet, block, patch);
+      patches.push(patch);
     }
-    this.log.info('messageBlock after signature stage: %j', block)
+    let blockSignedByVA = block;
+    let blockSignedByVAHash = BlockUtil.hashBlockAsHex(blockSignedByVA.serializeBinary());
+    this.log.debug('finalized block: %o', blockSignedByVA.toObject());
+    this.log.debug('finalized block hash: %s', blockSignedByVAHash);
 
-    // attestor.attestSignatures()
-    const nodeReportsMap = new Map<string, NodeReportSig[]>()
-    for (const nodeId of attesterArr) {
-      const validatorInfo = this.valContractState.getValidatorNodesMap().get(nodeId)
-      const apiClient = new ValidatorClient(validatorInfo.url)
-      const mbSignatures: MessageBlockSignatures = {
-        id: block.id,
-        responsesSignatures: block.responsesSignatures
-      }
-      const asResult: AttestSignaturesResult = await apiClient.attestSignatures(mbSignatures)
-      if (asResult == null) {
-        this.log.error('attestor %s failed to receive block signatures')
-        throw new Error('failed to sign')
-      } else if (asResult.reports?.length > 0) {
-        const nodeId = asResult.reports[0].nodeId
-        if (!nodeReportsMap.has(nodeId)) {
-          nodeReportsMap.set(nodeId, [])
+    // ** A1-AN send all patches
+
+    let asr = new AttestSignaturesRequest();
+    asr.setInitialblockhash(BitUtil.base16ToBytes(blockSignedByVHash));
+    asr.setFinalblockhash(BitUtil.base16ToBytes(blockSignedByVAHash));
+    asr.setAttestationsList(patches);
+    this.log.debug('sending patches %o', asr.toObject());
+    this.log.debug('Initialblockhash %s', BitUtil.bytesToBase16(asr.getInitialblockhash_asU8()));
+    this.log.debug('Finalblockhash %s', BitUtil.bytesToBase16(asr.getFinalblockhash_asU8()));
+    for (let j = 0; j < tokenObj.attestVector.length; j++) {
+      // ** A0 attests the block
+      const attestorNodeId = tokenObj.attestVector[j];
+      this.log.debug('requesting attestor: %s [%d / %d]', attestorNodeId, j + 1, tokenObj.attestVector.length);
+      const vi = this.valContractState.getValidatorNodesMap().get(attestorNodeId);
+      Check.notNull(vi, `Validator url is empty for node: ${attestorNodeId}`);
+      const apiClient = new ValidatorClient(vi.url);
+      apiClient.v_attestSignatures(asr).then(value => {
+        const [resp, attestorErr] = value;
+        if (attestorErr != null) {
+          this.log.error('attestor %s failed to attest signatures, reason: %s resp: %s', attestorNodeId, attestorErr, resp);
+          throw new Error('failed to attest signatures'); // todo remove
         }
-        const arr = nodeReportsMap.get(nodeId)
-        arr.push(...asResult.reports)
-        this.log.debug('attestor %s successfully received block signatures and published the block')
-      }
-    }*/
-    // group same reports , take one
-    // todo
-    // const sortedNodeReports = Coll.sortMapOfArrays(nodeReportsMap, false);
-    // if(sortedNodeReports.size > 0) {
-    //   let firstEntry:[string, NodeReportSig[]] = sortedNodeReports.entries().next().value;
-    //   this.log.debug('processing entry', firstEntry);
-    //   let [key, reports] = firstEntry;
-    //
-    // }
-    // call a contract
+      });
+    }
+    // ** report
+    // todo if(isValid(resp) && numReports > contract.threshold) { report to validator.sol }
 
-    // 2: deliver
-    await this.publishCollectivelySignedMessageBlock(block);
+    // ** safety check: full validation ONCE again
+    let validatorSet = new Set(this.valContractState.getValidatorNodesMap().keys());
+    let checkResult = await BlockUtil.checkBlockFinalized(blockSignedByVA,
+      validatorSet, this.valContractState.contractCli.valPerBlock);
+    if (!checkResult.success) {
+      throw new BlockError('failed to produce block; self-validation failed for constructed block:' + checkResult.err);
+    }
 
-    // 3: unblock addPayloadToMemPoolBlocking() requests
-    for (let txObj of block.getTxobjList()) {
+    // ** deliver
+    await this.publishFinalizedBlock(blockSignedByVA);
+
+    // ** unblock addPayloadToMemPoolBlocking() requests
+    for (let txObj of blockSignedByVA.getTxobjList()) {
       let tx = txObj.getTx();
-      let txHash = BlockUtil.calculateTransactionHashBase16(tx.serializeBinary());
+      let txHash = BlockUtil.hashTransactionAsHex(tx.serializeBinary());
 
       const objMonitor = blockMonitors.get(txHash);
       if (objMonitor) {
@@ -418,15 +337,15 @@ export class ValidatorNode implements StorageContractListener {
         this.log.debug('no monitor found for id %s', txHash);
       }
     }
-    return block
+    return blockSignedByVA;
   }
 
-  // sends message block to all connected delivery nodes
-  public async publishCollectivelySignedMessageBlock(mb: Block) {
+
+  public async publishFinalizedBlock(mb: Block) {
     const queue = this.queueInitializer.getQueue(QueueManager.QUEUE_MBLOCK);
     let blockBytes = mb.serializeBinary();
     let blockAsBase16 = BitUtil.bytesToBase16(blockBytes);
-    const blockHashAsBase16 = BlockUtil.calculateBlockHashBase16(blockBytes);
+    const blockHashAsBase16 = BlockUtil.hashBlockAsHex(blockBytes);
     const insertResult = await queue.accept({
       object: blockAsBase16,
       object_hash: blockHashAsBase16
@@ -437,178 +356,206 @@ export class ValidatorNode implements StorageContractListener {
   // ------------------------------ ATTESTOR -----------------------------------------
 
   /**
-   * for every feedItem[i]: check signatures + check conversion results
+   * for every transaction: check v signaturee + check conversion results
    *
-   * @param block message block
-   * @returns a list of new feedItem[i] sinature
+   * @param blockSignedByVBytes message block as bytes
+   * @returns
    */
-  public async attestBlock(block: Readonly<MessageBlock>): Promise<AttestBlockResult> {
+  public async attestBlock(blockSignedByVBytes: Uint8Array): Promise<AttestBlockResult> {
     // basic checks
     const activeValidators = new Set<string>(
       this.valContractState.getActiveValidators().map((ni) => ni.nodeId)
     )
-    const check1 = MessageBlockUtil.checkBlock(block, activeValidators)
+    let blockSignedByV = BlockUtil.parseBlock(blockSignedByVBytes);
+    this.log.debug('attestBlock(): received blockSignedByVBytes: %s', BitUtil.bytesToBase16(blockSignedByVBytes));
+    this.log.debug('attestBlock(): received blockSignedByV: %o', blockSignedByV.toObject());
+    const check1 = await BlockUtil.checkBlockAsAttestor(blockSignedByV, activeValidators);
     if (!check1.success) {
-      return {error: check1.err, signatures: null}
+      throw new BlockError(check1.err); //todo reply with error here ?
     }
-    // attest token checks
-    const item0sig0 = block.responsesSignatures[0][0]
-    const blockValidatorNodeId = item0sig0?.nodeMeta.nodeId
-    if (
-      !this.random.checkAttestToken(
-        block.attestToken,
-        blockValidatorNodeId,
-        this.valContractState.nodeId
-      )
-    ) {
-      this.log.error('block attest token is invalid')
-      return {error: 'block attest token is invalid', signatures: null}
+    const blockValidatorNodeId = await BlockUtil.recoverSignerAddress(blockSignedByV, 0);
+    for (let i = 0; i < blockSignedByV.getTxobjList().length; i++) {
+      const txObj = blockSignedByV.getTxobjList()[i];
+      const apiToken = BitUtil.bytesUtfToString(txObj.getTx().getApitoken_asU8());
+      if (!this.random.checkValidatorToken(apiToken, blockValidatorNodeId)) {
+        throw new BlockError('invalid validator for transaction #'+ i);
+      }
     }
-    // conversion checks
-    const sigs: FeedItemSig[] = []
-    for (let i = 0; i < block.responses.length; i++) {
-      const payloadItem = block.requests[i]
-      const feedItem = block.responses[i]
-      this.log.debug('attestBlock() processing payloadItem %s', payloadItem.id)
-      // check content
-      const feedItemNew = await this.converterService.addExternalPayload(payloadItem)
-      const fiHash = ObjectHasher.hashToSha256IgnoreRecipientsResolved(feedItem)
-      const fiHashNew = ObjectHasher.hashToSha256IgnoreRecipientsResolved(feedItemNew)
-      if (fiHashNew != fiHash) {
-        this.log.error(
-          `item %d feedItemNew: %j \n differs from feedItem: %j `,
-          i,
-          feedItemNew,
-          feedItem
-        )
-        return null
-      }
-      // fuzzy check subscribers
-      const cmpSubscribers = this.compareSubscribersDroppingLatestIsAllowed(feedItem, feedItemNew)
-      if (!cmpSubscribers.subscribersAreEqual) {
-        return {error: cmpSubscribers.error, signatures: null}
-      }
-      // sign
-      const nodeMeta = <NodeMeta>{
-        nodeId: this.nodeId,
-        role: NetworkRole.ATTESTER,
-        tsMillis: Date.now()
-      }
-      const fisData: FISData = {
-        vote: 'ACCEPT',
-        recipientsMissing: cmpSubscribers.comparisonResult
-      }
-      const ethSig = await EthSig.create(this.wallet, feedItem, fisData, nodeMeta)
-      const fiSig = new FeedItemSig(fisData, nodeMeta, ethSig)
+    // ** check validator signature,
+    // todo MOVE IT TO BlockUtil.attestBlockFully
 
-      sigs.push(fiSig)
+    // todo add additional check that this was a valid attestor from the array of attestors
+
+    // ** cache this block for next calls
+    let hash1 = await this.cacheBlock(blockSignedByVBytes);
+
+    // ** vote on every transaction; put a signature;
+    // fill a temp object which contains only [votes] + [sig] to reduce the network usage
+    Check.isTrue(blockSignedByV.getSignersList().length == 1, '1 signer');
+    for (const txObj of blockSignedByV.getTxobjList()) {
+      Check.isTrue(txObj.getAttestordataList().length == 0, '0 attestations');
     }
-    // cache block in redis
-    const key = 'node' + this.nodeId + 'blockId' + block.id
-    await this.redisCli.getClient().set(key, JSON.stringify(block))
-    const expirationInSeconds = 60
-    await this.redisCli.getClient().expire(key, expirationInSeconds)
-    return {error: null, signatures: sigs}
+    let ar = new AttestBlockResult();
+    for (let txObj of blockSignedByV.getTxobjList()) {
+      let vote = await this.attestorVoteOnTransaction(txObj);
+      ar.addAttestordata(vote);
+      txObj.setAttestordataList([vote]); // block:  only my vote per transaction
+    }
+    let blockBytes = blockSignedByV.serializeBinary();
+    this.log.debug('signing block with hash: %s', EthSig.ethHash(blockBytes));
+    const ethSig = await EthSig.signBytes(this.wallet, blockBytes); // block: sign bytes
+    let signer = new Signer();
+    signer.setSig(ethSig);
+    ar.setSigner(signer);
+
+    return ar;
+  }
+
+  // I approve every valid transaciton (as of now)
+  private async attestorVoteOnTransaction(txObj: TransactionObj): Promise<TxAttestorData> {
+    let result = new TxAttestorData();
+
+    let txCheck = await BlockUtil.checkGenericTransaction(txObj.getTx());
+    if (!txCheck.success) {
+      result.setVote(Vote.REJECTED);
+      return result;
+    }
+
+    let payloadCheck = BlockUtil.checkTransactionPayload(txObj.getTx());
+    if (!txCheck.success) {
+      result.setVote(Vote.REJECTED);
+      return result;
+    }
+    result.setVote(Vote.ACCEPTED);
+    return result;
   }
 
   /**
-   * Perform a comparison of 2 feedItems, fuzzy-checking their subscribers
-   * Attester can drop ONLY fresh subscribers, and reply with RecipientsMissing field.
+   * Saves block to redis, by its incomplete hash.
+   * @returns block hash to fetch it later
+   */
+  public async cacheBlock(blockBytes: Uint8Array): Promise<string> {
+    let blockHashForCache = BlockUtil.hashBlockAsHex(blockBytes);
+    const key = 'node-' + this.nodeId + '-blockHash-' + blockHashForCache;
+    await this.redisCli.getClient().set(key, BitUtil.bytesToBase16(blockBytes));
+    await this.redisCli.getClient().expire(key, BlockUtil.MAX_BLOCK_ASSEMBLY_TIME_SECONDS);
+    this.log.debug('REDIS: saving block %s -> %s', key, BitUtil.bytesToBase16(blockBytes));
+    return blockHashForCache;
+  }
+
+  /**
+   * loads block from redis, by its incomplete hash
+   * @param blockHashForCache a hash returned by BlockUtil.hashBlockAsHex(blockBytes)
+   */
+  public async getCachedBlock(blockHashForCache: string): Promise<Uint8Array> {
+    const key = 'node-' + this.nodeId + '-blockHash-' + blockHashForCache;
+    let hexString = await this.redisCli.getClient().get(key);
+    Check.notNull(hexString, 'cached block is missing, key: ' + key);
+    let result = BitUtil.base16ToBytes(hexString);
+    this.log.debug('REDIS: loading block %s : %s', key, hexString);
+    return result;
+  }
+
+  /**
+   * Input: delta to make the block fully signed
+   * We will patch the block and push it to the queue on the attestor side
    *
-   * @param itemV calculated by validator
-   * @param itemA calculated by attester
-   * @private
+   * Output: our complaints agains those who signed it badly
+   *
+   * @param asr
    */
-  private compareSubscribersDroppingLatestIsAllowed(
-    itemV: FeedItem,
-    itemA: FeedItem
-  ): { subscribersAreEqual: boolean; comparisonResult?: RecipientsMissing; error?: string } {
-    const dbgPrefix = 'compareSubscribersDroppingLatestIsAllowed(): '
-    this.log.debug('%s comparing %o with %o', dbgPrefix, itemA, itemV)
-    const FRESH_SUBSCRIBER_THRESHOLD_MINUTES = 5
-    // V = recipient (subsciber) found in Validator block, A = in Attester
-    const recipientsV = itemV.header.recipientsResolved
-    const recipientsA = itemA.header.recipientsResolved
-    const recipientsAMap = Coll.arrayToMap(recipientsA, 'addr')
-    const recipientsToRemove: RecipientsMissing = new RecipientsMissing()
-    recipientsToRemove.sid = itemV.payload.data.sid
-    const now = DateUtil.currentTimeSeconds()
-    // check V subscribers against A subscribers
-    // every V subscriber should be in A (we can ignore fresh records)
-    for (const recipientV of recipientsV) {
-      const recipientA = recipientsAMap.get(recipientV.addr)
-      if (recipientA != null) {
-        this.log.debug('%s %s exists in V,A', dbgPrefix, recipientA)
-        recipientsAMap.delete(recipientV.addr)
-        // A knows this address, don't do anything
-        continue
-      }
-      const deltaInMinutes = (now - recipientV.ts) / 60
-      const isFreshSubscriber = deltaInMinutes < FRESH_SUBSCRIBER_THRESHOLD_MINUTES
-      if (!isFreshSubscriber) {
-        const errMsg = `${recipientV.addr} (${deltaInMinutes}mins) exists in V, missing in A`
-        this.log.error('%s %s', dbgPrefix, errMsg)
-        return {subscribersAreEqual: false, error: errMsg}
-      }
-      // V has a subscriber, while A doesn't
-      // we allow to ignore this if this subscriber is a 'fresh' one
-      this.log.debug('%s is a fresh subscriber only in A', dbgPrefix, recipientA)
-      const recipientMissing: RecipientMissing = {addr: recipientV.addr}
-      recipientsToRemove.recipients.push(recipientMissing)
-    }
-    // check A subscribers against V subscribers
-    // every A subscriber should be in V (we can ignore fresh records)
-    for (const recipientA of recipientsAMap.values()) {
-      const deltaInMinutes = (now - recipientA.ts) / 60
-      const isFreshSubscriber = deltaInMinutes < FRESH_SUBSCRIBER_THRESHOLD_MINUTES
-      if (!isFreshSubscriber) {
-        const errMsg = `${recipientA.addr} (${deltaInMinutes}mins) exists in A, missing in V`
-        this.log.error('%s %s', dbgPrefix, errMsg)
-        return {subscribersAreEqual: false, error: errMsg}
-      }
-    }
-    const result = {subscribersAreEqual: true, comparisonResult: recipientsToRemove}
-    this.log.debug('%s result %s', dbgPrefix, result)
-    return result
-  }
+  public async attestSignatures(asr: Readonly<AttestSignaturesRequest>): Promise<AttestSignaturesResponse> {
+    this.log.debug('attestSignatures() started');
+    this.log.debug('applying patches %o', asr.toObject());
+    this.log.debug('Initialblockhash %s', BitUtil.bytesToBase16(asr.getInitialblockhash_asU8()));
+    this.log.debug('Finalblockhash %s', BitUtil.bytesToBase16(asr.getFinalblockhash_asU8()));
 
-  /**
-   * Simply receive all signatures from Validator,
-   * after the block is already assembled
-   * and signed by every party
-   * @param blockSig
-   */
-  public async attestSignatures(
-    blockSig: Readonly<MessageBlockSignatures>
-  ): Promise<AttestSignaturesResult> {
-    this.log.debug('attestSignatures() %s', blockSig)
-    // get cached block from redis
-    const key = 'node' + this.nodeId + 'blockId' + blockSig.id
-    const mbJson = await this.redisCli.getClient().get(key)
-    const mb: MessageBlock = JSON.parse(mbJson)
-    const result = new AttestSignaturesResult()
+    // ** get cached block from redis
+    const key = BitUtil.bytesToBase16(asr.getInitialblockhash_asU8());
+    const blockSignedByVBytes = await this.getCachedBlock(key);
+    this.log.debug('blockSignedByVBytes %s', BitUtil.bytesToBase16(blockSignedByVBytes));
+
+    const expectedInitialBlockHash = BitUtil.bytesToBase16(asr.getInitialblockhash_asU8());
+    const initialBlockHash = BlockUtil.hashBlockAsHex(blockSignedByVBytes);
+    if (initialBlockHash !== expectedInitialBlockHash) {
+      this.log.error('expected %s , got %s', expectedInitialBlockHash, initialBlockHash);
+      throw new BlockError('intial block hash does not match the expected hash');
+    }
+    this.log.debug('cashed block matches with hash');
+
+    Check.isTrue(ArrayUtil.hasMinSize(blockSignedByVBytes, 10), 'cached block is invalid (size)');
+    const blockSignedByV = Block.deserializeBinary(blockSignedByVBytes);
+    const blockSignedByVA = Block.deserializeBinary(blockSignedByVBytes);
+
+    // ** re-create block ; it should be bit-to-bit exact as on the validator side!!!
     // process signatures from validator
     // take them only if they are valid
-    for (let i = 0; i < Math.max(mb.responses.length, blockSig.responsesSignatures.length); i++) {
-      const fi = mb.responses[i]
-      const fiSignatures = blockSig.responsesSignatures[i]
-      const fiSignaturesVerified: FeedItemSig[] = []
-      for (const fiSig of fiSignatures) {
-        const validSignature = MessageBlockUtil.isValidSignature(fi, fiSig)
-        // todo
-        const validNode = true
-        if (validNode && validSignature) {
-          fiSignaturesVerified.push(fiSig)
-        }
+    let gotOwnSignature = false;
+    let vNodeId;
+    for (let sigIndex = 0; sigIndex < asr.getAttestationsList().length; sigIndex++) {
+      let patch = asr.getAttestationsList()[sigIndex];
+      let nodeId = await BlockUtil.recoverPatchAddress(this.wallet, blockSignedByV, patch);
+      const isValidatorSignature = sigIndex == 0;
+      if (isValidatorSignature) {
+        vNodeId = nodeId;
       }
-      const nodeReports = await this.complainOnMinorityNodes(blockSig.id, fi, fiSignaturesVerified)
-      result.reports.push(...nodeReports)
-      mb.responsesSignatures.push(fiSignaturesVerified)
+      if (nodeId == this.wallet.address) {
+        this.log.debug('got my own signature');
+        gotOwnSignature = true;
+      }
+      await this.checkAddrInContract(nodeId);
+      if (!isValidatorSignature) {
+        await this.checkAttestorInToken(nodeId, vNodeId, blockSignedByV.getAttesttoken_asU8());
+      }
+      await BlockUtil.appendPatchAsValidator(this.wallet, blockSignedByVA, patch);
     }
-    mb.responsesSignatures = blockSig.responsesSignatures
-    await this.publishCollectivelySignedMessageBlock(mb)
-    this.log.debug('attestSignatures() success')
-    return result
+    if (!gotOwnSignature) {
+      throw new BlockError('no own signature found');
+    }
+
+    // ** safety check: full validation ONCE again
+    let validatorSet = new Set(this.valContractState.getValidatorNodesMap().keys());
+    let checkResult = await BlockUtil.checkBlockFinalized(blockSignedByVA,
+      validatorSet, this.valContractState.contractCli.valPerBlock);
+    if (!checkResult.success) {
+      throw new BlockError('failed to produce block; self-validation failed for constructed block:' + checkResult.err);
+    }
+    // compare vs validator hash
+    const expectedHash = BitUtil.bytesToBase16(asr.getFinalblockhash_asU8());
+    const blockHash = BlockUtil.hashBlockAsHex(blockSignedByVA.serializeBinary());
+    if (blockHash !== expectedHash) {
+      throw new BlockError('block hash does not match the expected hash');
+    }
+
+    // ** deliver
+    await this.publishFinalizedBlock(blockSignedByVA);
+
+    // todo merge new slashing
+    let response = new AttestSignaturesResponse();
+    let attestorReport = new AttestorReport();
+    attestorReport.setDataforsc(BitUtil.base16ToBytes("aa"));
+    response.getAttestationsList().push(attestorReport)
+    return response;
+  }
+
+  // checks that nodeId is registered in a smart contract as an active validator node
+  // todo BlockUtil?
+  // todo return type
+  private async checkAddrInContract(nodeId: string): Promise<boolean> {
+    const vi = this.valContractState.getValidatorNodesMap().get(nodeId);
+    Check.notNull(vi, `Validator url is empty for node: ${nodeId}`);
+    return true;
+  }
+
+  // checks that nodeId is registered in attestToken as a participant of the current block validation
+  // todo BlockUtil?
+  // todo return type
+  private async checkAttestorInToken(nodeId: string, validatorIdToExclude: string, attestTokenB64: Uint8Array): Promise<boolean> {
+    if (!this.random.checkAttestToken(nodeId, validatorIdToExclude, BitUtil.bytesUtfToString(attestTokenB64))) {
+      this.log.error('block attest token is invalid')
+      throw new BlockError('block attest token is invalid');
+    }
+    return true;
   }
 
   isMajority(value: number, total: number): boolean {
@@ -616,6 +563,7 @@ export class ValidatorNode implements StorageContractListener {
   }
 
   /*
+    todo migrate to jsonrpc/protobuf block logic
     Count nodes who accept/decline that feedItem conversion
     Find which side is the majority
     If (this node decision) matches (majority) -> produce a complaint and sign it with the node private key
@@ -678,7 +626,7 @@ export class ValidatorNode implements StorageContractListener {
     const result = new Set<NodeReportSig>()
     const minorityReplies = groupVote ? declineReplies : acceptReplies
     for (const [nodeId, fiSig] of minorityReplies) {
-      Check.isTrue(this.nodeId != nodeId)
+      Check.isTrue(this.nodeId != nodeId, 'wrong nodeid')
       const reportData = VoteDataV.encode(new VoteDataV(blockId, nodeId))
       const reportDataSig = await EthSig.signForContract(this.wallet, reportData)
       const report: NodeReportSig = {
@@ -702,6 +650,7 @@ export class ValidatorNode implements StorageContractListener {
   ): Promise<void> {
   }
 
+  // todo migrate to new storage nodes
   public async getRecord(nsName: string, nsIndex: string, dt: string, key: string): Promise<any> {
     this.log.debug(`getRecord() nsName=${nsName}, nsIndex=${nsIndex}, dt=${dt}, key=${key}`)
     // const shardId = DbService.calculateShardForNamespaceIndex(nsName, nsIndex);
@@ -750,6 +699,7 @@ export class ValidatorNode implements StorageContractListener {
     return ar
   }
 
+  // todo migrate to new storage nodes
   // @Post('/ns/:nsName/nsidx/:nsIndex/month/:month/list/')
   public async listRecordsByMonth(
     nsName: string,
@@ -809,22 +759,6 @@ export class ValidatorNode implements StorageContractListener {
     return ar
   }
 
-  public async listSubscribers(channel: string, chainName: string): Promise<SubscribersItem[]> {
-    const chainId = config.MAP_BLOCKCHAIN_STRING_TO_ID[chainName]
-    const channelDbField = ChannelsService.isEthBlockchain(chainId) ? 'channel' : 'alias'
-    const rows = await MySqlUtil.queryArr<{
-      subscriber: string
-      userSettings: string
-      ts: number
-    }>(
-      `select subscriber, user_settings as userSettings, UNIX_TIMESTAMP(timestamp) as ts
-       from subscribers
-       where (${channelDbField} = ? AND is_currently_subscribed = 1)`,
-      channel
-    )
-    // let res = await this.subscribers.getSubscribers(channel, chainId); todo decide which impl is better
-    return rows
-  }
 }
 
 export class NodeReportSig {
@@ -858,14 +792,4 @@ export class VoteDataV {
   }
 }
 
-// attester replies with a list of signatures of every feed item in a block and yes/no
-export class AttestBlockResult {
-  // error is filled if we reject to sign
-  error: string | null
-  signatures: FeedItemSig[] | null
-}
 
-// attester replies with a list of votes against minority of nodes, which voted not like this node.
-export class AttestSignaturesResult {
-  reports: NodeReportSig[] = []
-}

@@ -1,1 +1,11 @@
 node_modules
+.github
+.circleci
+.husky
+.vscode
+dockerlogs
+tests
+zips
+*.sample
+Dockerfile
+*.yml

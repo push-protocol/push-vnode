@@ -6,6 +6,8 @@ import {ValidatorRandom} from "../../services/messaging/validatorRandom";
 import {BitUtil} from "../../utilz/bitUtil";
 import {NumUtil} from "../../utilz/numUtil";
 import {QueueManager} from "../../services/messaging/QueueManager";
+import {AttestBlockResult, AttestSignaturesRequest, Signer, TxAttestorData} from "../../generated/push/block_pb";
+import {BlockError} from "../../services/messaging/blockError";
 
 type RpcResult = {
   result: string;
@@ -36,9 +38,14 @@ export class ValidatorRpc {
 
 
   public async push_sendTransaction([ transactionDataBase16 ]) {
-    let txRaw = BitUtil.base16ToBytes(transactionDataBase16);
-    let txHash = await this.validatorNode.sendTransactionBlocking(txRaw);
-    return txHash;
+    try {
+      let txRaw = BitUtil.base16ToBytes(transactionDataBase16);
+      let txHash = await this.validatorNode.sendTransactionBlocking(txRaw);
+      return txHash;
+    } catch (e) {
+      this.log.error('error %o', e);
+      throw new BlockError(e.message);
+    }
   }
 
   public async push_readBlockQueue([ offsetStr ]) {
@@ -59,6 +66,34 @@ export class ValidatorRpc {
     // todo return queue state
     return {
       "lastPublishedOffset": "1001"
+    }
+  }
+
+  public async v_attestBlock([blockDataBase16]) {
+    try {
+      let bRaw = BitUtil.base16ToBytes(blockDataBase16);
+
+      let result = await this.validatorNode.attestBlock(bRaw);
+
+      return BitUtil.bytesToBase16(result.serializeBinary());
+    } catch (e) {
+      this.log.error('error %o', e);
+      throw new BlockError(e.message);
+    }
+  }
+
+  public async v_attestSignatures([asr]) {
+    try {
+      let raw = BitUtil.base16ToBytes(asr);
+      let asrObj = AttestSignaturesRequest.deserializeBinary(raw);
+      this.log.debug('v_attestSignatures() started');
+      let result = await this.validatorNode.attestSignatures(asrObj);
+      this.log.debug('v_attestSignatures() finished');
+      let resultStr = BitUtil.bytesToBase16(result.serializeBinary());
+      return resultStr;
+    } catch (e) {
+      this.log.error('error %o', e);
+      throw new BlockError(e.message);
     }
   }
 

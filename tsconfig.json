@@ -5,13 +5,11 @@
   "compilerOptions": {
     "target": "es2017",
     "lib": ["es2017", "esnext.asynciterable"],
-//    "typeRoots": ["./node_modules/@types", "./src/types"],
     "typeRoots": ["./node_modules/@types", "./src/types", "./src/generated"],
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "forceConsistentCasingInFileNames": true,
-//    "moduleResolution": "node",
     "moduleResolution": "nodenext",
     "module": "commonjs",
     "pretty": true,
@@ -22,7 +20,6 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
 
-//    "skipLibCheck": false
     "skipLibCheck": true
   },
   "include": ["./src/**/*", "./src/**/*.json"],

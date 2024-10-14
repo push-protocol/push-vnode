@@ -3,10 +3,17 @@ import StrUtil from './strUtil'
 import {NumUtil} from "./numUtil";
 
 export class EnvLoader {
+
   public static loadEnvOrFail() {
-    const envFound = dotenv.config()
+    // loads all .env variables into process.env.* variables
+    // Optional support for CONFIG_DIR variable
+    console.log(`config dir is ${process.env.CONFIG_DIR}`)
+    let options = {}
+    if (process.env.CONFIG_DIR) {
+      options = { path: `${process.env.CONFIG_DIR}/.env` }
+    }
+    const envFound = dotenv.config(options)
     if (envFound.error) {
-      // This error should crash whole process
       throw new Error("⚠️  Couldn't find .env file  ⚠️")
     }
   }
