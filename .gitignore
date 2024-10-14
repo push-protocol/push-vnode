@@ -138,12 +138,10 @@ logs/*
 epns-firebase-adminsdk.json
 external/
 package-lock.json
-yarn.lock
 .idea/
 
 # devtools secrets
-src/devtools/devtools.secrets.json
-yarn.lock
-yarn.lock
 package-lock.json
 /docker/mysql-init
+/docker/external
+/log

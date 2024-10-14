@@ -21,7 +21,7 @@ import fs from "fs";
 import {Check} from "../../src/utilz/check";
 import * as jspb from "google-protobuf";
 import StrUtil from "../../src/utilz/strUtil";
-import {NetworkRandom} from "../../src/services/messaging/validatorRandom";
+import {NetworkRandom, NodeRandom, ValidatorRandom} from "../../src/services/messaging/validatorRandom";
 
 const expect = chai.expect;
 
@@ -62,6 +62,39 @@ function printObj(msg:string, obj:any) {
   console.log('%s\n%o', StrUtil.fmtProtoBytes(obj), obj.toObject());
 }
 
+function buildSampleTranaction1() {
+  const data = new InitDid();
+  data.setMasterpubkey('0xBB');
+  data.setDerivedkeyindex(1);
+  data.setDerivedpubkey('0xCC');
+
+  let et = new EncryptedText();
+  et.setSalt('qaz');
+  et.setNonce('');
+  et.setVersion('push:v5');
+  et.setPrekey('');
+  et.setCiphertext('qwe');
+  let wa = new WalletToEncDerivedKey();
+  wa.setEncderivedprivkey(et);
+  wa.setSignature(BitUtil.base16ToBytes("112233"));
+  data.getWallettoencderivedkeyMap().set('0xAA', wa);
+
+  const t = new Transaction();
+  t.setType(0);
+  t.setCategory('INIT_DID');
+  t.setSender('eip155:1:0x35B84d6848D16415177c64D64504663b998A6ab4');
+  t.setRecipientsList(['eip155:1:0x35B84d6848D16415177c64D64504663b998A6ab4', 'eip155:97:0xD8634C39BBFd4033c0d3289C4515275102423681']);
+  t.setData(data.serializeBinary())
+  t.setSalt(BitUtil.base64ToBytes('cdYO7MAPTMisiYeEp+65jw=='));
+  const apiToken = 'VT1eyJub2RlcyI6W3sibm9kZUlkIjoiMHhmREFFYWY3YWZDRmJiNGU0ZDE2REM2NmJEMjAzOWZkNjAwNENGY2U4IiwidHNNaWxsaXMiOjE3Mjg2NzEyODAwMjMsInJhbmRvbUhleCI6ImFjM2YzNjg5ZGIyMDllYjhmNDViZWEzNDU5MjRkN2ZlYTZjMTlhNmMiLCJwaW5nUmVzdWx0cyI6W3sibm9kZUlkIjoiMHg4ZTEyZEUxMkMzNWVBQmYzNWI1NmIwNEU1M0M0RTQ2OGU0NjcyN0U4IiwidHNNaWxsaXMiOjE3Mjg2NzEyNTAwMjEsInN0YXR1cyI6MX0seyJub2RlSWQiOiIweDk4RjlEOTEwQWVmOUIzQjlBNDUxMzdhZjFDQTc2NzVlRDkwYTUzNTUiLCJ0c01pbGxpcyI6MTcyODY3MTI1MDAyMSwic3RhdHVzIjoxfV0sInNpZ25hdHVyZSI6IjB4MTA0ZmIwNTEzNTJiYTcxYjM4Zjk5M2ZhNDZiY2U2NGM2ZDMyYzBhZDRlZWYxZTgxODVjZjViMDRmYmVjOGM4YTRmMDhmYzg3MzBjZGI4NDcyMmZkYTIxMDU3MzRkOWU5MGNjMzlmZGE0ZjVkMTYxZjljOWFiNGEyMzIxM2RlZGExYyJ9LHsibm9kZUlkIjoiMHg5OEY5RDkxMEFlZjlCM0I5QTQ1MTM3YWYxQ0E3Njc1ZUQ5MGE1MzU1IiwidHNNaWxsaXMiOjE3Mjg2NzEyODAwMjAsInJhbmRvbUhleCI6Ijk5NTAyYmM4MWQyNWE2NjdlODlmYTZkNmY3ZDBjZmUxNzdmODkyZjMiLCJwaW5nUmVzdWx0cyI6W3sibm9kZUlkIjoiMHg4ZTEyZEUxMkMzNWVBQmYzNWI1NmIwNEU1M0M0RTQ2OGU0NjcyN0U4IiwidHNNaWxsaXMiOjE3Mjg2NzEyNTAwMjIsInN0YXR1cyI6MX0seyJub2RlSWQiOiIweGZEQUVhZjdhZkNGYmI0ZTRkMTZEQzY2YkQyMDM5ZmQ2MDA0Q0ZjZTgiLCJ0c01pbGxpcyI6MTcyODY3MTI1MDAyMSwic3RhdHVzIjoxfV0sInNpZ25hdHVyZSI6IjB4MmRiNjY4MTI5NGY0NGVhMzVmYWUxZGRhODhhMTIyZjk1NTBlNjg4MzIwZGY1MzU1MDJmNjQ1N2U2YmYyNmEwYzIzOGVjNDlkNTFhNGM3MTlmODhhYzEzMWFmOGIyZTcxOTdhOWY4MGQzMDAyYThkOTQ4YzM5YTU4NDgzNTYwYzQxYiJ9LHsibm9kZUlkIjoiMHg4ZTEyZEUxMkMzNWVBQmYzNWI1NmIwNEU1M0M0RTQ2OGU0NjcyN0U4IiwidHNNaWxsaXMiOjE3Mjg2NzEyODAwMjQsInJhbmRvbUhleCI6IjYzYWIxYWU4ZDk0MDNkY2I1NzM4NGZiNzE0NDQyYmIyMmI0NjYxN2UiLCJwaW5nUmVzdWx0cyI6W3sibm9kZUlkIjoiMHhmREFFYWY3YWZDRmJiNGU0ZDE2REM2NmJEMjAzOWZkNjAwNENGY2U4IiwidHNNaWxsaXMiOjE3Mjg2NzEyNTAwMjIsInN0YXR1cyI6MX0seyJub2RlSWQiOiIweDk4RjlEOTEwQWVmOUIzQjlBNDUxMzdhZjFDQTc2NzVlRDkwYTUzNTUiLCJ0c01pbGxpcyI6MTcyODY3MTI1MDAyMiwic3RhdHVzIjoxfV0sInNpZ25hdHVyZSI6IjB4M2Q3ZDAxMzdiNGE0MWNlNDczZTljZjBkNDkzZWE4OTM0YWFhZWIxYThiZGFlNzFlMWYyNTM1MDYxZDc2MjAxMTIyMDY5ZTYzOGU3ZTBkMmNiY2U1MmFiN2I3YzZlMTkwYzJlNWEzM2U1YTVkZjg0ZTJmY2ViZjllZDgwODlkMjgxYyJ9XX0=';
+  t.setApitoken(BitUtil.stringToBytesUtf(apiToken)); // fake token
+  t.setFee("0"); // tbd
+  // todo fake signature ; grab real eth wallet here
+  const sig = 'JZKvMMYqxzAl43gm1golDnxPRMNpfShoMHJVvP9SpLYemj+gFXYevYmz2dHOPkp61GkcUlnlb4vi55pIah6wGxs=';
+  t.setSignature(BitUtil.base64ToBytes(sig));
+  return t;
+}
+
 describe('block tests', function () {
 /*
   it('test attest token', async function () {
@@ -80,35 +113,7 @@ describe('block tests', function () {
   })*/
 
   it('sample transaction 1', async function () {
-    const data = new InitDid();
-    data.setMasterpubkey('0xBB');
-    data.setDerivedkeyindex(1);
-    data.setDerivedpubkey('0xCC');
-
-    let et = new EncryptedText();
-    et.setSalt('qaz');
-    et.setNonce('');
-    et.setVersion('push:v5');
-    et.setPrekey('');
-    et.setCiphertext('qwe');
-    let wa = new WalletToEncDerivedKey();
-    wa.setEncderivedprivkey(et);
-    wa.setSignature(BitUtil.base16ToBytes("112233"));
-    data.getWallettoencderivedkeyMap().set('0xAA', wa);
-
-    const t = new Transaction();
-    t.setType(0);
-    t.setCategory('INIT_DID');
-    t.setSender('eip155:1:0x35B84d6848D16415177c64D64504663b998A6ab4');
-    t.setRecipientsList(['eip155:1:0x35B84d6848D16415177c64D64504663b998A6ab4', 'eip155:97:0xD8634C39BBFd4033c0d3289C4515275102423681']);
-    t.setData(data.serializeBinary())
-    t.setSalt(BitUtil.base64ToBytes('cdYO7MAPTMisiYeEp+65jw=='));
-    const apiToken = 'VT1eyJub2RlcyI6W3sibm9kZUlkIjoiMHhmREFFYWY3YWZDRmJiNGU0ZDE2REM2NmJEMjAzOWZkNjAwNENGY2U4IiwidHNNaWxsaXMiOjE3Mjg2NzEyODAwMjMsInJhbmRvbUhleCI6ImFjM2YzNjg5ZGIyMDllYjhmNDViZWEzNDU5MjRkN2ZlYTZjMTlhNmMiLCJwaW5nUmVzdWx0cyI6W3sibm9kZUlkIjoiMHg4ZTEyZEUxMkMzNWVBQmYzNWI1NmIwNEU1M0M0RTQ2OGU0NjcyN0U4IiwidHNNaWxsaXMiOjE3Mjg2NzEyNTAwMjEsInN0YXR1cyI6MX0seyJub2RlSWQiOiIweDk4RjlEOTEwQWVmOUIzQjlBNDUxMzdhZjFDQTc2NzVlRDkwYTUzNTUiLCJ0c01pbGxpcyI6MTcyODY3MTI1MDAyMSwic3RhdHVzIjoxfV0sInNpZ25hdHVyZSI6IjB4MTA0ZmIwNTEzNTJiYTcxYjM4Zjk5M2ZhNDZiY2U2NGM2ZDMyYzBhZDRlZWYxZTgxODVjZjViMDRmYmVjOGM4YTRmMDhmYzg3MzBjZGI4NDcyMmZkYTIxMDU3MzRkOWU5MGNjMzlmZGE0ZjVkMTYxZjljOWFiNGEyMzIxM2RlZGExYyJ9LHsibm9kZUlkIjoiMHg5OEY5RDkxMEFlZjlCM0I5QTQ1MTM3YWYxQ0E3Njc1ZUQ5MGE1MzU1IiwidHNNaWxsaXMiOjE3Mjg2NzEyODAwMjAsInJhbmRvbUhleCI6Ijk5NTAyYmM4MWQyNWE2NjdlODlmYTZkNmY3ZDBjZmUxNzdmODkyZjMiLCJwaW5nUmVzdWx0cyI6W3sibm9kZUlkIjoiMHg4ZTEyZEUxMkMzNWVBQmYzNWI1NmIwNEU1M0M0RTQ2OGU0NjcyN0U4IiwidHNNaWxsaXMiOjE3Mjg2NzEyNTAwMjIsInN0YXR1cyI6MX0seyJub2RlSWQiOiIweGZEQUVhZjdhZkNGYmI0ZTRkMTZEQzY2YkQyMDM5ZmQ2MDA0Q0ZjZTgiLCJ0c01pbGxpcyI6MTcyODY3MTI1MDAyMSwic3RhdHVzIjoxfV0sInNpZ25hdHVyZSI6IjB4MmRiNjY4MTI5NGY0NGVhMzVmYWUxZGRhODhhMTIyZjk1NTBlNjg4MzIwZGY1MzU1MDJmNjQ1N2U2YmYyNmEwYzIzOGVjNDlkNTFhNGM3MTlmODhhYzEzMWFmOGIyZTcxOTdhOWY4MGQzMDAyYThkOTQ4YzM5YTU4NDgzNTYwYzQxYiJ9LHsibm9kZUlkIjoiMHg4ZTEyZEUxMkMzNWVBQmYzNWI1NmIwNEU1M0M0RTQ2OGU0NjcyN0U4IiwidHNNaWxsaXMiOjE3Mjg2NzEyODAwMjQsInJhbmRvbUhleCI6IjYzYWIxYWU4ZDk0MDNkY2I1NzM4NGZiNzE0NDQyYmIyMmI0NjYxN2UiLCJwaW5nUmVzdWx0cyI6W3sibm9kZUlkIjoiMHhmREFFYWY3YWZDRmJiNGU0ZDE2REM2NmJEMjAzOWZkNjAwNENGY2U4IiwidHNNaWxsaXMiOjE3Mjg2NzEyNTAwMjIsInN0YXR1cyI6MX0seyJub2RlSWQiOiIweDk4RjlEOTEwQWVmOUIzQjlBNDUxMzdhZjFDQTc2NzVlRDkwYTUzNTUiLCJ0c01pbGxpcyI6MTcyODY3MTI1MDAyMiwic3RhdHVzIjoxfV0sInNpZ25hdHVyZSI6IjB4M2Q3ZDAxMzdiNGE0MWNlNDczZTljZjBkNDkzZWE4OTM0YWFhZWIxYThiZGFlNzFlMWYyNTM1MDYxZDc2MjAxMTIyMDY5ZTYzOGU3ZTBkMmNiY2U1MmFiN2I3YzZlMTkwYzJlNWEzM2U1YTVkZjg0ZTJmY2ViZjllZDgwODlkMjgxYyJ9XX0=';
-    t.setApitoken(BitUtil.stringToBytesUtf(apiToken)); // fake token
-    t.setFee("0"); // tbd
-    // todo fake signature ; grab real eth wallet here
-    const sig = 'JZKvMMYqxzAl43gm1golDnxPRMNpfShoMHJVvP9SpLYemj+gFXYevYmz2dHOPkp61GkcUlnlb4vi55pIah6wGxs=';
-    t.setSignature(BitUtil.base64ToBytes(sig));
+    const t = buildSampleTranaction1();
     let tBlob = t.serializeBinary();
 
     console.log("\n\n\ntx as base16", BitUtil.bytesToBase16(tBlob));
@@ -145,37 +150,8 @@ describe('block tests', function () {
     // now build the same block manually + Compare
 
     // build transaction data ------------------------------------
-    const data = new InitDid();
-    data.setMasterpubkey('0xBB');
-    data.setDerivedkeyindex(1);
-    data.setDerivedpubkey('0xCC');
 
-    let et = new EncryptedText();
-    et.setSalt('qaz');
-    et.setNonce('');
-    et.setVersion('push:v5');
-    et.setPrekey('');
-    et.setCiphertext('qwe');
-    let wa = new WalletToEncDerivedKey();
-    wa.setEncderivedprivkey(et);
-    wa.setSignature(BitUtil.base16ToBytes("112233"));
-    data.getWallettoencderivedkeyMap().set('0xAA', wa);
-    printObj('new InitDid', data);
-    expect(oldTxDataBytes).to.deep.equal(data.serializeBinary());
-
-    // build transaction ------------------------------------
-    const t = new Transaction();
-    t.setType(0);
-    t.setCategory('INIT_DID');
-    t.setSender('eip155:1:0x35B84d6848D16415177c64D64504663b998A6ab4');
-    t.setRecipientsList(['eip155:1:0x35B84d6848D16415177c64D64504663b998A6ab4', 'eip155:97:0xD8634C39BBFd4033c0d3289C4515275102423681']);
-    t.setData(data.serializeBinary())
-    t.setSalt(BitUtil.base64ToBytes('cdYO7MAPTMisiYeEp+65jw=='));
-    const apiToken = 'VT1eyJub2RlcyI6W3sibm9kZUlkIjoiMHhmREFFYWY3YWZDRmJiNGU0ZDE2REM2NmJEMjAzOWZkNjAwNENGY2U4IiwidHNNaWxsaXMiOjE3Mjg2NzEyODAwMjMsInJhbmRvbUhleCI6ImFjM2YzNjg5ZGIyMDllYjhmNDViZWEzNDU5MjRkN2ZlYTZjMTlhNmMiLCJwaW5nUmVzdWx0cyI6W3sibm9kZUlkIjoiMHg4ZTEyZEUxMkMzNWVBQmYzNWI1NmIwNEU1M0M0RTQ2OGU0NjcyN0U4IiwidHNNaWxsaXMiOjE3Mjg2NzEyNTAwMjEsInN0YXR1cyI6MX0seyJub2RlSWQiOiIweDk4RjlEOTEwQWVmOUIzQjlBNDUxMzdhZjFDQTc2NzVlRDkwYTUzNTUiLCJ0c01pbGxpcyI6MTcyODY3MTI1MDAyMSwic3RhdHVzIjoxfV0sInNpZ25hdHVyZSI6IjB4MTA0ZmIwNTEzNTJiYTcxYjM4Zjk5M2ZhNDZiY2U2NGM2ZDMyYzBhZDRlZWYxZTgxODVjZjViMDRmYmVjOGM4YTRmMDhmYzg3MzBjZGI4NDcyMmZkYTIxMDU3MzRkOWU5MGNjMzlmZGE0ZjVkMTYxZjljOWFiNGEyMzIxM2RlZGExYyJ9LHsibm9kZUlkIjoiMHg5OEY5RDkxMEFlZjlCM0I5QTQ1MTM3YWYxQ0E3Njc1ZUQ5MGE1MzU1IiwidHNNaWxsaXMiOjE3Mjg2NzEyODAwMjAsInJhbmRvbUhleCI6Ijk5NTAyYmM4MWQyNWE2NjdlODlmYTZkNmY3ZDBjZmUxNzdmODkyZjMiLCJwaW5nUmVzdWx0cyI6W3sibm9kZUlkIjoiMHg4ZTEyZEUxMkMzNWVBQmYzNWI1NmIwNEU1M0M0RTQ2OGU0NjcyN0U4IiwidHNNaWxsaXMiOjE3Mjg2NzEyNTAwMjIsInN0YXR1cyI6MX0seyJub2RlSWQiOiIweGZEQUVhZjdhZkNGYmI0ZTRkMTZEQzY2YkQyMDM5ZmQ2MDA0Q0ZjZTgiLCJ0c01pbGxpcyI6MTcyODY3MTI1MDAyMSwic3RhdHVzIjoxfV0sInNpZ25hdHVyZSI6IjB4MmRiNjY4MTI5NGY0NGVhMzVmYWUxZGRhODhhMTIyZjk1NTBlNjg4MzIwZGY1MzU1MDJmNjQ1N2U2YmYyNmEwYzIzOGVjNDlkNTFhNGM3MTlmODhhYzEzMWFmOGIyZTcxOTdhOWY4MGQzMDAyYThkOTQ4YzM5YTU4NDgzNTYwYzQxYiJ9LHsibm9kZUlkIjoiMHg4ZTEyZEUxMkMzNWVBQmYzNWI1NmIwNEU1M0M0RTQ2OGU0NjcyN0U4IiwidHNNaWxsaXMiOjE3Mjg2NzEyODAwMjQsInJhbmRvbUhleCI6IjYzYWIxYWU4ZDk0MDNkY2I1NzM4NGZiNzE0NDQyYmIyMmI0NjYxN2UiLCJwaW5nUmVzdWx0cyI6W3sibm9kZUlkIjoiMHhmREFFYWY3YWZDRmJiNGU0ZDE2REM2NmJEMjAzOWZkNjAwNENGY2U4IiwidHNNaWxsaXMiOjE3Mjg2NzEyNTAwMjIsInN0YXR1cyI6MX0seyJub2RlSWQiOiIweDk4RjlEOTEwQWVmOUIzQjlBNDUxMzdhZjFDQTc2NzVlRDkwYTUzNTUiLCJ0c01pbGxpcyI6MTcyODY3MTI1MDAyMiwic3RhdHVzIjoxfV0sInNpZ25hdHVyZSI6IjB4M2Q3ZDAxMzdiNGE0MWNlNDczZTljZjBkNDkzZWE4OTM0YWFhZWIxYThiZGFlNzFlMWYyNTM1MDYxZDc2MjAxMTIyMDY5ZTYzOGU3ZTBkMmNiY2U1MmFiN2I3YzZlMTkwYzJlNWEzM2U1YTVkZjg0ZTJmY2ViZjllZDgwODlkMjgxYyJ9XX0=';
-    t.setApitoken(BitUtil.stringToBytesUtf(apiToken)); // fake token
-    t.setFee("0"); // tbd
-    // todo fake signature ; grab real eth wallet here
-    t.setSignature(BitUtil.base64ToBytes('JZKvMMYqxzAl43gm1golDnxPRMNpfShoMHJVvP9SpLYemj+gFXYevYmz2dHOPkp61GkcUlnlb4vi55pIah6wGxs='));
+    let t = buildSampleTranaction1();
 
     printObj('new Transaction', t);
     printObj('old Transaction', oldTx1);
@@ -190,29 +166,58 @@ describe('block tests', function () {
       // block (BE VERY CAREFUL WITH THIS TEST)
       const block1 = new Block();
       // NOTE: comes from BLOB to be bit-equal
-      block1.setTs(1728671400008);
+      block1.setTs(oldBlock.getTs());
       block1.setTxobjList([to1]);
       // NOTE: comes from BLOB to be bit-equal
-      const attestTokenBase64 = 'QVQxZXlKdWIyUmxjeUk2VzNzaWJtOWtaVWxrSWpvaU1IaG1SRUZGWVdZM1lXWkRSbUppTkdVMFpERTJSRU0yTm1KRU1qQXpPV1prTmpBd05FTkdZMlU0SWl3aWRITk5hV3hzYVhNaU9qRTNNamcyTnpFek56QXdNakVzSW5KaGJtUnZiVWhsZUNJNklqQTVOV1kyTjJNelkySTJOMkUwTjJZM01XVXlNV1l6T0dJelptRXhOR00xTXpVd1pEZzBNemdpTENKd2FXNW5VbVZ6ZFd4MGN5STZXM3NpYm05a1pVbGtJam9pTUhnNFpURXlaRVV4TWtNek5XVkJRbVl6TldJMU5tSXdORVUxTTBNMFJUUTJPR1UwTmpjeU4wVTRJaXdpZEhOTmFXeHNhWE1pT2pFM01qZzJOekV6TkRBd01qTXNJbk4wWVhSMWN5STZNWDBzZXlKdWIyUmxTV1FpT2lJd2VEazRSamxFT1RFd1FXVm1PVUl6UWpsQk5EVXhNemRoWmpGRFFUYzJOelZsUkRrd1lUVXpOVFVpTENKMGMwMXBiR3hwY3lJNk1UY3lPRFkzTVRNME1EQXlOQ3dpYzNSaGRIVnpJam94ZlYwc0luTnBaMjVoZEhWeVpTSTZJakI0WmpobE5EQXpNek14WVdRMlpUWmhZall3TkRZeE5UUm1ZemMwTTJVNU5qZ3lZak5oTXpJeU9UQXpPVGcwTTJOak1tRmtabUppTldNM1kyUTRPR0l3TVRFMU5HUXhZVFJqWldObU1qSmtNR1ZoTWpSaFpURTVZak5qWkRBek4yUTBOVE5sTlRabU1tUmxaVFZrTUdNeFltRTVNamcyTTJSbU1qaG1aREpoWXpFeFl5SjlMSHNpYm05a1pVbGtJam9pTUhnNU9FWTVSRGt4TUVGbFpqbENNMEk1UVRRMU1UTTNZV1l4UTBFM05qYzFaVVE1TUdFMU16VTFJaXdpZEhOTmFXeHNhWE1pT2pFM01qZzJOekV6TnpBd01qTXNJbkpoYm1SdmJVaGxlQ0k2SWpBeU9UY3lNbVJqTW1NME5EWTBOalZpWVRVelpXVXpaR0l3Wm1VMFl6YzJOMlptTnpVeU16TWlMQ0p3YVc1blVtVnpkV3gwY3lJNlczc2libTlrWlVsa0lqb2lNSGc0WlRFeVpFVXhNa016TldWQlFtWXpOV0kxTm1Jd05FVTFNME0wUlRRMk9HVTBOamN5TjBVNElpd2lkSE5OYVd4c2FYTWlPakUzTWpnMk56RXpOREF3TWpRc0luTjBZWFIxY3lJNk1YMHNleUp1YjJSbFNXUWlPaUl3ZUdaRVFVVmhaamRoWmtOR1ltSTBaVFJrTVRaRVF6WTJZa1F5TURNNVptUTJNREEwUTBaalpUZ2lMQ0owYzAxcGJHeHBjeUk2TVRjeU9EWTNNVE0wTURBeU5Td2ljM1JoZEhWeklqb3hmVjBzSW5OcFoyNWhkSFZ5WlNJNklqQjRNek5rTXpFeE4yRm1aRFUzWldSbU4ySmhZelZrTm1KalptRTVNMlZrTldGbE1tRmlPR0kzTkdWaE1qQmlORGN5WXpFME5qZ3laVFV5TnpVMll6YzRPRGN6TUdVeU56Um1ZekJrWXpSbU1qRmhZVFpoTldJNU1tRXpOR0ZpWkdReU1qTTNNR1JtTVdVek9UZGlNRFppTTJVMFlUQXdZelV3T1RJek1tUTVZek14WWlKOUxIc2libTlrWlVsa0lqb2lNSGc0WlRFeVpFVXhNa016TldWQlFtWXpOV0kxTm1Jd05FVTFNME0wUlRRMk9HVTBOamN5TjBVNElpd2lkSE5OYVd4c2FYTWlPakUzTWpnMk56RXpOekF3TWpZc0luSmhibVJ2YlVobGVDSTZJakF6TldVME56QmpOVGM1TmpneFpURm1NbVZsWkRGak5XSmhNekV6TkdVd04yRXhZMll3TWpjaUxDSndhVzVuVW1WemRXeDBjeUk2VzNzaWJtOWtaVWxrSWpvaU1IaG1SRUZGWVdZM1lXWkRSbUppTkdVMFpERTJSRU0yTm1KRU1qQXpPV1prTmpBd05FTkdZMlU0SWl3aWRITk5hV3hzYVhNaU9qRTNNamcyTnpFek5EQXdNaklzSW5OMFlYUjFjeUk2TVgwc2V5SnViMlJsU1dRaU9pSXdlRGs0UmpsRU9URXdRV1ZtT1VJelFqbEJORFV4TXpkaFpqRkRRVGMyTnpWbFJEa3dZVFV6TlRVaUxDSjBjMDFwYkd4cGN5STZNVGN5T0RZM01UTTBNREF5TkN3aWMzUmhkSFZ6SWpveGZWMHNJbk5wWjI1aGRIVnlaU0k2SWpCNE1XSmhaVEF4TURFd09HWTVaR0l6TmpFMk9ESTNOMlU1WVdFd1ltRmhZbVkwWlRreVpUQmpPRFZtWWpRNVpHUmpNVFptTTJNNVpHTXhOakExTkRObE9EVTVNV1U1TmpWbFpUVXdNV1ZtWmpnM1ltSmxaVFpqTjJFek1UZ3dOamMyT0RVMk0ySTROVE13WVROaU9EbGlZV1prWldRM01XUmpNakpoWkRCa1pESXhZaUo5WFgwPQ==';
-      block1.setAttesttoken(attestTokenBase64);
+      block1.setAttesttoken(oldBlock.getAttesttoken());
 
-      await BlockUtil.signBlockAsValidator(getNodeWallet(0), block1);
+      const w0 = getNodeWallet(0);
+      const w1 = getNodeWallet(1);
+      const w2 = getNodeWallet(2);
 
-      let patch1 = await BlockUtil.signBlockAsAttestor(getNodeWallet(1), block1);
-      let patch2 = await BlockUtil.signBlockAsAttestor(getNodeWallet(2), block1);
+      {
+        // deep random reparse and re-construct (prob. to be removed)
+        const attToken = BitUtil.bytesUtfToString(oldBlock.getAttesttoken_asU8()).substring(ValidatorRandom.VAL_TOKEN_PREFIX.length);
+        console.log('attToken %s', attToken);
+        const networkRandom = NetworkRandom.read(attToken);
+        console.log('networkRandom', networkRandom);
+        const w0random = networkRandom.nodes.find(value => value.nodeId === w0.address).randomHex;
+        const w1random = networkRandom.nodes.find(value => value.nodeId === w1.address).randomHex;
+        const w2random = networkRandom.nodes.find(value => value.nodeId === w2.address).randomHex;
 
-      let addr1 = await BlockUtil.recoverPatchAddress(getNodeWallet(0), block1, patch1);
-      expect(addr1).to.equal(getNodeWallet(1).address);
+        const validationVector = ValidatorRandom.calculateValidationVector(
+          [w0.address, w1.address, w2.address],
+          new Map([
+            [w0.address, w0random],
+            [w1.address, w1random],
+            [w2.address, w2random]]),
+          2,
+          'attest',
+          [w0.address]
+        );
+        console.log('validationVector %s', validationVector);
 
-      let addr2 = await BlockUtil.recoverPatchAddress(getNodeWallet(0), block1, patch2);
-      expect(addr2).to.equal(getNodeWallet(2).address);
+        expect(w1.address).to.deep.equal(validationVector[0], 'w1 is the first attestor');
+        expect(w2.address).to.deep.equal(validationVector[1], 'w2 is the second attestor');
+      }
 
-      await BlockUtil.appendPatchAsValidator(getNodeWallet(0), block1, patch1);
-      await BlockUtil.appendPatchAsValidator(getNodeWallet(0), block1, patch2); // NODE 2 goes 1st because my sample blob has this
+      await BlockUtil.signBlockAsValidator(w0, block1);
 
-      expect(await BlockUtil.recoverSignerAddress(block1, 0)).to.be.equal(getNodeWallet(0).address);
-      expect(await BlockUtil.recoverSignerAddress(block1, 1)).to.be.equal(getNodeWallet(1).address); // NODE 2 goes 1st because my sample blob has this
-      expect(await BlockUtil.recoverSignerAddress(block1, 2)).to.be.equal(getNodeWallet(2).address);
+      let patch1 = await BlockUtil.signBlockAsAttestor(w1, block1);
+      let patch2 = await BlockUtil.signBlockAsAttestor(w2, block1);
+
+      let addr1 = await BlockUtil.recoverPatchAddress(w0, block1, patch1);
+      expect(addr1).to.equal(w1.address);
+
+      let addr2 = await BlockUtil.recoverPatchAddress(w0, block1, patch2);
+      expect(addr2).to.equal(w2.address);
+
+      await BlockUtil.appendPatchAsValidator(w0, block1, patch1);
+      await BlockUtil.appendPatchAsValidator(w0, block1, patch2); // NODE 2 goes 1st because my sample blob has this
+
+      expect(await BlockUtil.recoverSignerAddress(block1, 0)).to.be.equal(w0.address);
+      expect(await BlockUtil.recoverSignerAddress(block1, 1)).to.be.equal(w1.address); // NODE 2 goes 1st because my sample blob has this
+      expect(await BlockUtil.recoverSignerAddress(block1, 2)).to.be.equal(w2.address);
 
       printObj('new Block', block1);
       printObj('old Block', oldBlock);

@@ -276,8 +276,9 @@ export class ValidatorNode implements StorageContractListener {
         attesterNodeId, patch != null ? patch.toObject() : "");
       // ** V checks A0 attestation
       let nodeAddress = await BlockUtil.recoverPatchAddress(this.wallet, blockSignedByV, patch);
-      const validatorInfo = this.valContractState.getValidatorNodesMap().get(nodeAddress)
-      Check.notNull(validatorInfo, `Validator url is empty for node: ${nodeAddress}`)
+      let correctAttestor = this.checkAddrInContract(nodeAddress);
+      Check.isTrue(correctAttestor, `Validator url is empty for node: ${nodeAddress}`)
+
       await BlockUtil.appendPatchAsValidator(this.wallet, block, patch);
       patches.push(patch);
     }
@@ -539,8 +540,6 @@ export class ValidatorNode implements StorageContractListener {
   }
 
   // checks that nodeId is registered in a smart contract as an active validator node
-  // todo BlockUtil?
-  // todo return type
   private async checkAddrInContract(nodeId: string): Promise<boolean> {
     const vi = this.valContractState.getValidatorNodesMap().get(nodeId);
     Check.notNull(vi, `Validator url is empty for node: ${nodeId}`);
@@ -548,8 +547,6 @@ export class ValidatorNode implements StorageContractListener {
   }
 
   // checks that nodeId is registered in attestToken as a participant of the current block validation
-  // todo BlockUtil?
-  // todo return type
   private async checkAttestorInToken(nodeId: string, validatorIdToExclude: string, attestTokenB64: Uint8Array): Promise<boolean> {
     if (!this.random.checkAttestToken(nodeId, validatorIdToExclude, BitUtil.bytesUtfToString(attestTokenB64))) {
       this.log.error('block attest token is invalid')
