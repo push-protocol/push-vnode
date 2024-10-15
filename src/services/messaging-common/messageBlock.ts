@@ -11,11 +11,11 @@
  */
 import { Coll } from '../../utilz/coll'
 import StrUtil from '../../utilz/strUtil'
-import { EthSig } from '../../utilz/ethSig'
+import { EthUtil } from '../../utilz/ethUtil'
 import { Logger } from 'winston'
 import { WinstonUtil } from '../../utilz/winstonUtil'
 import { ObjectHasher } from '../../utilz/objectHasher'
-import { EthUtil } from '../../utilz/EthUtil'
+import { ChainUtil } from '../../utilz/chainUtil'
 import { Check } from '../../utilz/check'
 import { NumUtil } from '../../utilz/numUtil'
 import IdUtil from '../../utilz/idUtil'
@@ -405,7 +405,7 @@ export class MessageBlockUtil {
             )
           }
         }
-        const valid = EthSig.check(
+        const valid = EthUtil.check(
           fiSig.signature,
           fiSig.nodeMeta.nodeId,
           fi,
@@ -433,7 +433,7 @@ export class MessageBlockUtil {
   }
 
   public static isValidSignature(fi: FeedItem, fiSig: FeedItemSig): boolean {
-    return EthSig.check(fiSig.signature, fiSig.nodeMeta.nodeId, fi, fiSig.data, fiSig.nodeMeta)
+    return EthUtil.check(fiSig.signature, fiSig.nodeMeta.nodeId, fi, fiSig.data, fiSig.nodeMeta)
   }
 }
 

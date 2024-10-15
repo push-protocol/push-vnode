@@ -12,15 +12,16 @@ import {EnvLoader} from "../../utilz/envLoader";
 import {HashUtil} from "../../utilz/hashUtil";
 import {BitUtil} from "../../utilz/bitUtil";
 import StrUtil from "../../utilz/strUtil";
-import {EthUtil} from "../../utilz/EthUtil";
+import {ChainUtil} from "../../utilz/chainUtil";
 import {Check} from "../../utilz/check";
 import {NumUtil} from "../../utilz/numUtil";
-import {EthSig} from "../../utilz/ethSig";
+import {EthUtil} from "../../utilz/ethUtil";
 import {Logger} from "winston";
 import {WinstonUtil} from "../../utilz/winstonUtil";
 import DateUtil from "../../utilz/dateUtil";
 import {Wallet} from "ethers";
 import {ArrayUtil} from "../../utilz/arrayUtil";
+import {SolUtil} from "../../utilz/solUtil";
 
 
 export class BlockUtil {
@@ -49,7 +50,7 @@ export class BlockUtil {
   public static readonly ATT_TOKEN_PREFIX = 'AT1';
   public static readonly VAL_TOKEN_PREFIX = 'VT1';
 
-  public static parseTransaction(txRaw: Uint8Array): Transaction {
+  public static parseTx(txRaw: Uint8Array): Transaction {
     if (txRaw == null || txRaw.length > BlockUtil.MAX_TRANSACTION_SIZE_BYTES) {
       throw new Error('tx size is too big');
     }
@@ -62,11 +63,11 @@ export class BlockUtil {
     return b;
   }
 
-  public static hashTransactionAsHex(txRaw: Uint8Array): string {
-    return BitUtil.bytesToBase16(BlockUtil.hashTransaction(txRaw));
+  public static hashTxAsHex(txRaw: Uint8Array): string {
+    return BitUtil.bytesToBase16(BlockUtil.hashTx(txRaw));
   }
 
-  private static hashTransaction(txRaw: Uint8Array) {
+  private static hashTx(txRaw: Uint8Array) {
     return HashUtil.sha256AsBytes(txRaw);
   }
 
@@ -81,7 +82,7 @@ export class BlockUtil {
     let txHashes: Uint8Array[] = [];
     for (let txObj of blockObj.getTxobjList()) {
       let tx = txObj.getTx();
-      let txHash = BlockUtil.hashTransaction(tx.serializeBinary());
+      let txHash = BlockUtil.hashTx(tx.serializeBinary());
       txHashes.push(txHash);
     }
     return BitUtil.bytesToBase16(HashUtil.sha256ArrayAsBytes(txHashes));
@@ -114,7 +115,7 @@ export class BlockUtil {
       return null
     }
 
-    const [caip, err] = EthUtil.parseCaipAddress(walletInCaip);
+    const [caip, err] = ChainUtil.parseCaipAddress(walletInCaip);
     if (err != null) {
       throw new Error('invalid caip address:' + err);
     }
@@ -175,47 +176,60 @@ export class BlockUtil {
     return CheckR.ok();
   }
 
-  public static async signGenericTransaction(tx: Transaction, wallet: Wallet) {
+  public static async signTxEVM(tx: Transaction, evmWallet: Wallet) {
     Check.isTrue(ArrayUtil.isEmpty(tx.getSignature_asU8()), ' clear the signature field first, signature is:' + tx.getSignature());
     let tmpBytes = tx.serializeBinary();
-    let sig = await EthSig.signBytes(wallet, tmpBytes);
+    let sig = await EthUtil.signBytes(evmWallet, tmpBytes);
     tx.setSignature(sig);
   }
 
-  public static async checkGenericTransactionSignature(tx: Transaction): Promise<CheckR> {
-    if (tx.getCategory() === 'INIT_DID') {
-      const [caip, err] = EthUtil.parseCaipAddress(tx.getSender());
-      if (err != null) {
-        return CheckR.failWithText('failed to parse caip address');
-      }
-      if (caip.namespace !== 'eip155') {
-        return CheckR.failWithText(`unsupported chain id: ${tx.getSender()}`);
-      }
-      this.log.debug("checking signature `%s`", StrUtil.fmt(tx.getSignature_asU8()));
-      if (!ArrayUtil.hasMinSize(tx.getSignature_asU8(), 4)) {
-        return CheckR.failWithText('signature should have at least 4 bytes size');
-      }
+  public static async signTxSolana(tx: Transaction, solanaPrivateKey: Uint8Array) {
+    Check.isTrue(ArrayUtil.isEmpty(tx.getSignature_asU8()), ' clear the signature field first, signature is:' + tx.getSignature());
+    let tmpBytes = tx.serializeBinary();
+    let sig = SolUtil.signBytes(solanaPrivateKey, tmpBytes);
+    tx.setSignature(sig);
+  }
+
+  public static async checkTxSignature(tx: Transaction): Promise<CheckR> {
+    const [caip, err] = ChainUtil.parseCaipAddress(tx.getSender());
+    if (err != null) {
+      return CheckR.failWithText('failed to parse caip address');
+    }
+    if (!ArrayUtil.hasMinSize(tx.getSignature_asU8(), 4)) {
+      return CheckR.failWithText('signature should have at least 4 bytes size');
+    }
+    this.log.debug("checking signature `%s`", StrUtil.fmt(tx.getSignature_asU8()));
+    // todo if(tx.getCategory() === 'INIT_DID') or === startsWith("CUSTOM:") or ANY OTHER ?
+    let sig = tx.getSignature_asU8();
+    let tmp = Transaction.deserializeBinary(tx.serializeBinary());
+    tmp.setSignature(null);
+    let tmpBytes = tmp.serializeBinary();
+    if (caip.namespace === 'eip155') {
       // EVM SIGNATURES
-      let sig = tx.getSignature_asU8();
-      let tmp = Transaction.deserializeBinary(tx.serializeBinary());
-      tmp.setSignature(null);
-      let tmpBytes = tmp.serializeBinary();
-      const recoveredAddr = EthSig.recoverAddressFromMsg(tmpBytes, sig);
+      const recoveredAddr = EthUtil.recoverAddressFromMsg(tmpBytes, sig);
       const valid = recoveredAddr === caip.addr;
       this.log.debug('recoveredAddr %s; valid: %s', StrUtil.fmt(recoveredAddr), valid);
       if (!valid) {
         return CheckR.failWithText(`sender address${tx.getSender()} does not match recovered address ${recoveredAddr} 
         signature was: ${StrUtil.fmt(`${tx.getSignature()}`)}`);
       }
+    } else if (caip.namespace === 'solana') {
+      // EVM SIGNATURES
+      const expectedPubKey = SolUtil.convertAddrToPubKey(caip.addr);
+      const valid = SolUtil.checkSignature(expectedPubKey, tmpBytes, sig);
+      this.log.debug('expectedPubKey %s; valid: %s', StrUtil.fmt(expectedPubKey), valid);
+      if (!valid) {
+        return CheckR.failWithText(`sender address ${tx.getSender()} does not match  
+        signature: ${StrUtil.fmt(`${tx.getSignature()}`)}`);
+      }
     } else {
-      // todo other transaction types require check using storage nodes TBD
-      return CheckR.ok();
+      return CheckR.failWithText(`unsupported chain id: ${tx.getSender()}`);
     }
     return CheckR.ok();
   }
 
 
-  public static async checkGenericTransaction(tx: Transaction): Promise<CheckR> {
+  public static async checkTx(tx: Transaction): Promise<CheckR> {
     const checkToken = BlockUtil.checkValidatorTokenFormat(tx.getApitoken_asU8());
     if (!checkToken.success) {
       return checkToken;
@@ -223,12 +237,12 @@ export class BlockUtil {
     if (tx.getType() != 0) {
       return CheckR.failWithText(`Only non-value transactions are supported`);
     }
-    if (!EthUtil.isFullCAIPAddress(tx.getSender())) {
+    if (!ChainUtil.isFullCAIPAddress(tx.getSender())) {
       return CheckR.failWithText(`sender ${tx.getSender()} is not in full CAIP format ${tx.getSender()}`);
     }
     // todo how many recipients are required per each tx type?
     for (const recipientAddr of tx.getRecipientsList()) {
-      if (!EthUtil.isFullCAIPAddress(recipientAddr)) {
+      if (!ChainUtil.isFullCAIPAddress(recipientAddr)) {
         return CheckR.failWithText(`recipient ${recipientAddr} is not in full CAIP format ${tx.getSender()}`);
       }
     }
@@ -237,7 +251,7 @@ export class BlockUtil {
       return CheckR.failWithText(`salt field requires >=4 bytes ; ` + StrUtil.fmt(tx.getSalt_asU8()));
     }
 
-    let validSignature = await BlockUtil.checkGenericTransactionSignature(tx);
+    let validSignature = await BlockUtil.checkTxSignature(tx);
     if (!validSignature.success) {
       return CheckR.failWithText(`signature field is invalid`);
     }
@@ -245,7 +259,7 @@ export class BlockUtil {
   }
 
 
-  public static async checkTransactionPayload(tx: Transaction): Promise<CheckR> {
+  public static async checkTxPayload(tx: Transaction): Promise<CheckR> {
     if (tx.getCategory() === 'INIT_DID') {
       let txData = InitDid.deserializeBinary(tx.getData_asU8());
       if (StrUtil.isEmpty(txData.getMasterpubkey())) {
@@ -275,7 +289,7 @@ export class BlockUtil {
       txObj.setValidatordata(voteObj);
       txObj.clearAttestordataList();
     }
-    const ethSig = await EthSig.signBytes(wallet, blockNoSigs.serializeBinary());
+    const ethSig = await EthUtil.signBytes(wallet, blockNoSigs.serializeBinary());
     let vSign = new Signer();
     vSign.setSig(ethSig);
     blockNoSigs.setSignersList([vSign]);
@@ -295,7 +309,7 @@ export class BlockUtil {
       txObj.setAttestordataList([attestorData]);
     }
 
-    const ethSig = await EthSig.signBytes(wallet, tmpBlock.serializeBinary());
+    const ethSig = await EthUtil.signBytes(wallet, tmpBlock.serializeBinary());
 
     // embed attestor data and signature into real object
     let aSign = new Signer();
@@ -325,8 +339,8 @@ export class BlockUtil {
 
     let aSignatureBytes = ar.getSigner().getSig_asU8();
     let tmpBlockBytes = tmpBlock.serializeBinary();
-    this.log.debug('recovery pub key from block with hash: %s', EthSig.ethHash(tmpBlockBytes));
-    const attestorNodeId = EthSig.recoverAddressFromMsg(tmpBlockBytes, aSignatureBytes);
+    this.log.debug('recovery pub key from block with hash: %s', EthUtil.ethHash(tmpBlockBytes));
+    const attestorNodeId = EthUtil.recoverAddressFromMsg(tmpBlockBytes, aSignatureBytes);
     this.log.debug('attestorNodeId %o', attestorNodeId);
     return attestorNodeId;
   }
@@ -343,7 +357,7 @@ export class BlockUtil {
         txObj.clearAttestordataList();
       }
       let blockBytesNoSigners = tmpBlock.serializeBinary();
-      const blockValidatorNodeId = EthSig.recoverAddressFromMsg(blockBytesNoSigners, validatorSignature);
+      const blockValidatorNodeId = EthUtil.recoverAddressFromMsg(blockBytesNoSigners, validatorSignature);
       BlockUtil.log.debug('signature # %s by %s (validator) ', 0, blockValidatorNodeId);
       return blockValidatorNodeId;
     } else {
@@ -358,7 +372,7 @@ export class BlockUtil {
 
       let blockBytesNoSignersAnd1Attest = tmpBlock.serializeBinary();
       let attSignature = blockSignedByVA.getSignersList()[signerIndex].getSig_asU8();
-      const attNodeId = EthSig.recoverAddressFromMsg(blockBytesNoSignersAnd1Attest, attSignature);
+      const attNodeId = EthUtil.recoverAddressFromMsg(blockBytesNoSignersAnd1Attest, attSignature);
       BlockUtil.log.debug('signature # %s by %s ', signerIndex - 1, attNodeId);
       return attNodeId;
     }
@@ -398,11 +412,11 @@ export class BlockUtil {
       if (txObj.getValidatordata() == null || !BlockUtil.VALID_VALIDATOR_VOTES.has(txObj.getValidatordata().getVote())) {
         return CheckR.failWithText(`tx # ${i} has invalid validator data`);
       }
-      let check1 = await BlockUtil.checkGenericTransaction(tx);
+      let check1 = await BlockUtil.checkTx(tx);
       if (!check1.success) {
         return check1;
       }
-      let check2 = await BlockUtil.checkTransactionPayload(tx);
+      let check2 = await BlockUtil.checkTxPayload(tx);
       if (!check2.success) {
         return check2;
       }
@@ -476,19 +490,6 @@ export class BlockUtil {
       BlockUtil.log.debug('signature # %s by %s ', attIndex - 1, attNodeId);
       const allowed = validatorsFromContract.has(attNodeId)
       Check.isTrue(allowed, `unregistered validator_: ${attNodeId}`)
-      // check attestation token
-      /*
-    TODO enable it!!!!!!!!!!!!!!
-    if (
-      !this.random.checkAttestToken(
-        block.getAttesttoken_asB64(),
-        blockValidatorNodeId,
-        this.valContractState.nodeId
-      )
-    ) {
-      this.log.error('block attest token is invalid')
-      throw new BlockError('block attest token is invalid');
-    }*/
     }
     return CheckR.ok();
   }

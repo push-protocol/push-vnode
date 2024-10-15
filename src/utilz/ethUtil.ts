@@ -1,6 +1,6 @@
-import { BytesLike, ethers, Wallet } from 'ethers'
-import { verifyMessage } from 'ethers/lib/utils'
-import { ObjectHasher } from './objectHasher'
+import {BytesLike, ethers, Wallet} from 'ethers'
+import {verifyMessage} from 'ethers/lib/utils'
+import {ObjectHasher} from './objectHasher'
 import {recoverAddress} from "@ethersproject/transactions";
 import {hashMessage} from "@ethersproject/hash";
 import {BitUtil} from "./bitUtil";
@@ -15,8 +15,8 @@ import {WinstonUtil} from "./winstonUtil";
  *
  * Ignores 'signature' properties
  */
-export class EthSig {
-  public static log: Logger = WinstonUtil.newLog(EthSig);
+export class EthUtil {
+  public static log: Logger = WinstonUtil.newLog(EthUtil);
 
   // sign object
   public static async create(wallet: Wallet, ...objectsToHash: any[]): Promise<string> {
@@ -89,11 +89,11 @@ export class EthSig {
   }
 
   // 0xAAAA == eip155:1:0xAAAAA
-  public static recoverAddressFromMsg(message:Uint8Array, signature:Uint8Array):string {
+  public static recoverAddressFromMsg(message: Uint8Array, signature: Uint8Array): string {
     return recoverAddress(hashMessage(message), signature)
   }
 
-  public static recoverAddress(hash:Uint8Array, signature:Uint8Array):string {
+  public static recoverAddress(hash: Uint8Array, signature: Uint8Array): string {
     return recoverAddress(hash, signature)
   }
 
@@ -111,4 +111,5 @@ export class EthSig {
   }
 }
 
-export function Signed(target: Function) {}
+export function Signed(target: Function) {
+}

@@ -9,7 +9,7 @@ import DateUtil from '../../utilz/dateUtil'
 import schedule from 'node-schedule'
 import { PingReply, PingStatus, ValidatorPing } from './validatorPing'
 import { RandomUtil } from '../../utilz/randomUtil'
-import { EthSig, Signed } from '../../utilz/ethSig'
+import { EthUtil, Signed } from '../../utilz/ethUtil'
 import crypto from 'crypto'
 import { BitUtil } from '../../utilz/bitUtil'
 import StrUtil from '../../utilz/strUtil'
@@ -66,7 +66,7 @@ export class ValidatorRandom {
     const randomHex = RandomUtil.getRandomBytesAsHex(ValidatorRandom.RANDOM_SIZE_IN_BYTES)
     const pingResults = Array.from(this.validatorPing.getPingState().values())
     const randomReply = new NodeRandom(nodeId, randomHex, pingResults)
-    randomReply.signature = await EthSig.create(this.contractState.wallet, randomReply)
+    randomReply.signature = await EthUtil.create(this.contractState.wallet, randomReply)
     return randomReply
   }
 
@@ -227,7 +227,7 @@ export class ValidatorRandom {
       ValidatorRandom.log.error('nodeRandom from %s is outdated by more than 1hr', nodeRandom.nodeId)
       const validNodeId = allValidators.has(nodeRandom.nodeId)
       // todo on review stage: double check that we check the 'real thing' here
-      const validSignature = EthSig.check(nodeRandom.signature, nodeRandom.nodeId, nodeRandom)
+      const validSignature = EthUtil.check(nodeRandom.signature, nodeRandom.nodeId, nodeRandom)
       const validRandomHex = StrUtil.isHex(nodeRandom.randomHex)
       if (
         goodTimestamp &&

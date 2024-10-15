@@ -1,4 +1,6 @@
-import { Coll } from './coll'
+import { Coll } from './coll';
+// @ts-ignore
+import bs58 from 'bs58';
 
 // bytes      (as hex numbers)            = 0x41 0x41 0x42 0x42
 // Uint8Array (as decimal numbers)        = 65 65 66 66
@@ -103,6 +105,14 @@ export class BitUtil {
 
   public static base64ToBase16(base64String:string):string {
     return Buffer.from(base64String, 'base64').toString('hex');
+  }
+
+  public static base58ToBytes(base58String: string): Uint8Array {
+    return bs58.decode(base58String);
+  }
+
+  public static bytesToBase58(bytes: Uint8Array): string {
+    return bs58.encode(bytes);
   }
 
 }

@@ -22,10 +22,12 @@ import {Check} from "../../src/utilz/check";
 import * as jspb from "google-protobuf";
 import StrUtil from "../../src/utilz/strUtil";
 import {NetworkRandom, NodeRandom, ValidatorRandom} from "../../src/services/messaging/validatorRandom";
-import {EthUtil} from "../../src/utilz/EthUtil";
+import {ChainUtil} from "../../src/utilz/chainUtil";
 import {RandomUtil} from "../../src/utilz/randomUtil";
+import {Keypair} from "@solana/web3.js";
+import {SolUtil} from "../../src/utilz/solUtil";
 
-const expect = chai.expect;
+// const expect = chai.expect;
 
 type WalletInfo = {
   address: string;
@@ -119,30 +121,49 @@ async function buildSampleTranaction1() {
   t.setApitoken(BitUtil.stringToBytesUtf(apiToken)); // fake token
   t.setFee("0"); // tbd
   // todo fake signature ; grab real eth wallet here
-  await BlockUtil.signGenericTransaction(t, getUserWallet(0));
+  await BlockUtil.signTxEVM(t, getUserWallet(0));
   return t;
 }
 
 describe('validation tests', async function () {
-  it('sign tx and check that signature matches the sender', async function () {
+  it('sign ETH tx and check that signature matches the sender', async function () {
       let tx = await buildSampleTranaction1();
       tx.setSignature(null); // no signature
 
       let wallet = getUserWallet(0);
       tx.setSender('eip155:1:' + wallet.address);
-      await BlockUtil.signGenericTransaction(tx, wallet);
+      await BlockUtil.signTxEVM(tx, wallet);
       console.log('signed tx %o', tx.toObject());
       console.log('signed tx %o', StrUtil.fmtProtoBytes(tx));
-      const check = await BlockUtil.checkGenericTransactionSignature(tx);
+      const check = await BlockUtil.checkTxSignature(tx);
       expect(check.success).to.be.equal(true);
     }
   )
+
+  it('sign SOL tx and check that signature matches the sender', async function () {
+      let tx = await buildSampleTranaction1();
+      tx.setSignature(null); // no signature
+
+      let solanaPrivateKey = BitUtil.base16ToBytes("ae2f9a10cac1ce71c7be3585a9af1f38de358abde0d875ad0a95352d49fbedf60fb9ba52b1f09445f1e3a7508d59f0797923acf744fbe2da303fb06da859ee87");
+      const addrStr = SolUtil.convertPrivKeyToAddr(solanaPrivateKey);
+      const sender = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:' + addrStr;
+      tx.setSender(sender);
+      await BlockUtil.signTxSolana(tx, solanaPrivateKey);
+
+      console.log('signed tx %o', tx.toObject());
+      console.log('signed tx %o', StrUtil.fmtProtoBytes(tx));
+      const check = await BlockUtil.checkTxSignature(tx);
+      console.log(check.err);
+      expect(check.success).to.be.equal(true);
+    }
+  )
+
 
   it.skip('check some random tx from UI', async function () {
     let hex = '1208494e49545f4449441a37707573683a6465766e65743a7075736831636a6474617178396463356a307875326174736d6575747235756a6d6d6a6d336c30306766392abb050a423033643734373964383866376532623530316635653630643835643932623866643337383234613230656236666363396135646465343865383539346362383966351080808080081a4230323935346639646361363731616262616337373762353635616261383334363962663333333131346234663239313062626533646137336533303165633463306522aa040a37707573683a6465766e65743a7075736831636a6474617178396463356a307875326174736d6575747235756a6d6d6a6d336c303067663912ee030aa8030afe0139656163396561383533666339646562616530346635373931313865613064393134646365333166643836346635643036643066326337333938396663366366356134353334323139363764316132396336376535633637666461333135323565386165663564393331343835306233623763343461626236336462623330336539653064383532393737333132353339616439376338663435313166643862333433313465376562333937356530663039643832366338663366373939333062633066636535643133643164363636323566356530643837636439363532343539333963356535326265633537356266303661653766616163346264391240323131663561323938646232316434373662356366306532653265386238366533316535646535396266393437373636343564636235643030373162353031351a183230643663323831623261636335313835333331633162302207707573683a76352a4035363831653065333632356366376562343935623630386563313331616639363134633234633934666633303734383230643062643430386534386263313130124120913defe8194febe7522a6601c7f91a37e9ea4c0b0655aa8fc1d3142a125610659ef34b16d74a46f80dd3d0dad607d64f817211968e4cfa2e3069b1bdb3ab5b1b3210eb7beb24173a4b7d8923a1213756ae873abe12553d5ec89befbfbdefbfbd195cc88eefbfbdefbfbdc89befbfbdefbfbd19525908efbfbdefbfbdefbfbd1e0e194c4cefbfbd114c4cefbfbdefbfbdefbfbd595050efbfbdefbfbdefbfbd58efbfbd4defbfbdefbfbd0d114d4cefbfbdefbfbd114d0defbfbd194d0defbfbdcc8defbfbd4e08efbfbd08efbfbd1cefbfbd5a5b1b1a5cc88eefbfbd4dcc8e0e4c0c4c0d4c0c0d4c4b08efbfbdefbfbd5befbfbd1befbfbd52195e08efbfbdefbfbdefbfbd4e4d0defbfbd4defbfbd58efbfbdefbfbd18efbfbdefbfbd590cefbfbdcc8cefbfbd0defbfbd18efbfbdefbfbd4d0d0c0d0d4c0c4cefbfbd0dd8994e4defbfbdefbfbdc88b08efbfbd1a5befbfbdd4995cefbfbd5b1d1cc88eefbfbdefbfbdc89befbfbdefbfbd19525908efbfbdefbfbdefbfbd1e19efbfbd10515859efbfbdefbfbd59efbfbdd198efbfbdefbfbd194d190c4defbfbd10cd8defbfbdefbfbd0cefbfbd0cefbfbd59efbfbd0defbfbd0c0d10d198efbfbd4e08efbfbd08efbfbd1cefbfbd5a5b1b1a5cc88eefbfbd4dcc8e0e4c0c4c0cefbfbd0c0e0c4b08efbfbdefbfbd185d1d5cc88eefbfbd5f4b1ec89befbfbdefbfbd19525908efbfbdefbfbdefbfbd1e0e4e11efbfbd510e4c4c105959efbfbd50efbfbdd08e504d0d4c4cefbfbdefbfbd59efbfbd50efbfbd4dcd8defbfbd59510e4c184d4cefbfbd4d48efbfbd08efbfbd1cefbfbd5a5b1b1a5cc88eefbfbd4dcc8e0e4c0c4c0cefbfbd0c0defbfbdefbfbd08efbfbdefbfbd185d1d5cc88eefbfbd5f574b08efbfbdefbfbd59db985d1d5cefbfbd48efbfbdefbfbdefbfbd1e18efbfbdefbfbd584c0cefbfbd4cefbfbdd98c4cefbfbd0e0dd9990defbfbd4e0defbfbd590d0defbfbd18efbfbd585918efbfbdefbfbd4cefbfbd4e0c4e4d4defbfbd4d58efbfbd19efbfbdefbfbd4d194c59efbfbd0cefbfbd4c0d4c584d18efbfbdefbfbd4c184cefbfbd18efbfbd184c190cefbfbdefbfbd5959efbfbdefbfbd4d59efbfbd4e0c0defbfbdcc98efbfbd0c584cefbfbdefbfbdefbfbdefbfbd18efbfbd18efbfbdd88e194e0d0e19efbfbdefbfbd590d4cefbfbd4cefbfbd4c0e190e0cd88e0cefbfbdefbfbd4e18efbfbd18efbfbd58efbfbdefbfbd4b1ec89befbfbdefbfbd19525908efbfbdefbfbdefbfbd1e0e4e11efbfbd510e4c4c105959efbfbd50efbfbdd08e504d0d4c4cefbfbdefbfbd59efbfbd50efbfbd4dcd8defbfbd59510e4c184d4cefbfbd4d48efbfbd08efbfbd1cefbfbd5a5b1b1a5cc88eefbfbd4dcc8e0e4c0c4c0d4c0c0d0defbfbd08efbfbdefbfbd5befbfbd1befbfbd52195e08efbfbdefbfbdefbfbd58efbfbdefbfbdcc8d4e0cefbfbdefbfbdefbfbd0cefbfbd0e4cefbfbd1959584e1958efbfbd59194e4d4dd8984d4c190defbfbd4d0c0dcc8defbfbdefbfbd08efbfbd1a5befbfbdd4995cefbfbd5b1d1cc88eefbfbdefbfbdc89befbfbdefbfbd19525908efbfbdefbfbdefbfbd1e0e194c4cefbfbd114c4cefbfbdefbfbdefbfbd595050efbfbdefbfbdefbfbd58efbfbd4defbfbdefbfbd0d114d4cefbfbdefbfbd114d0defbfbd194d0defbfbdcc8defbfbd4e08efbfbd08efbfbd1cefbfbd5a5b1b1a5cc88eefbfbd4dcc8e0e4c0c4c0cefbfbd0c0d0d4b08efbfbdefbfbd185d1d5cc88eefbfbd5f4b1ec89befbfbdefbfbd19525908efbfbdefbfbdefbfbd1e19efbfbd10515859efbfbdefbfbd59efbfbdd198efbfbdefbfbd194d190c4defbfbd10cd8defbfbdefbfbd0cefbfbd0cefbfbd59efbfbd0defbfbd0c0d10d198efbfbd4e08efbfbd08efbfbd1cefbfbd5a5b1b1a5cc88eefbfbd4dcc8e0e4c0c4c0cefbfbd0c0d4cefbfbd08efbfbdefbfbd185d1d5cc88eefbfbd5f574b08efbfbdefbfbd59db985d1d5cefbfbd48efbfbdefbfbdefbfbd1e0e0c0d18efbfbd4c0cefbfbdefbfbd4cefbfbd195919efbfbd4defbfbd4c18efbfbd19efbfbdefbfbdefbfbdefbfbd58efbfbdefbfbd5918d98d4dcc8d4e4dd88c0e0c190d19efbfbd184c4cefbfbd59590e4d19efbfbd1958efbfbd0cefbfbd0e4c4e4e0cefbfbd4d4c4e0d5918efbfbd4cefbfbdefbfbd0e58efbfbdefbfbdefbfbd0defbfbd4defbfbd4cefbfbdd89918efbfbd4defbfbd4d1918d898cc99efbfbdefbfbd4e594defbfbdefbfbdefbfbd59efbfbd0c4e0e4d0d0d4cefbfbd4defbfbd58efbfbd0d19efbfbd4defbfbdefbfbdefbfbd58c89f4b1ec89befbfbdefbfbd19525908efbfbdefbfbdefbfbd1e19efbfbd10515859efbfbdefbfbd59efbfbdd198efbfbdefbfbd194d190c4defbfbd10cd8defbfbdefbfbd0cefbfbd0cefbfbd59efbfbd0defbfbd0c0d10d198efbfbd4e08efbfbd08efbfbd1cefbfbd5a5b1b1a5cc88eefbfbd4dcc8e0e4c0c4c0d4c0c0d4defbfbd08efbfbdefbfbd5befbfbd1befbfbd52195e08efbfbdefbfbdefbfbd0defbfbd59efbfbdefbfbdefbfbd4d190cefbfbd4d0d0dcc8e0d0d59efbfbd0cefbfbd0e4cefbfbd4e4e58efbfbd19efbfbd18efbfbd4c0defbfbd4defbfbd18efbfbdefbfbdefbfbd08efbfbd1a5befbfbdd4995cefbfbd5b1d1cc88eefbfbdefbfbdc89befbfbdefbfbd19525908efbfbdefbfbdefbfbd1e0e194c4cefbfbd114c4cefbfbdefbfbdefbfbd595050efbfbdefbfbdefbfbd58efbfbd4defbfbdefbfbd0d114d4cefbfbdefbfbd114d0defbfbd194d0defbfbdcc8defbfbd4e08efbfbd08efbfbd1cefbfbd5a5b1b1a5cc88eefbfbd4dcc8e0e4c0c4c0d4c0c0d0e0b08efbfbdefbfbd185d1d5cc88eefbfbd5f4b1ec89befbfbdefbfbd19525908efbfbdefbfbdefbfbd1e0e4e11efbfbd510e4c4c105959efbfbd50efbfbdd08e504d0d4c4cefbfbdefbfbd59efbfbd50efbfbd4dcd8defbfbd59510e4c184d4cefbfbd4d48efbfbd08efbfbd1cefbfbd5a5b1b1a5cc88eefbfbd4dcc8e0e4c0c4c0d4c0c0d0cefbfbd08efbfbdefbfbd185d1d5cc88eefbfbd5f574b08efbfbdefbfbd59db985d1d5cefbfbd48efbfbdefbfbdefbfbd1e0e4cefbfbd59efbfbd19efbfbdefbfbd59184defbfbd4c4c4c4d0defbfbdcc8e18efbfbdefbfbdefbfbdefbfbdefbfbdefbfbd0e584c4c4c0c58efbfbd18efbfbdefbfbd584d590d4d0cefbfbdefbfbd0e0d18590c4cefbfbd4cd88d59584cefbfbdefbfbd58cd98efbfbd4defbfbd18efbfbd18efbfbd4cefbfbd0d4dcd8cefbfbd4cefbfbd4e58efbfbd0c0e4e4d0cefbfbdd88c0cefbfbd0d4d58d98d4e4cefbfbd0d18d98defbfbd4c4e0c18efbfbd4defbfbd0cefbfbdefbfbd59efbfbd4defbfbd0c0d590c0e0e59efbfbdefbfbd58efbfbdefbfbd575f42414c53d8d39b7f3db4412fa267faf9ce26cd985f672ffe1d31d7888739f099c6ec53ce69b3d3bff71eb843c773cc99ac32ea9a8c5d3d933b576eca728290b51d3c1b4a0130';
     let tx = Transaction.deserializeBinary(BitUtil.base16ToBytes(hex));
     console.log('signed tx %o', tx.toObject());
-    const check = await BlockUtil.checkGenericTransaction(tx);
+    const check = await BlockUtil.checkTx(tx);
     console.log(check);
     expect(check.success).to.be.equal(true);
   })
@@ -268,16 +289,16 @@ describe('block tests', function () {
 
   it('reparse1', async function () {
     let txRaw = BitUtil.base16ToBytes("1208494e49545f4449441a336569703135353a313a30783335423834643638343844313634313531373763363444363435303436363362393938413661623422336569703135353a313a30783335423834643638343844313634313531373763363444363435303436363362393938413661623422346569703135353a39373a3078443836333443333942424664343033336330643332383943343531353237353130323432333638312a670a0f6469643a6578616d706c653a313233120e6d61737465725f7075625f6b6579220f646572697665645f7075625f6b657932330a177075736831303232326e333233326d7764656963656a331218737472696e6769666965645f656e637279707465645f706b321071d60eecc00f4cc8ac898784a7eeb98f3ab40b7b226e6f646573223a5b7b226e6f64654964223a22307838653132644531324333356541426633356235366230344535334334453436386534363732374538222c2274734d696c6c6973223a313732363134383637303032342c2272616e646f6d486578223a2262323637636131656661626366386264323063623763616336356330633534323865656664663338222c2270696e67526573756c7473223a5b7b226e6f64654964223a22307866444145616637616643466262346534643136444336366244323033396664363030344346636538222c2274734d696c6c6973223a313732363134383637303032302c22737461747573223a317d2c7b226e6f64654964223a22307839384639443931304165663942334239413435313337616631434137363735654439306135333535222c2274734d696c6c6973223a313732363134383637303031362c22737461747573223a317d5d2c227369676e6174757265223a22307834366331643237316663383637343435393138356132616265636637373736323961303133373066343366303766343965623431363235616565656631643033356431396664326164326437323232373162343166336536636231653735303338343730366162383336363437363837653539346362636462636632316165663162227d2c7b226e6f64654964223a22307839384639443931304165663942334239413435313337616631434137363735654439306135333535222c2274734d696c6c6973223a313732363134383637303032392c2272616e646f6d486578223a2263316662333961383232623964383261643264373437333230626165383634303634386632356137222c2270696e67526573756c7473223a5b7b226e6f64654964223a22307838653132644531324333356541426633356235366230344535334334453436386534363732374538222c2274734d696c6c6973223a313732363134383637303031372c22737461747573223a317d2c7b226e6f64654964223a22307866444145616637616643466262346534643136444336366244323033396664363030344346636538222c2274734d696c6c6973223a313732363134383637303032342c22737461747573223a317d5d2c227369676e6174757265223a22307866663737366563393736306235646134373238323130333862646631646363656162333130666531323030376262336634336636346236343535303264663466333733323234333066653333366535313661356336613734363038353465343033306235363334343633646338613064613135386131623063373861323630653162227d2c7b226e6f64654964223a22307866444145616637616643466262346534643136444336366244323033396664363030344346636538222c2274734d696c6c6973223a313732363134383637303033352c2272616e646f6d486578223a2262393331656334316233393763623164656234396536353764396437623739383764316361373530222c2270696e67526573756c7473223a5b7b226e6f64654964223a22307838653132644531324333356541426633356235366230344535334334453436386534363732374538222c2274734d696c6c6973223a313732363134383637303031352c22737461747573223a317d2c7b226e6f64654964223a22307839384639443931304165663942334239413435313337616631434137363735654439306135333535222c2274734d696c6c6973223a313732363134383637303032352c22737461747573223a317d5d2c227369676e6174757265223a22307837633964343832396336616161363535396465643833323433623665386438623665623333366439303932613261306466323533316463336364396532623335353735626462386261313134323263326663346262363737653064396365356266343464353466653538373266396530373661633339643530316237343934333163227d5d7d42412592af30c62ac73025e37826d60a250e7c4f44c3697d2868307255bcff52a4b61e9a3fa015761ebd89b3d9d1ce3e4a7ad4691c5259e56f8be2e79a486a1eb01b1b4a0130")
-    const tx = BlockUtil.parseTransaction(txRaw);
+    const tx = BlockUtil.parseTx(txRaw);
     let txRaw2 = tx.serializeBinary();
 
     console.log('txRaw: %s', BitUtil.bytesToBase16(txRaw));
     console.log('txRaw2: %s', BitUtil.bytesToBase16(txRaw2));
     console.log('equals: ', BitUtil.bytesToBase16(txRaw) === BitUtil.bytesToBase16(txRaw2));
     console.log('processing tx: %o', tx.toObject());
-    console.log('tx hash raw %s', BlockUtil.hashTransactionAsHex(txRaw));
+    console.log('tx hash raw %s', BlockUtil.hashTxAsHex(txRaw));
 
-    console.log('tx hash after reparse %s', BlockUtil.hashTransactionAsHex(txRaw2));
+    console.log('tx hash after reparse %s', BlockUtil.hashTxAsHex(txRaw2));
     console.log('reparsed tx: %o', Transaction.deserializeBinary(txRaw).toObject());
   });
 
@@ -426,8 +447,6 @@ async function loadWalletInfos(): Promise<WalletInfo[]> {
 describe('sharding tests', function () {
   it('calculate shard', async function () {
 
-
-    // # Ethereum mainnet (canonicalized with [EIP-55][] checksum)
     let sample = [
       'eip155:1:0xab16a96D359eC26a11e2C2b3d8f8B8942d5Bfcdb',
       'eip155:0xab16a96D359eC26a11e2C2b3d8f8B8942d5Bfcdb',
@@ -473,12 +492,15 @@ describe('sharding tests', function () {
         let minSize = 100000000000;
         let maxSize = 0;
         for (const [shardId, count] of shardToNumOfAddresses) {
-          console.log('shardId: %s has %s addresses', shardId, count);
+          // console.log('shardId: %s has %s addresses', shardId, count);
           minSize = Math.min(minSize, count);
           maxSize = Math.max(maxSize, count);
         }
         const delta = maxSize - minSize;
-        const maxDelta = addrs.length / 4;
+        const maxDelta = addrs.length / 3;
+        if (delta > maxDelta) {
+          console.log('shardCount: %s is not balanced', shardCount);
+        }
       }
     }
 

@@ -37,6 +37,10 @@
   },
   "homepage": "https://github.com/push-protocol/push-vnode/",
   "dependencies": {
+    "@noble/ed25519": "^2.1.0",
+    "@rodrigogs/mysql-events": "0.6.0",
+    "@solana/web3.js": "^1.95.3",
+    "bs58": "^6.0.0",
     "celebrate": "^15.0.1",
     "chai": "^4.3.6",
     "cors": "^2.8.5",
@@ -52,17 +56,17 @@
     "redis": "^4.2.0",
     "reflect-metadata": "^0.1.12",
     "ts-luxon": "^4.3.2",
-    "typedi": "^0.8.0",
-    "typescript": "^4.5.4",
-    "uuid": "^9.0.0",
-    "winston": "^3.2.1",
     "ts-node-dev": "1.0.0-pre.44",
     "ts-proto": "^2.0.2",
     "ts-protoc-gen": "^0.15.0",
-    "@rodrigogs/mysql-events": "0.6.0"
+    "typedi": "^0.8.0",
+    "typescript": "^4.5.4",
+    "uuid": "^9.0.0",
+    "winston": "^3.2.1"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
+    "@noble/ed25519": "^2.1.0",
     "@pushprotocol/restapi": "^1.2.0",
     "@types/agenda": "^2.0.4",
     "@types/chai": "^4.3.0",
