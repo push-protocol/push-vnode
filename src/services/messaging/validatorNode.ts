@@ -139,7 +139,7 @@ export class ValidatorNode implements StorageContractListener {
       return false;
     }
     // check
-    const tx = BlockUtil.parseTransaction(txRaw);
+    const tx = BlockUtil.parseTx(txRaw);
     this.log.debug('processing tx: %o', tx.toObject())
     if (validatorTokenRequired) {
       // check that this Validator is a valid target, according to validatorToken
@@ -160,12 +160,12 @@ export class ValidatorNode implements StorageContractListener {
         throw new TransactionError(err);
       }
     }
-    let txCheck = await BlockUtil.checkGenericTransaction(tx);
+    let txCheck = await BlockUtil.checkTx(tx);
     if (!txCheck.success) {
       throw new BlockError(txCheck.err);
     }
 
-    let payloadCheck = await BlockUtil.checkTransactionPayload(tx);
+    let payloadCheck = await BlockUtil.checkTxPayload(tx);
     if (!payloadCheck.success) {
       throw new BlockError(payloadCheck.err);
     }
@@ -188,7 +188,7 @@ export class ValidatorNode implements StorageContractListener {
    */
   public async sendTransactionBlocking(txRaw: Uint8Array): Promise<string> {
     const monitor = new WaitNotify();
-    let txHash = BlockUtil.hashTransactionAsHex(txRaw);
+    let txHash = BlockUtil.hashTxAsHex(txRaw);
     this.blockMonitors.set(txHash, monitor)
     this.log.debug('adding monitor for transaction hash: %s', txHash)
     const success = await this.sendTransaction(txRaw, true);
@@ -328,7 +328,7 @@ export class ValidatorNode implements StorageContractListener {
     // ** unblock addPayloadToMemPoolBlocking() requests
     for (let txObj of blockSignedByVA.getTxobjList()) {
       let tx = txObj.getTx();
-      let txHash = BlockUtil.hashTransactionAsHex(tx.serializeBinary());
+      let txHash = BlockUtil.hashTxAsHex(tx.serializeBinary());
 
       const objMonitor = blockMonitors.get(txHash);
       if (objMonitor) {
@@ -416,13 +416,13 @@ export class ValidatorNode implements StorageContractListener {
   private async attestorVoteOnTransaction(txObj: TransactionObj): Promise<TxAttestorData> {
     let result = new TxAttestorData();
 
-    let txCheck = await BlockUtil.checkGenericTransaction(txObj.getTx());
+    let txCheck = await BlockUtil.checkTx(txObj.getTx());
     if (!txCheck.success) {
       result.setVote(Vote.REJECTED);
       return result;
     }
 
-    let payloadCheck = await BlockUtil.checkTransactionPayload(txObj.getTx());
+    let payloadCheck = await BlockUtil.checkTxPayload(txObj.getTx());
     if (!txCheck.success) {
       result.setVote(Vote.REJECTED);
       return result;

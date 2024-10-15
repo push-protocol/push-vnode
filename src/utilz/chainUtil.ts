@@ -42,7 +42,7 @@ export class ChainUtil {
       return [null, `Invalid address value: ${addr}`];
     }
 
-    return [{ namespace, chainId, addr }, null];
+    return [{namespace, chainId, addr}, null];
   }
 
 

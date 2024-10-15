@@ -72,7 +72,11 @@ describe('api test3', function () {
       // Solana “addresses” are base-58 encoded 256-bit Ed25519 public keys with length varying from 32 to 44 characters.
       let addr = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7S3P4HxJpyyigGzodYwHtCxZyUQe9JiBMHyRWXArAaKv';
       let c = ChainUtil.parseCaipAddress(addr);
-      expect(c).to.deep.equal([{namespace: "solana", chainId: "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp", addr: "7S3P4HxJpyyigGzodYwHtCxZyUQe9JiBMHyRWXArAaKv"}, null]);
+      expect(c).to.deep.equal([{
+        namespace: "solana",
+        chainId: "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        addr: "7S3P4HxJpyyigGzodYwHtCxZyUQe9JiBMHyRWXArAaKv"
+      }, null]);
       expect(ChainUtil.isFullCAIPAddress(addr)).to.be.true;
     }
     {

@@ -3,6 +3,7 @@ import {hashMessage} from "@ethersproject/hash";
 import {Wallet} from "ethers";
 import {Check} from "./check";
 import {BitUtil} from "./bitUtil";
+import {Keypair} from "@solana/web3.js";
 
 export class SolUtil {
 
@@ -21,7 +22,23 @@ export class SolUtil {
     return result;
   }
 
-  public static convertAddrToBytes(solAddress: string): Uint8Array {
+  public static convertAddrToPubKey(solAddress: string): Uint8Array {
     return BitUtil.base58ToBytes(solAddress);
+  }
+
+  public static convertPubKeyToAddr(pubKey: Uint8Array): string {
+    return BitUtil.bytesToBase58(pubKey);
+  }
+
+  public static convertPrivKeyToPubKey(solanaPrivateKey: Uint8Array): Uint8Array {
+    const keypair = Keypair.fromSecretKey(solanaPrivateKey);
+    const pubKey = keypair.publicKey;
+    return pubKey.toBytes();
+  }
+
+  public static convertPrivKeyToAddr(solanaPrivateKey: Uint8Array): string {
+    const pubKey = SolUtil.convertPrivKeyToPubKey(solanaPrivateKey);
+    const addrStr = SolUtil.convertPubKeyToAddr(pubKey);
+    return addrStr;
   }
 }
