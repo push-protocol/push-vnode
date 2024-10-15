@@ -81,6 +81,7 @@ describe('api test3', function () {
     }
     {
       // # StarkNet Testnet
+      // starknet:SN_MAIN:0x02DdfB499765c064eaC5039E3841AA5f382E73B598097a40073BD8B48170Ab57
       let addr = 'starknet:SN_GOERLI:0x02dd1b492765c064eac4039e3841aa5f382773b598097a40073bd8b48170ab57';
       let c = ChainUtil.parseCaipAddress(addr);
       expect(c).to.deep.equal([{

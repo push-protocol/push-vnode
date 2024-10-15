@@ -2,7 +2,7 @@ import StrUtil from './strUtil'
 
 export class ChainUtil {
 
-  static readonly ADDR_MAX = 64;
+  static readonly ADDR_MAX = 65;
   static readonly NAMESPACE_MAX = 8;
   static readonly CHAINID_MAX = 32;
 

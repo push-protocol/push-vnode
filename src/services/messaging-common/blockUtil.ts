@@ -22,6 +22,7 @@ import DateUtil from "../../utilz/dateUtil";
 import {Wallet} from "ethers";
 import {ArrayUtil} from "../../utilz/arrayUtil";
 import {SolUtil} from "../../utilz/solUtil";
+import {StarkNetUtil} from "../../utilz/starkNetUtil";
 
 
 export class BlockUtil {
@@ -39,7 +40,7 @@ export class BlockUtil {
 
   // blocks older than this would get rejected by attestors
   // note: attestor should have an up-to-date clock time for this (!)
-  public static ATTESTOR_MAX_BLOCK_AGE_SECONDS = EnvLoader.getPropertyAsNumber('MAX_BLOCK_AGE_SECONDS', 120);
+  public static ATTESTOR_MAX_BLOCK_AGE_SECONDS = EnvLoader.getPropertyAsNumber('MAX_BLOCK_AGE_SECONDS', 0);
 
   // we will cache incomplete blocks for this amount of seconds
   // attestSignatures will stop working after this time
@@ -190,10 +191,17 @@ export class BlockUtil {
     tx.setSignature(sig);
   }
 
+  public static async signTxStarkNet(tx: Transaction, starkNetPrivateKey: Uint8Array) {
+    Check.isTrue(ArrayUtil.isEmpty(tx.getSignature_asU8()), ' clear the signature field first, signature is:' + tx.getSignature());
+    let tmpBytes = tx.serializeBinary();
+    let sig = StarkNetUtil.signBytes(starkNetPrivateKey, tmpBytes);
+    tx.setSignature(sig);
+  }
+
   public static async checkTxSignature(tx: Transaction): Promise<CheckR> {
     const [caip, err] = ChainUtil.parseCaipAddress(tx.getSender());
     if (err != null) {
-      return CheckR.failWithText('failed to parse caip address');
+      return CheckR.failWithText('failed to parse caip address: ' + err);
     }
     if (!ArrayUtil.hasMinSize(tx.getSignature_asU8(), 4)) {
       return CheckR.failWithText('signature should have at least 4 bytes size');
@@ -222,6 +230,16 @@ export class BlockUtil {
         return CheckR.failWithText(`sender address ${tx.getSender()} does not match  
         signature: ${StrUtil.fmt(`${tx.getSignature()}`)}`);
       }
+    } else if (caip.namespace === 'starknet') {
+      return CheckR.failWithText('not suported')
+      // STARKNET SIGNATURES
+      // const expectedPubKey = StarkNetUtil.convertAddrToPubKey(caip.addr);
+      // const valid = StarkNetUtil.checkSignature(expectedPubKey, tmpBytes, sig);
+      // this.log.debug('expectedPubKey %s; valid: %s', StrUtil.fmt(expectedPubKey), valid);
+      // if (!valid) {
+      //   return CheckR.failWithText(`sender address ${tx.getSender()} does not match
+      //   signature: ${StrUtil.fmt(`${tx.getSignature()}`)}`);
+      // }
     } else {
       return CheckR.failWithText(`unsupported chain id: ${tx.getSender()}`);
     }

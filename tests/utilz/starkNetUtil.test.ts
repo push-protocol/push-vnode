@@ -9,26 +9,6 @@ import {StarkNetUtil} from "../../src/utilz/starkNetUtil";
 import StrUtil from "../../src/utilz/strUtil";
 
 describe('starknet sig tests', async function () {
-  it('sig and check', async function () {
-
-
-    const privateKey = '0x1234567890987654321';
-    const starknetPublicKey = ec.starkCurve.getStarkKey(privateKey);
-    const fullPublicKey = encode.addHexPrefix(
-      encode.buf2hex(ec.starkCurve.getPublicKey(privateKey, false))
-    );
-
-    const message: BigNumberish[] = [1, 128, 18, 14];
-
-    const msgHash = hash.computeHashOnElements(message);
-    const signature: WeierstrassSignatureType = ec.starkCurve.sign(msgHash, privateKey);
-
-
-    const msgHash1 = hash.computeHashOnElements(message);
-    const result1 = ec.starkCurve.verify(signature, msgHash1, fullPublicKey);
-    console.log('Result (boolean) =', result1);
-
-  })
 
   it('sig and check 2', async function () {
     const msg = BitUtil.stringToBytesUtf('Test for starknet!');
