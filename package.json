@@ -55,6 +55,7 @@
     "object-hash": "^3.0.0",
     "redis": "^4.2.0",
     "reflect-metadata": "^0.1.12",
+    "starknet": "^6.11.0",
     "ts-luxon": "^4.3.2",
     "ts-node-dev": "1.0.0-pre.44",
     "ts-proto": "^2.0.2",
