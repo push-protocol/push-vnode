@@ -12,10 +12,10 @@ import {EnvLoader} from "../../utilz/envLoader";
 import {HashUtil} from "../../utilz/hashUtil";
 import {BitUtil} from "../../utilz/bitUtil";
 import StrUtil from "../../utilz/strUtil";
-import {EthUtil} from "../../utilz/EthUtil";
+import {ChainUtil} from "../../utilz/chainUtil";
 import {Check} from "../../utilz/check";
 import {NumUtil} from "../../utilz/numUtil";
-import {EthSig} from "../../utilz/ethSig";
+import {EthUtil} from "../../utilz/ethUtil";
 import {Logger} from "winston";
 import {WinstonUtil} from "../../utilz/winstonUtil";
 import DateUtil from "../../utilz/dateUtil";
@@ -114,7 +114,7 @@ export class BlockUtil {
       return null
     }
 
-    const [caip, err] = EthUtil.parseCaipAddress(walletInCaip);
+    const [caip, err] = ChainUtil.parseCaipAddress(walletInCaip);
     if (err != null) {
       throw new Error('invalid caip address:' + err);
     }
@@ -178,13 +178,13 @@ export class BlockUtil {
   public static async signGenericTransaction(tx: Transaction, wallet: Wallet) {
     Check.isTrue(ArrayUtil.isEmpty(tx.getSignature_asU8()), ' clear the signature field first, signature is:' + tx.getSignature());
     let tmpBytes = tx.serializeBinary();
-    let sig = await EthSig.signBytes(wallet, tmpBytes);
+    let sig = await EthUtil.signBytes(wallet, tmpBytes);
     tx.setSignature(sig);
   }
 
   public static async checkGenericTransactionSignature(tx: Transaction): Promise<CheckR> {
     if (tx.getCategory() === 'INIT_DID') {
-      const [caip, err] = EthUtil.parseCaipAddress(tx.getSender());
+      const [caip, err] = ChainUtil.parseCaipAddress(tx.getSender());
       if (err != null) {
         return CheckR.failWithText('failed to parse caip address');
       }
@@ -200,7 +200,7 @@ export class BlockUtil {
       let tmp = Transaction.deserializeBinary(tx.serializeBinary());
       tmp.setSignature(null);
       let tmpBytes = tmp.serializeBinary();
-      const recoveredAddr = EthSig.recoverAddressFromMsg(tmpBytes, sig);
+      const recoveredAddr = EthUtil.recoverAddressFromMsg(tmpBytes, sig);
       const valid = recoveredAddr === caip.addr;
       this.log.debug('recoveredAddr %s; valid: %s', StrUtil.fmt(recoveredAddr), valid);
       if (!valid) {
@@ -223,12 +223,12 @@ export class BlockUtil {
     if (tx.getType() != 0) {
       return CheckR.failWithText(`Only non-value transactions are supported`);
     }
-    if (!EthUtil.isFullCAIPAddress(tx.getSender())) {
+    if (!ChainUtil.isFullCAIPAddress(tx.getSender())) {
       return CheckR.failWithText(`sender ${tx.getSender()} is not in full CAIP format ${tx.getSender()}`);
     }
     // todo how many recipients are required per each tx type?
     for (const recipientAddr of tx.getRecipientsList()) {
-      if (!EthUtil.isFullCAIPAddress(recipientAddr)) {
+      if (!ChainUtil.isFullCAIPAddress(recipientAddr)) {
         return CheckR.failWithText(`recipient ${recipientAddr} is not in full CAIP format ${tx.getSender()}`);
       }
     }
@@ -275,7 +275,7 @@ export class BlockUtil {
       txObj.setValidatordata(voteObj);
       txObj.clearAttestordataList();
     }
-    const ethSig = await EthSig.signBytes(wallet, blockNoSigs.serializeBinary());
+    const ethSig = await EthUtil.signBytes(wallet, blockNoSigs.serializeBinary());
     let vSign = new Signer();
     vSign.setSig(ethSig);
     blockNoSigs.setSignersList([vSign]);
@@ -295,7 +295,7 @@ export class BlockUtil {
       txObj.setAttestordataList([attestorData]);
     }
 
-    const ethSig = await EthSig.signBytes(wallet, tmpBlock.serializeBinary());
+    const ethSig = await EthUtil.signBytes(wallet, tmpBlock.serializeBinary());
 
     // embed attestor data and signature into real object
     let aSign = new Signer();
@@ -325,8 +325,8 @@ export class BlockUtil {
 
     let aSignatureBytes = ar.getSigner().getSig_asU8();
     let tmpBlockBytes = tmpBlock.serializeBinary();
-    this.log.debug('recovery pub key from block with hash: %s', EthSig.ethHash(tmpBlockBytes));
-    const attestorNodeId = EthSig.recoverAddressFromMsg(tmpBlockBytes, aSignatureBytes);
+    this.log.debug('recovery pub key from block with hash: %s', EthUtil.ethHash(tmpBlockBytes));
+    const attestorNodeId = EthUtil.recoverAddressFromMsg(tmpBlockBytes, aSignatureBytes);
     this.log.debug('attestorNodeId %o', attestorNodeId);
     return attestorNodeId;
   }
@@ -343,7 +343,7 @@ export class BlockUtil {
         txObj.clearAttestordataList();
       }
       let blockBytesNoSigners = tmpBlock.serializeBinary();
-      const blockValidatorNodeId = EthSig.recoverAddressFromMsg(blockBytesNoSigners, validatorSignature);
+      const blockValidatorNodeId = EthUtil.recoverAddressFromMsg(blockBytesNoSigners, validatorSignature);
       BlockUtil.log.debug('signature # %s by %s (validator) ', 0, blockValidatorNodeId);
       return blockValidatorNodeId;
     } else {
@@ -358,7 +358,7 @@ export class BlockUtil {
 
       let blockBytesNoSignersAnd1Attest = tmpBlock.serializeBinary();
       let attSignature = blockSignedByVA.getSignersList()[signerIndex].getSig_asU8();
-      const attNodeId = EthSig.recoverAddressFromMsg(blockBytesNoSignersAnd1Attest, attSignature);
+      const attNodeId = EthUtil.recoverAddressFromMsg(blockBytesNoSignersAnd1Attest, attSignature);
       BlockUtil.log.debug('signature # %s by %s ', signerIndex - 1, attNodeId);
       return attNodeId;
     }
@@ -476,19 +476,6 @@ export class BlockUtil {
       BlockUtil.log.debug('signature # %s by %s ', attIndex - 1, attNodeId);
       const allowed = validatorsFromContract.has(attNodeId)
       Check.isTrue(allowed, `unregistered validator_: ${attNodeId}`)
-      // check attestation token
-      /*
-    TODO enable it!!!!!!!!!!!!!!
-    if (
-      !this.random.checkAttestToken(
-        block.getAttesttoken_asB64(),
-        blockValidatorNodeId,
-        this.valContractState.nodeId
-      )
-    ) {
-      this.log.error('block attest token is invalid')
-      throw new BlockError('block attest token is invalid');
-    }*/
     }
     return CheckR.ok();
   }

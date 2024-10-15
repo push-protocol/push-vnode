@@ -15,8 +15,8 @@ import {WinstonUtil} from "./winstonUtil";
  *
  * Ignores 'signature' properties
  */
-export class EthSig {
-  public static log: Logger = WinstonUtil.newLog(EthSig);
+export class EthUtil {
+  public static log: Logger = WinstonUtil.newLog(EthUtil);
 
   // sign object
   public static async create(wallet: Wallet, ...objectsToHash: any[]): Promise<string> {

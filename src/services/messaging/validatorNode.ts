@@ -1,7 +1,7 @@
 import {ethers, Wallet} from 'ethers'
 import {Inject, Service} from 'typedi'
 import {Logger} from 'winston'
-import {EthSig} from '../../utilz/ethSig'
+import {EthUtil} from '../../utilz/ethUtil'
 import {ValidatorClient} from './validatorClient'
 import {WaitNotify} from '../../utilz/waitNotify'
 import {NodeInfo, ValidatorContractState} from '../messaging-common/validatorContractState'
@@ -95,7 +95,7 @@ export class ValidatorNode implements StorageContractListener {
     this.nodeId = this.valContractState.nodeId
 
     await this.storageContractState.postConstruct(false, this)
-    if (EthSig.isEthZero(this.nodeId) || StrUtil.isEmpty(this.nodeId)) {
+    if (EthUtil.isEthZero(this.nodeId) || StrUtil.isEmpty(this.nodeId)) {
       throw new Error('invalid node id: ' + this.nodeId)
     }
     this.log.debug(`done loading eth config, using wallet %s`, this.nodeId)
@@ -403,8 +403,8 @@ export class ValidatorNode implements StorageContractListener {
       txObj.setAttestordataList([vote]); // block:  only my vote per transaction
     }
     let blockBytes = blockSignedByV.serializeBinary();
-    this.log.debug('signing block with hash: %s', EthSig.ethHash(blockBytes));
-    const ethSig = await EthSig.signBytes(this.wallet, blockBytes); // block: sign bytes
+    this.log.debug('signing block with hash: %s', EthUtil.ethHash(blockBytes));
+    const ethSig = await EthUtil.signBytes(this.wallet, blockBytes); // block: sign bytes
     let signer = new Signer();
     signer.setSig(ethSig);
     ar.setSigner(signer);
@@ -625,7 +625,7 @@ export class ValidatorNode implements StorageContractListener {
     for (const [nodeId, fiSig] of minorityReplies) {
       Check.isTrue(this.nodeId != nodeId, 'wrong nodeid')
       const reportData = VoteDataV.encode(new VoteDataV(blockId, nodeId))
-      const reportDataSig = await EthSig.signForContract(this.wallet, reportData)
+      const reportDataSig = await EthUtil.signForContract(this.wallet, reportData)
       const report: NodeReportSig = {
         nodeId: nodeId,
         nodeVote: fiSig.data.vote,

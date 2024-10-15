@@ -1,6 +1,6 @@
 import StrUtil from './strUtil'
 
-export class EthUtil {
+export class ChainUtil {
 
   static readonly ADDR_MAX = 64;
   static readonly NAMESPACE_MAX = 8;
@@ -52,7 +52,7 @@ export class EthUtil {
   e:1:0
    */
   public static isFullCAIPAddress(fullCaipAddress: string): boolean {
-    let [caip, err] = EthUtil.parseCaipAddress(fullCaipAddress);
+    let [caip, err] = ChainUtil.parseCaipAddress(fullCaipAddress);
     if (err != null) {
       return false;
     }

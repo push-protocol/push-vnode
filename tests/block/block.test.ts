@@ -22,7 +22,7 @@ import {Check} from "../../src/utilz/check";
 import * as jspb from "google-protobuf";
 import StrUtil from "../../src/utilz/strUtil";
 import {NetworkRandom, NodeRandom, ValidatorRandom} from "../../src/services/messaging/validatorRandom";
-import {EthUtil} from "../../src/utilz/EthUtil";
+import {ChainUtil} from "../../src/utilz/chainUtil";
 import {RandomUtil} from "../../src/utilz/randomUtil";
 
 const expect = chai.expect;
@@ -426,8 +426,6 @@ async function loadWalletInfos(): Promise<WalletInfo[]> {
 describe('sharding tests', function () {
   it('calculate shard', async function () {
 
-
-    // # Ethereum mainnet (canonicalized with [EIP-55][] checksum)
     let sample = [
       'eip155:1:0xab16a96D359eC26a11e2C2b3d8f8B8942d5Bfcdb',
       'eip155:0xab16a96D359eC26a11e2C2b3d8f8B8942d5Bfcdb',
