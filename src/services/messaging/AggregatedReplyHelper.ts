@@ -6,10 +6,9 @@ import { StringCounter } from '../../utilz/stringCounter'
 export enum NodeHttpStatus {
   REPLY_TIMEOUT = 0
 }
-
+const log: Logger = WinstonUtil.newLog('AggregatedReplyHelper');
 // todo move tests from another repo
 export class AggregatedReplyHelper {
-  public log: Logger = WinstonUtil.newLog(AggregatedReplyHelper)
   // initial request
   aggrReq: AggregatedRequest
   // replies
@@ -32,16 +31,16 @@ export class AggregatedReplyHelper {
     }
   }
 
-  private doAppendItem(nodeId: string, storageRecord: any) {
-    const skey = storageRecord.skey
-    let map2 = this.mapKeyToNodeItems.get(skey)
+  private doAppendItem(nodeId: string, storageRecord: StorageRecord) {
+    const salt = storageRecord.salt;
+    let map2 = this.mapKeyToNodeItems.get(salt)
     if (map2 == null) {
       map2 = new Map<string, StorageRecord>()
-      this.mapKeyToNodeItems.set(skey, map2)
+      this.mapKeyToNodeItems.set(salt, map2)
     }
     const dstItem = new StorageRecord(
-      storageRecord.ns,
-      skey,
+      storageRecord.cat,
+      salt,
       storageRecord.ts,
       storageRecord.payload
     )
@@ -85,7 +84,7 @@ export class AggregatedReplyHelper {
       for (const [nodeId, code] of this.mapNodeToStatus) {
         if (code == 200) {
           const record = mapNodeIdToStorageRecord.get(nodeId)
-          const recordKey = record?.skey
+          const recordKey = record?.salt
           const recordHash = record == null ? 'null' : record.computeMd5Hash()
           console.log(
             `nodeId=${nodeId} recordKey=${recordKey}, recordHash=${recordHash}, record=${JSON.stringify(
@@ -155,7 +154,7 @@ export class AggregatedReplyHelper {
     // alternative: target.push(context.filter(value => value !=null).map(sr => sr.key).find(key => true))
     for (const record of context) {
       if (record != null) {
-        target.add(record.skey)
+        target.add(record.salt)
         return
       }
     }
@@ -198,14 +197,14 @@ export class AggregatedReply {
 
 // this is a single record , received from a node/list
 export class StorageRecord {
-  ns: string
-  skey: string
+  cat: string
+  salt: string
   ts: string
   payload: any
 
-  constructor(ns: string, skey: string, ts: string, payload: any) {
-    this.ns = ns
-    this.skey = skey
+  constructor(cat: string, salt: string, ts: string, payload: any) {
+    this.cat = cat
+    this.salt = salt
     this.ts = ts
     this.payload = payload
   }
@@ -214,8 +213,8 @@ export class StorageRecord {
   public computeMd5Hash(): string {
     return crypto
       .createHash('md5')
-      .update(this.skey)
-      .update(this.ns)
+      .update(this.salt)
+      .update(this.cat)
       .update(JSON.stringify(this.payload))
       .update(this.ts + '')
       .digest()
