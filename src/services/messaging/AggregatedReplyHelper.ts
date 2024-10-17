@@ -31,20 +31,27 @@ export class AggregatedReplyHelper {
     }
   }
 
+  // add each node reply which contains [item, item, item]
+  public appendItem(nodeId: string, nodeHttpStatus: number, httpReplyData: any,
+                      storageRecord: StorageRecord) {
+    this.mapNodeToStatus.set(nodeId, nodeHttpStatus)
+    if (httpReplyData?.items?.length > 0) {
+        this.doAppendItem(nodeId, storageRecord)
+    }
+  }
+
+  // how to group arbitrary json?
+  // key = masterpublickey
+  // cat = INIT_DID
+  // ts = null
+  // payload = ALL FIELDS
   private doAppendItem(nodeId: string, storageRecord: StorageRecord) {
-    const salt = storageRecord.salt;
-    let map2 = this.mapKeyToNodeItems.get(salt)
+    let map2 = this.mapKeyToNodeItems.get(storageRecord.salt)
     if (map2 == null) {
       map2 = new Map<string, StorageRecord>()
-      this.mapKeyToNodeItems.set(salt, map2)
+      this.mapKeyToNodeItems.set(storageRecord.salt, map2)
     }
-    const dstItem = new StorageRecord(
-      storageRecord.cat,
-      salt,
-      storageRecord.ts,
-      storageRecord.payload
-    )
-    map2.set(nodeId, dstItem)
+    map2.set(nodeId, storageRecord)
   }
 
   private isEnoughReplies(requiredReplies: number): boolean {
@@ -60,11 +67,11 @@ export class AggregatedReplyHelper {
   }
 
   public aggregateItems(minQuorumThreshold: number): AggregatedReply {
-    console.log(`aggregateItems()`)
+    log.debug(`aggregateItems()`)
     const reply = new AggregatedReply()
     // if we have this amount of SAME replies for a key => we have this key
     const nodeCount = this.mapNodeToStatus.size
-    console.log(`quorumForKey=${minQuorumThreshold} nodeCount=${nodeCount}`)
+    log.debug(`quorumForKey=${minQuorumThreshold} nodeCount=${nodeCount}`)
     const keysWithoutQuorumSet = new Set<string>()
     let goodReplies = 0
     let lastTsStr = '0'
@@ -74,7 +81,7 @@ export class AggregatedReplyHelper {
       }
     }
     for (const [skey, mapNodeIdToStorageRecord] of this.mapKeyToNodeItems) {
-      console.log(`checking skey: ${skey}`)
+      log.debug(`checking skey: ${skey}`)
 
       // let's figure out quorum for this skey, we have replies from every node
       // sc: hash(StorageRecord) -> count, [storageRecord1, .., storageRecordN]
@@ -85,8 +92,8 @@ export class AggregatedReplyHelper {
         if (code == 200) {
           const record = mapNodeIdToStorageRecord.get(nodeId)
           const recordKey = record?.salt
-          const recordHash = record == null ? 'null' : record.computeMd5Hash()
-          console.log(
+          const recordHash = record == null ? 'null' : AggregatedReplyHelper.computeMd5Hash(record);
+          log.debug(
             `nodeId=${nodeId} recordKey=${recordKey}, recordHash=${recordHash}, record=${JSON.stringify(
               record
             )}`
@@ -124,7 +131,7 @@ export class AggregatedReplyHelper {
         }
       })
     }
-    console.log(`non200Replies=${goodReplies}`)
+    log.debug(`non200Replies=${goodReplies}`)
     const r = reply.result
     if (goodReplies < minQuorumThreshold) {
       // not enough nodes replies => we can't do anything
@@ -158,6 +165,17 @@ export class AggregatedReplyHelper {
         return
       }
     }
+  }
+
+  // alphabetical order for hashing (!)
+  public static computeMd5Hash(rec: StorageRecord): string {
+    return crypto
+      .createHash('md5')
+      .update(rec.salt)
+      .update(JSON.stringify(rec.payload))
+      .update(rec.ts + '')
+      .digest()
+      .toString('hex')
   }
 }
 
@@ -197,27 +215,13 @@ export class AggregatedReply {
 
 // this is a single record , received from a node/list
 export class StorageRecord {
-  cat: string
   salt: string
   ts: string
   payload: any
 
-  constructor(cat: string, salt: string, ts: string, payload: any) {
-    this.cat = cat
+  constructor(salt: string, ts: string, payload: any) {
     this.salt = salt
     this.ts = ts
     this.payload = payload
-  }
-
-  // alphabetical order for hashing (!)
-  public computeMd5Hash(): string {
-    return crypto
-      .createHash('md5')
-      .update(this.salt)
-      .update(this.cat)
-      .update(JSON.stringify(this.payload))
-      .update(this.ts + '')
-      .digest()
-      .toString('hex')
   }
 }

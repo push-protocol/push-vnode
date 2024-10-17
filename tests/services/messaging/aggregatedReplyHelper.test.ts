@@ -56,7 +56,6 @@ describe('AppController (e2e)', () => {
     ar.appendItems('1', 200, {
       "items": [
         {
-          "cat": "feeds",
           "salt": "a182ae50-9c3c-4c4e-84cd-f7da66f19357",
           "ts": "1111111111",
           "payload": {
@@ -66,7 +65,6 @@ describe('AppController (e2e)', () => {
           }
         },
         {
-          "cat": "feeds",
           "salt": "67a876a6-d93f-47e5-8b2f-b087fd0fc2dc",
           "ts": "1420157966.693000",
           "payload": {
@@ -78,7 +76,6 @@ describe('AppController (e2e)', () => {
     ar.appendItems('2', 200, {
       "items": [
         {
-          "cat": "feeds",
           "salt": "a182ae50-9c3c-4c4e-84cd-f7da66f19357",
           "ts": "1111111111",
           "payload": {
@@ -86,7 +83,6 @@ describe('AppController (e2e)', () => {
           }
         },
         {
-          "cat": "feeds",
           "salt": "67a876a6-d93f-47e5-8b2f-b087fd0fc2dc",
           "ts": "1420157966.693000",
           "payload": {
@@ -111,7 +107,6 @@ describe('AppController (e2e)', () => {
     ar.appendItems('node1', 200, {
       "items": [
         {
-          "cat": "feeds",
           "salt": "key1",
           "ts": "1111111111",
           "payload": {
@@ -120,7 +115,6 @@ describe('AppController (e2e)', () => {
           }
         },
         {
-          "cat": "feeds",
           "salt": "key2",
           "ts": "1420157966.693000",
           "payload": {
@@ -133,7 +127,6 @@ describe('AppController (e2e)', () => {
     ar.appendItems('node2', 200, {
       "items": [
         {
-          "cat": "feeds",
           "salt": "key2",
           "ts": "1420157966.693000",
           "payload": {
@@ -142,7 +135,6 @@ describe('AppController (e2e)', () => {
           }
         },
         {
-          "cat": "feeds",
           "salt": "key1",
           "ts": "1111111111",
           "payload": {
@@ -163,7 +155,6 @@ describe('AppController (e2e)', () => {
       expect(r.items).to.be.deep.equal([
         {
           "salt": "key1",
-          "cat": "feeds",
           "ts": "1111111111",
           payload: {
             "id": 100,
@@ -172,7 +163,6 @@ describe('AppController (e2e)', () => {
         },
         {
           "salt": "key2",
-          "cat": "feeds",
           "ts": "1420157966.693000",
           payload: {
             "id": 200,
@@ -197,7 +187,6 @@ describe('AppController (e2e)', () => {
     ar.appendItems('node1', 200, {
       "items": [
         {
-          "cat": "feeds",
           "salt": "key1",
           "ts": "1111111111",
           "payload": {
@@ -206,7 +195,6 @@ describe('AppController (e2e)', () => {
           }
         },
         {
-          "cat": "feeds",
           "salt": "key2",
           "ts": "1420157966.693000",
           "payload": {
@@ -219,7 +207,6 @@ describe('AppController (e2e)', () => {
     ar.appendItems('node2', 200, {
       "items": [
         {
-          "cat": "feeds",
           "salt": "key2",
           "ts": "1420157966.693000",
           "payload": {
@@ -228,7 +215,6 @@ describe('AppController (e2e)', () => {
           }
         },
         {
-          "cat": "feeds",
           "salt": "key1",
           "ts": "1111111111",
           "payload": {
@@ -241,7 +227,6 @@ describe('AppController (e2e)', () => {
     ar.appendItems('node3', 200, {
       "items": [
         {
-          "cat": "feeds",
           "salt": "key3",
           "ts": "1420157966.693000",
           "payload": {
@@ -250,7 +235,6 @@ describe('AppController (e2e)', () => {
           }
         },
         {
-          "cat": "feeds",
           "salt": "key2",
           "ts": "1420159999.999999",
           "payload": {
@@ -259,7 +243,6 @@ describe('AppController (e2e)', () => {
           }
         },
         {
-          "cat": "feeds",
           "salt": "key1",
           "ts": "1111111111",
           "payload": {
@@ -280,7 +263,6 @@ describe('AppController (e2e)', () => {
     expect(r.items).to.be.deep.equal([
       {
         "salt": "key1",
-        "cat": "feeds",
         "ts": "1111111111",
         payload: {
           "id": 100,
