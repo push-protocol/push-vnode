@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import { Logger } from 'winston'
 import { WinstonUtil } from '../../utilz/winstonUtil'
 import { StringCounter } from '../../utilz/stringCounter'
+import {Check} from "../../utilz/check";
 
 export enum NodeHttpStatus {
   REPLY_TIMEOUT = 0
@@ -16,13 +17,14 @@ export class AggregatedReplyHelper {
   mapNodeToStatus: Map<string, number> = new Map<string, number>()
   // nodeIds item lists, reverted in a map
   // skey -> nodeId -> item
-  mapKeyToNodeItems: Map<string, Map<string, StorageRecord>> = new Map<
+  mapKeyToNodeItems: Map<string, Map<string, Rec>> = new Map<
     string,
-    Map<string, StorageRecord>
-  >()
+    Map<string, Rec>
+  >();
 
   // add each node reply which contains [item, item, item]
-  public appendItems(nodeId: string, nodeHttpStatus: number, httpReplyData: any) {
+  // @Deprecated
+  public oldAppendItems(nodeId: string, nodeHttpStatus: number, httpReplyData: any) {
     this.mapNodeToStatus.set(nodeId, nodeHttpStatus)
     if (httpReplyData?.items?.length > 0) {
       for (const srcItem of httpReplyData.items) {
@@ -31,12 +33,25 @@ export class AggregatedReplyHelper {
     }
   }
 
+  // add node http code
+  public appendHttpCode(nodeId: string, nodeHttpStatus: number) {
+    this.mapNodeToStatus.set(nodeId, nodeHttpStatus);
+  }
+
+  // add each node reply which contains [item]
+  public appendItem(nodeId: string, storageRecord: Rec) {
+    Check.isTrue(this.mapNodeToStatus.get(nodeId)!=null, 'call appendHttpCode before appendSingleItem');
+    this.doAppendItem(nodeId, storageRecord)
+  }
+
   // add each node reply which contains [item, item, item]
-  public appendItem(nodeId: string, nodeHttpStatus: number, httpReplyData: any,
-                      storageRecord: StorageRecord) {
-    this.mapNodeToStatus.set(nodeId, nodeHttpStatus)
+  public appendMultipleItems(nodeId: string, httpReplyData: any,
+                             mapper: (httpReplyData: any) => Rec[]) {
     if (httpReplyData?.items?.length > 0) {
-        this.doAppendItem(nodeId, storageRecord)
+      let items = mapper(httpReplyData);
+      for (const item of items) {
+        this.doAppendItem(nodeId, item);
+      }
     }
   }
 
@@ -45,11 +60,11 @@ export class AggregatedReplyHelper {
   // cat = INIT_DID
   // ts = null
   // payload = ALL FIELDS
-  private doAppendItem(nodeId: string, storageRecord: StorageRecord) {
-    let map2 = this.mapKeyToNodeItems.get(storageRecord.salt)
+  private doAppendItem(nodeId: string, storageRecord: Rec) {
+    let map2 = this.mapKeyToNodeItems.get(storageRecord.skey)
     if (map2 == null) {
-      map2 = new Map<string, StorageRecord>()
-      this.mapKeyToNodeItems.set(storageRecord.salt, map2)
+      map2 = new Map<string, Rec>()
+      this.mapKeyToNodeItems.set(storageRecord.skey, map2)
     }
     map2.set(nodeId, storageRecord)
   }
@@ -86,12 +101,12 @@ export class AggregatedReplyHelper {
       // let's figure out quorum for this skey, we have replies from every node
       // sc: hash(StorageRecord) -> count, [storageRecord1, .., storageRecordN]
       // our goal is to grab top used hashes with frequency > quorum
-      const sc = new StringCounter<StorageRecord>()
+      const sc = new StringCounter<Rec>()
 
       for (const [nodeId, code] of this.mapNodeToStatus) {
         if (code == 200) {
           const record = mapNodeIdToStorageRecord.get(nodeId)
-          const recordKey = record?.salt
+          const recordKey = record?.skey
           const recordHash = record == null ? 'null' : AggregatedReplyHelper.computeMd5Hash(record);
           log.debug(
             `nodeId=${nodeId} recordKey=${recordKey}, recordHash=${recordHash}, record=${JSON.stringify(
@@ -114,7 +129,7 @@ export class AggregatedReplyHelper {
             // 2. we have at least 1 item
             // so we can grab the first one reply , since all are the same
             const first = incrementArr[0]
-            reply.items.push(first)
+            reply.items.push(first.payload)
             // lastTs = latest item ; we use string to preserve equality for all type of hashes
             // TODO a good discussion is required to figure out the best way to transfer high precision timestamps via rest
             if (first.ts != null) {
@@ -157,21 +172,21 @@ export class AggregatedReplyHelper {
     return reply
   }
 
-  private static copyNonNullKeysTo(context: StorageRecord[], target: Set<string>) {
+  private static copyNonNullKeysTo(context: Rec[], target: Set<string>) {
     // alternative: target.push(context.filter(value => value !=null).map(sr => sr.key).find(key => true))
     for (const record of context) {
       if (record != null) {
-        target.add(record.salt)
+        target.add(record.skey)
         return
       }
     }
   }
 
   // alphabetical order for hashing (!)
-  public static computeMd5Hash(rec: StorageRecord): string {
+  public static computeMd5Hash(rec: Rec): string {
     return crypto
       .createHash('md5')
-      .update(rec.salt)
+      .update(rec.skey)
       .update(JSON.stringify(rec.payload))
       .update(rec.ts + '')
       .digest()
@@ -209,19 +224,19 @@ export class Result {
 }
 
 export class AggregatedReply {
-  items: StorageRecord[] = []
+  items = []
   result: Result = new Result()
 }
 
 // this is a single record , received from a node/list
-export class StorageRecord {
-  salt: string
+export class Rec {
+  skey: string
   ts: string
   payload: any
 
-  constructor(salt: string, ts: string, payload: any) {
-    this.salt = salt
-    this.ts = ts
+  constructor(payload: any, skeyField: string = 'salt', tsField: string = 'ts') {
+    this.skey = payload[skeyField];
+    this.ts = payload[tsField];
     this.payload = payload
   }
 }

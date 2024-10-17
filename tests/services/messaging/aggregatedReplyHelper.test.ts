@@ -3,7 +3,7 @@ import {expect} from "chai";
 import {
   AggregatedReplyHelper,
   NodeHttpStatus,
-  QuorumResult
+  QuorumResult, Rec
 } from "../../../src/services/messaging/AggregatedReplyHelper";
 
 describe('AppController (e2e)', () => {
@@ -53,44 +53,31 @@ describe('AppController (e2e)', () => {
 
   it('testaggr-internal', () => {
     let ar = new AggregatedReplyHelper();
-    ar.appendItems('1', 200, {
-      "items": [
-        {
-          "salt": "a182ae50-9c3c-4c4e-84cd-f7da66f19357",
-          "ts": "1111111111",
-          "payload": {
-            "id": 76576,
-            "name": "john1",
-            "surname": "YI2VaCPDU/BvvQ=="
-          }
-        },
-        {
-          "salt": "67a876a6-d93f-47e5-8b2f-b087fd0fc2dc",
-          "ts": "1420157966.693000",
-          "payload": {
-            "name": "john1",
-          }
-        }
-      ]
-    });
-    ar.appendItems('2', 200, {
-      "items": [
-        {
-          "salt": "a182ae50-9c3c-4c4e-84cd-f7da66f19357",
-          "ts": "1111111111",
-          "payload": {
-            "name": "john2",
-          }
-        },
-        {
-          "salt": "67a876a6-d93f-47e5-8b2f-b087fd0fc2dc",
-          "ts": "1420157966.693000",
-          "payload": {
-            "name": "john2",
-          }
-        }
-      ]
-    });
+    ar.appendHttpCode('1', 200);
+    ar.appendItem('1', new Rec({
+      "salt": "a182ae50-9c3c-4c4e-84cd-f7da66f19357",
+      "ts": "1111111111",
+      "id": 76576,
+      "name": "john1",
+      "surname": "YI2VaCPDU/BvvQ=="
+    }));
+    ar.appendItem('1', new Rec({
+      "salt": "67a876a6-d93f-47e5-8b2f-b087fd0fc2dc",
+      "ts": "1420157966.693000",
+      "name": "john1",
+    }));
+
+    ar.appendHttpCode('2', 200);
+    ar.appendItem('2', new Rec({
+      "salt": "a182ae50-9c3c-4c4e-84cd-f7da66f19357",
+      "ts": "1111111111",
+      "name": "john2",
+    }));
+    ar.appendItem('2', new Rec({
+      "salt": "67a876a6-d93f-47e5-8b2f-b087fd0fc2dc",
+      "ts": "1420157966.693000",
+      "name": "john2",
+    }));
     console.dir(ar, {depth: null});
     expect(ar.mapKeyToNodeItems.size).to.be.equal(2);
     expect(ar.mapNodeToStatus.get('1')).to.be.equal(200);
@@ -100,50 +87,39 @@ describe('AppController (e2e)', () => {
     expect(itemMap1.get('1').payload.name).to.be.equal('john1');
     expect(itemMap1.get('2').payload.name).to.be.equal('john2');
     expect(ar.mapKeyToNodeItems.get('67a876a6-d93f-47e5-8b2f-b087fd0fc2dc').size).to.be.equal(2);
+    const agg = ar.aggregateItems(2);
+    console.dir(agg, {depth: null});
+    expect(agg.items.length).to.be.equal(0);
   });
 
   it('testaggr-samereply', () => {
     let ar = new AggregatedReplyHelper();
-    ar.appendItems('node1', 200, {
-      "items": [
-        {
-          "salt": "key1",
-          "ts": "1111111111",
-          "payload": {
-            "id": 100,
-            "name": "john1"
-          }
-        },
-        {
-          "salt": "key2",
-          "ts": "1420157966.693000",
-          "payload": {
-            "id": 200,
-            "name": "john2",
-          }
-        }
-      ]
-    });
-    ar.appendItems('node2', 200, {
-      "items": [
-        {
-          "salt": "key2",
-          "ts": "1420157966.693000",
-          "payload": {
-            "id": 200,
-            "name": "john2",
-          }
-        },
-        {
-          "salt": "key1",
-          "ts": "1111111111",
-          "payload": {
-            "id": 100,
-            "name": "john1"
-          }
-        }
-      ]
-    });
+    ar.appendHttpCode('node1', 200);
+    ar.appendItem('node1', new Rec({
+      "salt": "key1",
+      "ts": "1111111111",
+      "id": 100,
+      "name": "john1"
+    }));
+    ar.appendItem('node1', new Rec({
+      "salt": "key2",
+      "ts": "1420157966.693000",
+      "id": 200,
+      "name": "john2"
+    }));
+    ar.appendHttpCode('node2', 200);
+    ar.appendItem('node2', new Rec({
+      "salt": "key2",
+      "ts": "1420157966.693000",
+      "id": 200,
+      "name": "john2"
+    }));
+    ar.appendItem('node2', new Rec({
+      "salt": "key1",
+      "ts": "1111111111",
+      "id": 100,
+      "name": "john1"
+    }));
     console.dir(ar, {depth: null});
     {
       let r = ar.aggregateItems(2);
@@ -156,18 +132,14 @@ describe('AppController (e2e)', () => {
         {
           "salt": "key1",
           "ts": "1111111111",
-          payload: {
-            "id": 100,
-            "name": "john1"
-          }
+          "id": 100,
+          "name": "john1"
         },
         {
           "salt": "key2",
           "ts": "1420157966.693000",
-          payload: {
-            "id": 200,
-            "name": "john2"
-          }
+          "id": 200,
+          "name": "john2"
         }]);
     }
     {
@@ -180,78 +152,59 @@ describe('AppController (e2e)', () => {
       expect(r.items.length).to.be.equal(0);
     }
   });
+
   it('testaggr-diffreply', () => {
     let ar = new AggregatedReplyHelper();
     // for quorum = 3
     // key1 = quorum-ok, key2 = quorum-by-time-fail, key3 = quorum by not enough replies
-    ar.appendItems('node1', 200, {
-      "items": [
-        {
-          "salt": "key1",
-          "ts": "1111111111",
-          "payload": {
-            "id": 100,
-            "name": "john1"
-          }
-        },
-        {
-          "salt": "key2",
-          "ts": "1420157966.693000",
-          "payload": {
-            "id": 200,
-            "name": "john2",
-          }
-        }
-      ]
-    });
-    ar.appendItems('node2', 200, {
-      "items": [
-        {
-          "salt": "key2",
-          "ts": "1420157966.693000",
-          "payload": {
-            "id": 200,
-            "name": "john2",
-          }
-        },
-        {
-          "salt": "key1",
-          "ts": "1111111111",
-          "payload": {
-            "id": 100,
-            "name": "john1"
-          }
-        },
-      ]
-    });
-    ar.appendItems('node3', 200, {
-      "items": [
-        {
-          "salt": "key3",
-          "ts": "1420157966.693000",
-          "payload": {
-            "id": 200,
-            "name": "john3",
-          }
-        },
-        {
-          "salt": "key2",
-          "ts": "1420159999.999999",
-          "payload": {
-            "id": 200,
-            "name": "john2",
-          }
-        },
-        {
-          "salt": "key1",
-          "ts": "1111111111",
-          "payload": {
-            "id": 100,
-            "name": "john1"
-          }
-        },
-      ]
-    });
+    ar.appendHttpCode('node1', 200);
+    ar.appendItem('node1', new Rec({
+      "salt": "key1",
+      "ts": "1111111111",
+      "id": 100,
+      "name": "john1"
+    }));
+    ar.appendItem('node1', new Rec({
+      "salt": "key2",
+      "ts": "1420157966.693000",
+      "id": 200,
+      "name": "john2",
+    }));
+
+    ar.appendHttpCode('node2', 200);
+    ar.appendItem('node2', new Rec({
+      "salt": "key2",
+      "ts": "1420157966.693000",
+      "id": 200,
+      "name": "john2",
+    }));
+    ar.appendItem('node2', new Rec({
+      "salt": "key1",
+      "ts": "1111111111",
+      "id": 100,
+      "name": "john1"
+    }));
+
+    ar.appendHttpCode('node3', 200);
+    ar.appendItem('node3', new Rec({
+      "salt": "key3",
+      "ts": "1420157966.693000",
+      "id": 200,
+      "name": "john3",
+    }));
+    ar.appendItem('node3', new Rec({
+      "salt": "key2",
+      "ts": "1420159999.999999",
+      "id": 200,
+      "name": "john2",
+    }));
+    ar.appendItem('node3', new Rec({
+      "salt": "key1",
+      "ts": "1111111111",
+      "id": 100,
+      "name": "john1"
+    }));
+
     console.dir(ar, {depth: null});
     let r = ar.aggregateItems(3);
     console.log(r);
@@ -264,10 +217,8 @@ describe('AppController (e2e)', () => {
       {
         "salt": "key1",
         "ts": "1111111111",
-        payload: {
-          "id": 100,
-          "name": "john1"
-        }
+        "id": 100,
+        "name": "john1"
       }]);
   });
 
@@ -275,15 +226,9 @@ describe('AppController (e2e)', () => {
     let ar = new AggregatedReplyHelper();
     // for quorum = 3
     // key1 = quorum-ok, key2 = quorum-by-time-fail, key3 = quorum by not enough replies
-    ar.appendItems('node1', 200, {
-      "items": []
-    });
-    ar.appendItems('node2', 200, {
-      "items": []
-    });
-    ar.appendItems('node3', 200, {
-      "items": []
-    });
+    ar.appendHttpCode('node1', 200);
+    ar.appendHttpCode('node2', 200);
+    ar.appendHttpCode('node3', 200);
     console.dir(ar, {depth: null});
     let r = ar.aggregateItems(3);
     console.log(r);
@@ -299,9 +244,9 @@ describe('AppController (e2e)', () => {
     let ar = new AggregatedReplyHelper();
     // for quorum = 3
     // key1 = quorum-ok, key2 = quorum-by-time-fail, key3 = quorum by not enough replies
-    ar.appendItems('node1', NodeHttpStatus.REPLY_TIMEOUT, null);
-    ar.appendItems('node2', NodeHttpStatus.REPLY_TIMEOUT, null);
-    ar.appendItems('node3', NodeHttpStatus.REPLY_TIMEOUT, null);
+    ar.appendHttpCode('node1', NodeHttpStatus.REPLY_TIMEOUT);
+    ar.appendHttpCode('node2', NodeHttpStatus.REPLY_TIMEOUT);
+    ar.appendHttpCode('node3', NodeHttpStatus.REPLY_TIMEOUT);
     console.dir(ar, {depth: null});
     let r = ar.aggregateItems(3);
     console.log(r);
@@ -317,9 +262,9 @@ describe('AppController (e2e)', () => {
     let ar = new AggregatedReplyHelper();
     // for quorum = 3
     // key1 = quorum-ok, key2 = quorum-by-time-fail, key3 = quorum by not enough replies
-    ar.appendItems('node1', 500, null);
-    ar.appendItems('node2', 400, null);
-    ar.appendItems('node3', 500, null);
+    ar.appendHttpCode('node1', 500);
+    ar.appendHttpCode('node2',  400);
+    ar.appendHttpCode('node3',  500);
     console.dir(ar, {depth: null});
     let r = ar.aggregateItems(3);
     console.log(r);
