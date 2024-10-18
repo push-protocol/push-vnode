@@ -17,11 +17,9 @@ import {QueueManager} from './QueueManager'
 import {Check} from '../../utilz/check'
 import schedule from 'node-schedule'
 import {StorageContractListener, StorageContractState} from '../messaging-common/storageContractState'
-import {AxiosResponse} from 'axios'
 import {PromiseUtil} from '../../utilz/promiseUtil'
-import StorageClient, {KeyInfo} from './storageClient'
+import StorageClient, {KeyInfo, TxInfo} from './storageClient'
 import {ReplyMerger, NodeHttpStatus, Rec} from './ReplyMerger'
-import {MySqlUtil} from '../../utilz/mySqlUtil'
 import {EnvLoader} from "../../utilz/envLoader";
 import {
   AttestBlockResult, AttestorReport,
@@ -41,6 +39,7 @@ import {BlockError} from "./blockError";
 import {ArrayUtil} from "../../utilz/arrayUtil";
 import {RandomUtil} from "../../utilz/randomUtil";
 import {RpcError} from "../../utilz/jsonRpcClient";
+import {ChainUtil} from "../../utilz/chainUtil";
 
 // todo move read/write qurum to smart contract constants
 // todo joi validate for getRecord
@@ -50,12 +49,14 @@ export class ValidatorNode implements StorageContractListener {
 
   private readonly ADD_PAYLOAD_BLOCKING_TIMEOUT = 45000
 
-  // percentage of node to read (from the whole active count)
-  private readonly READ_QUORUM_FOR_ACCOUNT_INFO = 0.51;
-  // how many nodes to add for safety on top of READ_QUORUM
+  // percentage of node to read (from the total active count of snodes)
+  private readonly READ_QUORUM_PERC_INITDID = 0.51;
+  // percentage of node to read (from the affected shard snodes)
+  private readonly READ_QUORUM_PERC = 0.6;
+  // how many nodes to add for safety on top of READ_QUORUM_PERC
   private readonly READ_QUORUM_REDUNDANCY = 1;
 
-  private readonly BLOCK_SCHEDULE = EnvLoader.getPropertyOrDefault("BLOCK_SCHEDULE", '*/30 * * * * *');
+  private readonly BLOCK_SCHEDULE = EnvLoader.getPropertyOrDefault("BLOCK_SCHEDULE", '*/15 * * * * *');
 
   @Inject()
   private valContractState: ValidatorContractState
@@ -766,11 +767,11 @@ export class ValidatorNode implements StorageContractListener {
   }*/
 
   public async accountInfo(accountInCaip: string) {
-
+    Check.isTrue(ChainUtil.isFullCAIPAddress(accountInCaip), 'non-CAIP address' + accountInCaip);
     const sNodes = Array.from(this.storageContractState.nodeShardMap.keys());
     // query1 = we plan some amount of nodes + some buffer; if this is successfull or the failure rate is less than buffer
     // all the logic would end in O(1) because all queries are parallel
-    const quorumNodeCount = Math.round(this.READ_QUORUM_FOR_ACCOUNT_INFO * sNodes.length);
+    const quorumNodeCount = Math.round(this.READ_QUORUM_PERC_INITDID * sNodes.length);
     const query1Size = Math.min(quorumNodeCount + this.READ_QUORUM_REDUNDANCY, sNodes.length);
     const query1Nodes = RandomUtil.getRandomSubArray(sNodes, query1Size);
     this.log.debug('sNodeCount: %d quorumNodeCount: %d query1Size: %d query1Nodes: %s', sNodes.length, quorumNodeCount, query1Size, query1Nodes);
@@ -819,7 +820,77 @@ export class ValidatorNode implements StorageContractListener {
       }
     }
     this.log.debug('internal state %o', arh);
-    const ar = arh.aggregateItems(2); // todo revert!!!!!!
+    const ar = arh.group(quorumNodeCount);
+    this.log.debug('result %o', ar);
+    return ar
+  }
+
+  async getTransactions(accountInCaip: string, category: string, ts: string, sortOrder: string) {
+    Check.isTrue(ChainUtil.isFullCAIPAddress(accountInCaip), 'non-CAIP address' + accountInCaip);
+    Check.isTrue(category == "INIT_DID" || category.startsWith('CUSTOM:'), 'unsupported category' + category);
+    Check.isTrue(DateUtil.parseUnixFloatOrFail(ts)!=null, 'unsupported timestamp');
+    Check.isTrue(sortOrder == "ASC" || sortOrder == "DESC", 'unsupported category' + category);
+
+
+    let shardId = BlockUtil.calculateAffectedShard(accountInCaip, this.storageContractState.shardCount);
+    const sNodesPerShard = Array.from(this.storageContractState.getStorageNodesForShard(shardId));
+    this.log.debug('accountInCaip: %s maps to shard: %s', accountInCaip, shardId);
+    this.log.debug('affected snodes: %s', accountInCaip, shardId, StrUtil.fmt(sNodesPerShard));
+    // query1 = we plan some amount of nodes + some buffer; if this is successfull or the failure rate is less than buffer
+    // all the logic would end in O(1) because all queries are parallel
+    const quorumNodeCount = Math.round(this.READ_QUORUM_PERC * sNodesPerShard.length);
+    const query1Size = Math.min(quorumNodeCount + this.READ_QUORUM_REDUNDANCY, sNodesPerShard.length);
+    const query1Nodes = RandomUtil.getRandomSubArray(sNodesPerShard, query1Size);
+
+    this.log.debug('sNodeCount: %d quorumNodeCount: %d query1Size: %d query1Nodes: %s', sNodesPerShard.length, quorumNodeCount, query1Size, query1Nodes);
+
+    // prepare queries
+    const promiseList: Promise<Tuple<TxInfo[], RpcError>>[] = [];
+    for (let i = 0; i < query1Nodes.length; i++) {
+      this.log.debug('query');
+      const nodeId = query1Nodes[i];
+      const nodeInfo = this.valContractState.getStorageNodesMap().get(nodeId)
+      Check.notNull(nodeInfo)
+      if (!ValidatorContractState.isEnabled(nodeInfo)) {
+        continue
+      }
+      const nodeBaseUrl = nodeInfo.url
+      if (StrUtil.isEmpty(nodeBaseUrl)) {
+        this.log.error(`node: ${nodeId} has no url in the database`);
+        continue
+      }
+      this.log.debug(`baseUrl=${nodeBaseUrl}`);
+      const client = new StorageClient(nodeBaseUrl);
+      promiseList.push(client.push_getTransactions(accountInCaip, category, ts, sortOrder));
+    }
+
+    // await them
+    const prList = await PromiseUtil.allSettled(promiseList);
+
+    // handle replies
+    const merger = new ReplyMerger();
+    for (let i = 0; i < query1Nodes.length; i++) {
+      const nodeId = query1Nodes[i]
+      const pr = prList[i];
+      if (pr.isRejected()) {
+        merger.appendHttpCode(nodeId, NodeHttpStatus.REPLY_TIMEOUT);
+        continue;
+      }
+      let [txArr, err] = pr.val;
+      if (err != null) {
+        this.log.error('error from node: %s message: %o', nodeId, err);
+        merger.appendHttpCode(nodeId, 500);
+        continue;
+      }
+      merger.appendHttpCode(nodeId, 200);
+      if (txArr) {
+        for (const txInfo of txArr) {
+          merger.appendItem(nodeId, new Rec(txInfo, "salt", "ts"));
+        }
+      }
+    }
+    this.log.debug('internal state %o', merger);
+    const ar = merger.group(quorumNodeCount);
     this.log.debug('result %o', ar);
     return ar
   }

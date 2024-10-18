@@ -1,69 +1,33 @@
 import crypto from 'crypto'
-import { Logger } from 'winston'
-import { WinstonUtil } from '../../utilz/winstonUtil'
-import { StringCounter } from '../../utilz/stringCounter'
+import {Logger} from 'winston'
+import {WinstonUtil} from '../../utilz/winstonUtil'
+import {StringCounter} from '../../utilz/stringCounter'
 import {Check} from "../../utilz/check";
 import {Coll} from "../../utilz/coll";
 
 export enum NodeHttpStatus {
   REPLY_TIMEOUT = 0
 }
-const log: Logger = WinstonUtil.newLog('AggregatedReplyHelper');
-// todo move tests from another repo
+
+const log: Logger = WinstonUtil.newLog('ReplyMerger');
+
+
 export class ReplyMerger<T> {
   // replies
   // nodeIds -> httpCode
   mapNodeToStatus: Map<string, number> = new Map<string, number>()
   // nodeIds item lists, reverted in a map
   // skey -> nodeId -> item
-  mapKeyToNodeItems: Map<string, Map<string, Rec<T>>> = new Map<
-    string,
-    Map<string, Rec<T>>
-  >();
+  mapKeyToNodeItems: Map<string, Map<string, Rec<T>>> = new Map<string, Map<string, Rec<T>>>();
 
-  // add node http code
   public appendHttpCode(nodeId: string, nodeHttpStatus: number) {
     this.mapNodeToStatus.set(nodeId, nodeHttpStatus);
   }
 
-  // add each node reply which contains [item]
-  public appendItem(nodeId: string, storageRecord: Rec<T>) {
-    Check.isTrue(this.mapNodeToStatus.get(nodeId)!=null, 'call appendHttpCode before appendSingleItem');
-    this.doAppendItem(nodeId, storageRecord)
-  }
-
-  // todo ? not used
-  // add each node reply which contains [item, item, item]
-  public appendMultipleItems(nodeId: string, httpReplyData: any,
-                             mapper: (httpReplyData: any) => Rec<T>[]) {
-    if (httpReplyData?.items?.length > 0) {
-      let items = mapper(httpReplyData);
-      for (const item of items) {
-        this.doAppendItem(nodeId, item);
-      }
-    }
-  }
-
-  // how to group arbitrary json?
-  // key = masterpublickey
-  // cat = INIT_DID
-  // ts = null
-  // payload = ALL FIELDS
-  private doAppendItem(nodeId: string, storageRecord: Rec<T>) {
-    let map2 = Coll.computeIfAbsent(this.mapKeyToNodeItems, storageRecord.skey, () => new Map<string, Rec<T>>())
-    map2.set(nodeId, storageRecord)
-  }
-
-  private isEnoughReplies(requiredReplies: number): boolean {
-    let goodReplies = 200
-    for (const [key, value] of this.mapNodeToStatus) {
-      if (value == 200 || value == 204) {
-        goodReplies++
-      }
-    }
-    if (goodReplies > requiredReplies) {
-      return true
-    }
+  public appendItem(nodeId: string, rec: Rec<T>) {
+    Check.isTrue(this.mapNodeToStatus.get(nodeId) != null, 'call appendHttpCode before appendSingleItem');
+    let map2 = Coll.computeIfAbsent(this.mapKeyToNodeItems, rec.skey, () => new Map<string, Rec<T>>())
+    map2.set(nodeId, rec)
   }
 
   public group(minQuorumThreshold: number): ReplyGrouped {
