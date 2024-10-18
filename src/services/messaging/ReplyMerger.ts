@@ -11,8 +11,6 @@ export enum NodeHttpStatus {
 const log: Logger = WinstonUtil.newLog('AggregatedReplyHelper');
 // todo move tests from another repo
 export class ReplyMerger<T> {
-  // initial request
-  aggrReq: AggregatedRequest
   // replies
   // nodeIds -> httpCode
   mapNodeToStatus: Map<string, number> = new Map<string, number>()
@@ -68,9 +66,9 @@ export class ReplyMerger<T> {
     }
   }
 
-  public aggregateItems(minQuorumThreshold: number): AggregatedReply {
+  public group(minQuorumThreshold: number): ReplyGrouped {
     log.debug(`aggregateItems()`)
-    const reply = new AggregatedReply()
+    const reply = new ReplyGrouped()
     // if we have this amount of SAME replies for a key => we have this key
     const nodeCount = this.mapNodeToStatus.size
     log.debug(`quorumForKey=${minQuorumThreshold} nodeCount=${nodeCount}`)
@@ -181,20 +179,6 @@ export class ReplyMerger<T> {
   }
 }
 
-class AggregatedRequest {
-  nsName: string
-  nsIndex: string
-  month: string
-  firstTs: string
-
-  constructor(nsName: string, nsIndex: string, month: string, firstTs: string) {
-    this.nsName = nsName
-    this.nsIndex = nsIndex
-    this.month = month
-    this.firstTs = firstTs
-  }
-}
-
 export enum QuorumResult {
   QUORUM_OK = 'QUORUM_OK',
   QUORUM_OK_PARTIAL = 'QUORUM_OK_PARTIAL',
@@ -202,7 +186,7 @@ export enum QuorumResult {
   QUORUM_FAILED_BY_MIN_ITEMS = 'QUORUM_FAILED_BY_MIN_ITEMS'
 }
 
-export class Result {
+export class ResultMeta {
   quorumResult: QuorumResult
   itemCount: number = 0
   lastTs: string
@@ -210,9 +194,9 @@ export class Result {
   keysWithoutQuorum: string[] = []
 }
 
-export class AggregatedReply {
+export class ReplyGrouped {
   items = []
-  result: Result = new Result()
+  result: ResultMeta = new ResultMeta()
 }
 
 // this is a single record , received from a node/list

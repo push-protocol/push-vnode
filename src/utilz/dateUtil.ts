@@ -24,7 +24,7 @@ export default class DateUtil {
   }
 
   // example: 1661214142.000000
-  public static parseUnixFloatAsDouble(timestamp: string): number {
+  public static parseUnixFloatOrFail(timestamp: string): number {
     let valid = timestamp.match(this.TIMESTAMP_REGEXP);
     Check.isTrue(valid, 'timestamp format should be XXXXXXXX.YYYYYY where XXXXXXXX is the unit timestamp and Y..YYYYYY is the sub-second precision');
     let result = Number.parseFloat(timestamp);

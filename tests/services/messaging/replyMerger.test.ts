@@ -87,7 +87,7 @@ describe('AppController (e2e)', () => {
     expect(itemMap1.get('1').payload.name).to.be.equal('john1');
     expect(itemMap1.get('2').payload.name).to.be.equal('john2');
     expect(ar.mapKeyToNodeItems.get('67a876a6-d93f-47e5-8b2f-b087fd0fc2dc').size).to.be.equal(2);
-    const agg = ar.aggregateItems(2);
+    const agg = ar.group(2);
     console.dir(agg, {depth: null});
     expect(agg.items.length).to.be.equal(0);
   });
@@ -122,7 +122,7 @@ describe('AppController (e2e)', () => {
     }));
     console.dir(ar, {depth: null});
     {
-      let r = ar.aggregateItems(2);
+      let r = ar.group(2);
       console.log(r);
       expect(r.result.quorumResult).to.be.equal(QuorumResult.QUORUM_OK);
       expect(r.result.keysWithoutQuorumCount).to.be.equal(0);
@@ -143,7 +143,7 @@ describe('AppController (e2e)', () => {
         }]);
     }
     {
-      let r = ar.aggregateItems(3); // no quorum
+      let r = ar.group(3); // no quorum
       console.dir(r);
       expect(r.result.quorumResult).to.be.equal(QuorumResult.QUORUM_FAILED_NODE_REPLIES);
       expect(r.result.keysWithoutQuorumCount).to.be.equal(2);
@@ -206,7 +206,7 @@ describe('AppController (e2e)', () => {
     }));
 
     console.dir(ar, {depth: null});
-    let r = ar.aggregateItems(3);
+    let r = ar.group(3);
     console.log(r);
     expect(r.result.quorumResult).to.be.equal(QuorumResult.QUORUM_OK_PARTIAL);
     expect(r.result.keysWithoutQuorumCount).to.be.equal(2);
@@ -230,7 +230,7 @@ describe('AppController (e2e)', () => {
     ar.appendHttpCode('node2', 200);
     ar.appendHttpCode('node3', 200);
     console.dir(ar, {depth: null});
-    let r = ar.aggregateItems(3);
+    let r = ar.group(3);
     console.log(r);
     expect(r.result.quorumResult).to.be.equal(QuorumResult.QUORUM_OK);
     expect(r.result.keysWithoutQuorumCount).to.be.equal(0);
@@ -248,7 +248,7 @@ describe('AppController (e2e)', () => {
     ar.appendHttpCode('node2', NodeHttpStatus.REPLY_TIMEOUT);
     ar.appendHttpCode('node3', NodeHttpStatus.REPLY_TIMEOUT);
     console.dir(ar, {depth: null});
-    let r = ar.aggregateItems(3);
+    let r = ar.group(3);
     console.log(r);
     expect(r.result.quorumResult).to.be.equal(QuorumResult.QUORUM_FAILED_NODE_REPLIES);
     expect(r.result.keysWithoutQuorumCount).to.be.equal(0);
@@ -266,7 +266,7 @@ describe('AppController (e2e)', () => {
     ar.appendHttpCode('node2',  400);
     ar.appendHttpCode('node3',  500);
     console.dir(ar, {depth: null});
-    let r = ar.aggregateItems(3);
+    let r = ar.group(3);
     console.log(r);
     expect(r.result.quorumResult).to.be.equal(QuorumResult.QUORUM_FAILED_NODE_REPLIES);
     expect(r.result.keysWithoutQuorumCount).to.be.equal(0);

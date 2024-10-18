@@ -17,7 +17,7 @@ describe('DateUtil.parseUnixFloatAsDouble', () => {
       '1661214142',
     ];
     validTimestamps.forEach((timestamp) => {
-      const result = DateUtil.parseUnixFloatAsDouble(timestamp);
+      const result = DateUtil.parseUnixFloatOrFail(timestamp);
       expect(result).to.equal(Number.parseFloat(timestamp));
     });
   });
@@ -25,19 +25,19 @@ describe('DateUtil.parseUnixFloatAsDouble', () => {
 
   it('should parse timestamp zero correctly 1', () => {
     const timestamp = '0';
-    const result = DateUtil.parseUnixFloatAsDouble(timestamp);
+    const result = DateUtil.parseUnixFloatOrFail(timestamp);
     expect(result).to.equal(0);
   });
 
   it('should parse timestamp zero correctly 2', () => {
     const timestamp = '0.0';
-    const result = DateUtil.parseUnixFloatAsDouble(timestamp);
+    const result = DateUtil.parseUnixFloatOrFail(timestamp);
     expect(result).to.equal(0);
   });
 
   it('should accept timestamps equal to MAX_UNIX_TS', () => {
     const timestamp = `${MAX_UNIX_TS}.0`;
-    const result = DateUtil.parseUnixFloatAsDouble(timestamp);
+    const result = DateUtil.parseUnixFloatOrFail(timestamp);
     expect(result).to.equal(Number.parseFloat(timestamp));
   });
 
@@ -48,7 +48,7 @@ describe('DateUtil.parseUnixFloatAsDouble', () => {
       `${MAX_UNIX_TS + 1000}.0`,
     ];
     invalidTimestamps.forEach((timestamp) => {
-      expect(() => DateUtil.parseUnixFloatAsDouble(timestamp)).to.throw();
+      expect(() => DateUtil.parseUnixFloatOrFail(timestamp)).to.throw();
     });
   });
 
@@ -58,7 +58,7 @@ describe('DateUtil.parseUnixFloatAsDouble', () => {
       '-1661214142.0',
     ];
     invalidTimestamps.forEach((timestamp) => {
-      expect(() => DateUtil.parseUnixFloatAsDouble(timestamp)).to.throw('timestamp must be a positive integer');
+      expect(() => DateUtil.parseUnixFloatOrFail(timestamp)).to.throw('timestamp must be a positive integer');
     });
   });
 
@@ -68,7 +68,7 @@ describe('DateUtil.parseUnixFloatAsDouble', () => {
       '1661214142.123456789', // 9 fractional digits
     ];
     invalidTimestamps.forEach((timestamp) => {
-      expect(() => DateUtil.parseUnixFloatAsDouble(timestamp)).to.throw();
+      expect(() => DateUtil.parseUnixFloatOrFail(timestamp)).to.throw();
     });
   });
 
@@ -82,7 +82,7 @@ describe('DateUtil.parseUnixFloatAsDouble', () => {
       '1661214142.123456',
     ];
     validTimestamps.forEach((timestamp) => {
-      const result = DateUtil.parseUnixFloatAsDouble(timestamp);
+      const result = DateUtil.parseUnixFloatOrFail(timestamp);
       expect(result).to.equal(Number.parseFloat(timestamp));
     });
   });
@@ -92,7 +92,7 @@ describe('DateUtil.parseUnixFloatAsDouble', () => {
       '1661214142.',
     ];
     validTimestamps.forEach((timestamp) => {
-      const result = DateUtil.parseUnixFloatAsDouble(timestamp);
+      const result = DateUtil.parseUnixFloatOrFail(timestamp);
       expect(result).to.equal(Number.parseFloat(timestamp));
     });
   });
@@ -107,7 +107,7 @@ describe('DateUtil.parseUnixFloatAsDouble', () => {
       '1661214142.12 3456',
     ];
     invalidTimestamps.forEach((timestamp) => {
-      expect(() => DateUtil.parseUnixFloatAsDouble(timestamp)).to.throw();
+      expect(() => DateUtil.parseUnixFloatOrFail(timestamp)).to.throw();
     });
   });
 
@@ -117,7 +117,7 @@ describe('DateUtil.parseUnixFloatAsDouble', () => {
       '.',
     ];
     invalidTimestamps.forEach((timestamp) => {
-      expect(() => DateUtil.parseUnixFloatAsDouble(timestamp)).to.throw('timestamp format should be XXXXXXXX.YYYYYY where XXXXXXXX is the unit timestamp and YYYYYY is the sub-second precision');
+      expect(() => DateUtil.parseUnixFloatOrFail(timestamp)).to.throw('timestamp format should be XXXXXXXX.YYYYYY where XXXXXXXX is the unit timestamp and YYYYYY is the sub-second precision');
     });
   });
 
@@ -127,7 +127,7 @@ describe('DateUtil.parseUnixFloatAsDouble', () => {
       '0000.000000',
     ];
     validTimestamps.forEach((timestamp) => {
-      const result = DateUtil.parseUnixFloatAsDouble(timestamp);
+      const result = DateUtil.parseUnixFloatOrFail(timestamp);
       expect(result).to.equal(Number.parseFloat(timestamp));
     });
   });
