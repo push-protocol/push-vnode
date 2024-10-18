@@ -20,7 +20,7 @@ import {StorageContractListener, StorageContractState} from '../messaging-common
 import {AxiosResponse} from 'axios'
 import {PromiseUtil} from '../../utilz/promiseUtil'
 import StorageClient, {KeyInfo} from './storageClient'
-import {AggregatedReplyHelper, NodeHttpStatus, Rec} from './AggregatedReplyHelper'
+import {ReplyMerger, NodeHttpStatus, Rec} from './ReplyMerger'
 import {MySqlUtil} from '../../utilz/mySqlUtil'
 import {EnvLoader} from "../../utilz/envLoader";
 import {
@@ -51,9 +51,9 @@ export class ValidatorNode implements StorageContractListener {
   private readonly ADD_PAYLOAD_BLOCKING_TIMEOUT = 45000
 
   // percentage of node to read (from the whole active count)
-  private readonly ACCOUNT_INFO_READ_QUORUM = 0.51;
-  // how many nodes to add for safety on top of %
-  private readonly READ_QUORUM_TOPPING = 1;
+  private readonly READ_QUORUM_FOR_ACCOUNT_INFO = 0.51;
+  // how many nodes to add for safety on top of READ_QUORUM
+  private readonly READ_QUORUM_REDUNDANCY = 1;
 
   private readonly BLOCK_SCHEDULE = EnvLoader.getPropertyOrDefault("BLOCK_SCHEDULE", '*/30 * * * * *');
 
@@ -767,11 +767,13 @@ export class ValidatorNode implements StorageContractListener {
 
   public async accountInfo(accountInCaip: string) {
 
-    const allStorageNodes = Array.from(this.storageContractState.nodeShardMap.keys());
+    const sNodes = Array.from(this.storageContractState.nodeShardMap.keys());
     // query1 = we plan some amount of nodes + some buffer; if this is successfull or the failure rate is less than buffer
     // all the logic would end in O(1) because all queries are parallel
-    const query1Size = Math.min(Math.round(this.ACCOUNT_INFO_READ_QUORUM * allStorageNodes.length + this.READ_QUORUM_TOPPING), allStorageNodes.length);
-    const query1Nodes = RandomUtil.getRandomSubArray(allStorageNodes, query1Size);
+    const quorumNodeCount = Math.round(this.READ_QUORUM_FOR_ACCOUNT_INFO * sNodes.length);
+    const query1Size = Math.min(quorumNodeCount + this.READ_QUORUM_REDUNDANCY, sNodes.length);
+    const query1Nodes = RandomUtil.getRandomSubArray(sNodes, query1Size);
+    this.log.debug('sNodeCount: %d quorumNodeCount: %d query1Size: %d query1Nodes: %s', sNodes.length, quorumNodeCount, query1Size, query1Nodes);
 
     // prepare queries
     const promiseList: Promise<Tuple<KeyInfo, RpcError>>[] = [];
@@ -797,7 +799,7 @@ export class ValidatorNode implements StorageContractListener {
     const prList = await PromiseUtil.allSettled(promiseList);
 
     // handle replies
-    const arh = new AggregatedReplyHelper();
+    const arh = new ReplyMerger();
     for (let i = 0; i < query1Nodes.length; i++) {
       const nodeId = query1Nodes[i]
       const pr = prList[i];
@@ -817,7 +819,7 @@ export class ValidatorNode implements StorageContractListener {
       }
     }
     this.log.debug('internal state %o', arh);
-    const ar = arh.aggregateItems(this.ACCOUNT_INFO_READ_QUORUM);
+    const ar = arh.aggregateItems(2); // todo revert!!!!!!
     this.log.debug('result %o', ar);
     return ar
   }

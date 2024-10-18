@@ -10,7 +10,7 @@ export enum NodeHttpStatus {
 }
 const log: Logger = WinstonUtil.newLog('AggregatedReplyHelper');
 // todo move tests from another repo
-export class AggregatedReplyHelper<T> {
+export class ReplyMerger<T> {
   // initial request
   aggrReq: AggregatedRequest
   // replies
@@ -94,7 +94,7 @@ export class AggregatedReplyHelper<T> {
         if (code == 200) {
           const record = mapNodeIdToStorageRecord.get(nodeId)
           const recordKey = record?.skey
-          const recordHash = record == null ? 'null' : AggregatedReplyHelper.computeMd5Hash(record);
+          const recordHash = record == null ? 'null' : ReplyMerger.computeMd5Hash(record);
           log.debug(
             `nodeId=${nodeId} recordKey=${recordKey}, recordHash=${recordHash}, record=${JSON.stringify(
               record
@@ -126,10 +126,10 @@ export class AggregatedReplyHelper<T> {
             }
           } else {
             // top item has not enough copies on the network
-            AggregatedReplyHelper.copyNonNullKeysTo(incrementArr, keysWithoutQuorumSet)
+            ReplyMerger.copyNonNullKeysTo(incrementArr, keysWithoutQuorumSet)
           }
         } else {
-          AggregatedReplyHelper.copyNonNullKeysTo(incrementArr, keysWithoutQuorumSet)
+          ReplyMerger.copyNonNullKeysTo(incrementArr, keysWithoutQuorumSet)
         }
       })
     }

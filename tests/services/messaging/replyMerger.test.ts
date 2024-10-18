@@ -1,10 +1,10 @@
 import {StringCounter} from "../../../src/utilz/stringCounter";
 import {expect} from "chai";
 import {
-  AggregatedReplyHelper,
+  ReplyMerger,
   NodeHttpStatus,
   QuorumResult, Rec
-} from "../../../src/services/messaging/AggregatedReplyHelper";
+} from "../../../src/services/messaging/ReplyMerger";
 
 describe('AppController (e2e)', () => {
 
@@ -52,7 +52,7 @@ describe('AppController (e2e)', () => {
   });
 
   it('testaggr-internal', () => {
-    let ar = new AggregatedReplyHelper();
+    let ar = new ReplyMerger();
     ar.appendHttpCode('1', 200);
     ar.appendItem('1', new Rec({
       "salt": "a182ae50-9c3c-4c4e-84cd-f7da66f19357",
@@ -93,7 +93,7 @@ describe('AppController (e2e)', () => {
   });
 
   it('testaggr-samereply', () => {
-    let ar = new AggregatedReplyHelper();
+    let ar = new ReplyMerger();
     ar.appendHttpCode('node1', 200);
     ar.appendItem('node1', new Rec({
       "salt": "key1",
@@ -154,7 +154,7 @@ describe('AppController (e2e)', () => {
   });
 
   it('testaggr-diffreply', () => {
-    let ar = new AggregatedReplyHelper();
+    let ar = new ReplyMerger();
     // for quorum = 3
     // key1 = quorum-ok, key2 = quorum-by-time-fail, key3 = quorum by not enough replies
     ar.appendHttpCode('node1', 200);
@@ -223,7 +223,7 @@ describe('AppController (e2e)', () => {
   });
 
   it('testaggr-empty-replies', () => {
-    let ar = new AggregatedReplyHelper();
+    let ar = new ReplyMerger();
     // for quorum = 3
     // key1 = quorum-ok, key2 = quorum-by-time-fail, key3 = quorum by not enough replies
     ar.appendHttpCode('node1', 200);
@@ -241,7 +241,7 @@ describe('AppController (e2e)', () => {
   });
 
   it('testaggr-node-noreply', () => {
-    let ar = new AggregatedReplyHelper();
+    let ar = new ReplyMerger();
     // for quorum = 3
     // key1 = quorum-ok, key2 = quorum-by-time-fail, key3 = quorum by not enough replies
     ar.appendHttpCode('node1', NodeHttpStatus.REPLY_TIMEOUT);
@@ -259,7 +259,7 @@ describe('AppController (e2e)', () => {
   });
 
   it('testaggr-node-errreply', () => {
-    let ar = new AggregatedReplyHelper();
+    let ar = new ReplyMerger();
     // for quorum = 3
     // key1 = quorum-ok, key2 = quorum-by-time-fail, key3 = quorum by not enough replies
     ar.appendHttpCode('node1', 500);

@@ -98,7 +98,40 @@ export class ValidatorRpc {
   }
 
   // NETWORK CALLS TO STORAGE NODES
-
+/*
+REQUEST
+{
+    "jsonrpc": "2.0",
+    "method": "push_accountInfo",
+    "params":["eip155:1:0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"],
+    "id": 1
+}
+RESPONSE
+{
+    "jsonrpc": "2.0",
+    "result": {
+        "items": [
+            {
+                "masterpublickey": "0xBB",
+                "did": "eip155:1:0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+                "derivedkeyindex": 1,
+                "derivedpublickey": "0xCC",
+                "address": "0xAA",
+                "encrypteddervivedprivatekey": "{\"ciphertext\":\"qwe\",\"salt\":\"qaz\",\"nonce\":\"\",\"version\":\"push:v5\",\"prekey\":\"\"}",
+                "signature": "ESIz"
+            }
+        ],
+        "result": {
+            "itemCount": 1,
+            "keysWithoutQuorumCount": 0,
+            "keysWithoutQuorum": [],
+            "quorumResult": "QUORUM_OK",
+            "lastTs": "0"
+        }
+    },
+    "id": 1
+}
+*/
   public async push_accountInfo([accountInCaip]:[string]) {
     try {
       let result = await this.validatorNode.accountInfo(accountInCaip);

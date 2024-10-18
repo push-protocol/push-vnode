@@ -5,10 +5,11 @@ import {JsonRpcClient, RpcError} from "../../utilz/jsonRpcClient";
 import {UrlUtil} from "../../utilz/urlUtil";
 import {AttestBlockResult} from "../../generated/push/block_pb";
 import {BitUtil} from "../../utilz/bitUtil";
+import {EnvLoader} from "../../utilz/envLoader";
 
 export default class StorageClient {
   public log: Logger = WinstonUtil.newLog(StorageClient)
-  public timeout: number = 200000;
+  public timeout: number = EnvLoader.getPropertyAsNumber("STORAGE_CLIENT_TIMEOUT", 5000);
   private rpc: JsonRpcClient;
 
   constructor(baseUri: string) {
