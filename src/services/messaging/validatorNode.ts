@@ -19,8 +19,8 @@ import schedule from 'node-schedule'
 import {StorageContractListener, StorageContractState} from '../messaging-common/storageContractState'
 import {AxiosResponse} from 'axios'
 import {PromiseUtil} from '../../utilz/promiseUtil'
-import SNodeClient from './snodeClient'
-import {AggregatedReplyHelper, NodeHttpStatus} from './AggregatedReplyHelper'
+import StorageClient, {KeyInfo} from './storageClient'
+import {AggregatedReplyHelper, NodeHttpStatus, Rec} from './AggregatedReplyHelper'
 import {MySqlUtil} from '../../utilz/mySqlUtil'
 import {EnvLoader} from "../../utilz/envLoader";
 import {
@@ -39,6 +39,8 @@ import {BitUtil} from "../../utilz/bitUtil";
 import {TransactionError} from "./transactionError";
 import {BlockError} from "./blockError";
 import {ArrayUtil} from "../../utilz/arrayUtil";
+import {RandomUtil} from "../../utilz/randomUtil";
+import {RpcError} from "../../utilz/jsonRpcClient";
 
 // todo move read/write qurum to smart contract constants
 // todo joi validate for getRecord
@@ -47,6 +49,12 @@ export class ValidatorNode implements StorageContractListener {
   public log: Logger = WinstonUtil.newLog(ValidatorNode);
 
   private readonly ADD_PAYLOAD_BLOCKING_TIMEOUT = 45000
+
+  // percentage of node to read (from the whole active count)
+  private readonly ACCOUNT_INFO_READ_QUORUM = 0.51;
+  // how many nodes to add for safety on top of %
+  private readonly READ_QUORUM_TOPPING = 1;
+
   private readonly BLOCK_SCHEDULE = EnvLoader.getPropertyOrDefault("BLOCK_SCHEDULE", '*/30 * * * * *');
 
   @Inject()
@@ -78,8 +86,8 @@ export class ValidatorNode implements StorageContractListener {
   // objects used to wait on block
   private blockMonitors: Map<string, WaitNotify> = new Map<string, WaitNotify>()
 
-  private readQuorum = 2
-  private writeQuorum = 2
+  // private readQuorum = 2
+  // private writeQuorum = 2
 
   constructor() {
   }
@@ -379,7 +387,7 @@ export class ValidatorNode implements StorageContractListener {
       const txObj = blockSignedByV.getTxobjList()[i];
       const apiToken = BitUtil.bytesUtfToString(txObj.getTx().getApitoken_asU8());
       if (!this.random.checkValidatorToken(apiToken, blockValidatorNodeId)) {
-        throw new BlockError('invalid validator for transaction #'+ i);
+        throw new BlockError('invalid validator for transaction #' + i);
       }
     }
     // ** check validator signature,
@@ -647,8 +655,9 @@ export class ValidatorNode implements StorageContractListener {
   ): Promise<void> {
   }
 
+
   // todo migrate to new storage nodes
-  public async getRecord(nsName: string, nsIndex: string, dt: string, key: string): Promise<any> {
+  /*public async getRecord(nsName: string, nsIndex: string, dt: string, key: string): Promise<any> {
     this.log.debug(`getRecord() nsName=${nsName}, nsIndex=${nsIndex}, dt=${dt}, key=${key}`)
     // const shardId = DbService.calculateShardForNamespaceIndex(nsName, nsIndex);
     const shardId = MessageBlockUtil.calculateAffectedShard(
@@ -660,7 +669,7 @@ export class ValidatorNode implements StorageContractListener {
     const nodeIdList = Coll.setToArray(nodeShards)
 
     const promiseList: Promise<AxiosResponse>[] = []
-    const client = new SNodeClient()
+    const client = new StorageClient()
     for (let i = 0; i < nodeIdList.length; i++) {
       this.log.debug('query')
       const nodeId = nodeIdList[i]
@@ -688,17 +697,17 @@ export class ValidatorNode implements StorageContractListener {
       const replyBody = pr.val?.data
       this.log.debug(`promise: ${pr.status} nodeHttpStatus: ${nodeHttpStatus}`)
       this.log.debug(`body: ${JSON.stringify(replyBody)}`)
-      arh.appendItems(nodeId, nodeHttpStatus, replyBody)
+      arh.oldAppendItems(nodeId, nodeHttpStatus, replyBody)
     }
     this.log.debug('internal state %o', arh)
     const ar = arh.aggregateItems(this.readQuorum)
     this.log.debug('result %o', arh)
     return ar
-  }
+  }*/
 
   // todo migrate to new storage nodes
   // @Post('/ns/:nsName/nsidx/:nsIndex/month/:month/list/')
-  public async listRecordsByMonth(
+  /*public async listRecordsByMonth(
     nsName: string,
     nsIndex: string,
     month: string,
@@ -719,7 +728,7 @@ export class ValidatorNode implements StorageContractListener {
     // todo V2 handle case where n/2+1 list are sync, and rest can be async
     // todo V2 query only specific amount of nodes
     const promiseList: Promise<AxiosResponse>[] = []
-    const client = new SNodeClient()
+    const client = new StorageClient()
     for (let i = 0; i < nodeIdList.length; i++) {
       this.log.debug('query')
       const nodeId = nodeIdList[i]
@@ -747,15 +756,71 @@ export class ValidatorNode implements StorageContractListener {
       const replyBody = pr.val?.data
       this.log.debug(`promise: ${pr.status} nodeHttpStatus: ${nodeHttpStatus}`)
       this.log.debug(`body: ${JSON.stringify(replyBody)}`)
-      arh.appendItems(nodeId, nodeHttpStatus, replyBody)
+      arh.oldAppendItems(nodeId, nodeHttpStatus, replyBody)
     }
     this.log.debug('internal state')
     console.dir(arh)
     const ar = arh.aggregateItems(this.readQuorum)
     this.log.debug('result %j', ar)
     return ar
-  }
+  }*/
 
+  public async accountInfo(accountInCaip: string) {
+
+    const allStorageNodes = Array.from(this.storageContractState.nodeShardMap.keys());
+    // query1 = we plan some amount of nodes + some buffer; if this is successfull or the failure rate is less than buffer
+    // all the logic would end in O(1) because all queries are parallel
+    const query1Size = Math.min(Math.round(this.ACCOUNT_INFO_READ_QUORUM * allStorageNodes.length + this.READ_QUORUM_TOPPING), allStorageNodes.length);
+    const query1Nodes = RandomUtil.getRandomSubArray(allStorageNodes, query1Size);
+
+    // prepare queries
+    const promiseList: Promise<Tuple<KeyInfo, RpcError>>[] = [];
+    for (let i = 0; i < query1Nodes.length; i++) {
+      this.log.debug('query');
+      const nodeId = query1Nodes[i];
+      const nodeInfo = this.valContractState.getStorageNodesMap().get(nodeId)
+      Check.notNull(nodeInfo)
+      if (!ValidatorContractState.isEnabled(nodeInfo)) {
+        continue
+      }
+      const nodeBaseUrl = nodeInfo.url
+      if (StrUtil.isEmpty(nodeBaseUrl)) {
+        this.log.error(`node: ${nodeId} has no url in the database`);
+        continue
+      }
+      this.log.debug(`baseUrl=${nodeBaseUrl}`);
+      const client = new StorageClient(nodeBaseUrl);
+      promiseList.push(client.push_accountInfo(accountInCaip));
+    }
+
+    // await them
+    const prList = await PromiseUtil.allSettled(promiseList);
+
+    // handle replies
+    const arh = new AggregatedReplyHelper();
+    for (let i = 0; i < query1Nodes.length; i++) {
+      const nodeId = query1Nodes[i]
+      const pr = prList[i];
+      if (pr.isRejected()) {
+        arh.appendHttpCode(nodeId, NodeHttpStatus.REPLY_TIMEOUT);
+        continue;
+      }
+      let [keyInfo, err] = pr.val;
+      if (err != null) {
+        this.log.error('error from node: %s message: %o', nodeId, err);
+        arh.appendHttpCode(nodeId, 500);
+        continue;
+      }
+      arh.appendHttpCode(nodeId, 200);
+      if (keyInfo) {
+        arh.appendItem(nodeId, new Rec(keyInfo, 'masterpublickey', null));
+      }
+    }
+    this.log.debug('internal state %o', arh);
+    const ar = arh.aggregateItems(this.ACCOUNT_INFO_READ_QUORUM);
+    this.log.debug('result %o', ar);
+    return ar
+  }
 }
 
 export class NodeReportSig {

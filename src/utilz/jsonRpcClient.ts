@@ -11,7 +11,7 @@ export class JsonRpcClient {
   constructor(public timeout: number, public baseRpcUri: string) {
   }
 
-  public async call<T>(method: string, params: any[], deserializer: (data: any) => T): Promise<Tuple<T, RpcError>> {
+  public async call<T>(method: string, params: any[], resultDeserializer: (result: any) => T): Promise<Tuple<T, RpcError>> {
     const url = this.baseRpcUri;
     const requestId = this.requestCounter++;
     const req = {
@@ -31,7 +31,7 @@ export class JsonRpcClient {
       if (!resultField) {
         return [null, new RpcError(-1, 'Missing reply data')];
       }
-      const result = deserializer(resultField);
+      const result = resultDeserializer(resultField);
       return [result, null];
     } catch (error) {
       JsonRpcClient.log.debug(`Request failed: ${error}`);
@@ -39,7 +39,7 @@ export class JsonRpcClient {
         const axiosError = error as AxiosError;
         return [null, new RpcError(
           axiosError.response?.status ?? -1,
-          axiosError.message
+          'http error: ' + axiosError.message
         )];
       }
       return [null, new RpcError(-1, 'Request failed')];
@@ -48,6 +48,7 @@ export class JsonRpcClient {
 }
 
 export class RpcError {
+  // todo use single field code , or add httpCode for clarity?
   code: number;
   message: string;
 

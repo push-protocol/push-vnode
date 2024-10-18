@@ -97,7 +97,20 @@ export class ValidatorRpc {
     }
   }
 
-  // todo NETWORK CALLS TO STORAGE NODES
+  // NETWORK CALLS TO STORAGE NODES
+
+  public async push_accountInfo([accountInCaip]:[string]) {
+    try {
+      let result = await this.validatorNode.accountInfo(accountInCaip);
+      return result;
+    } catch (e) {
+      this.log.error('error %o', e);
+      throw new BlockError(e.message);
+    }
+  }
+
+
+
   // todo push_getTransactions
   // todo push_getBlockTransactionCountByHash (1)
   // todo push_getBlockByHash

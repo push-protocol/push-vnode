@@ -8,6 +8,7 @@ import { JsonRpcProvider } from '@ethersproject/providers/src.ts/json-rpc-provid
 import { EnvLoader } from '../../utilz/envLoader'
 import { Logger } from 'winston'
 import { WinstonUtil } from '../../utilz/winstonUtil'
+import { URL } from 'url'
 
 /*
 Validator contract abstraction.

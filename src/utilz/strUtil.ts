@@ -65,7 +65,7 @@ export default class StrUtil {
     }
   }
 
-  // write a good recurive format for every possible type
+  // write a good recursive format for every possible type
   public static fmt(obj: any, visited = new WeakMap()): string {
     if (obj === null) {
       return 'null';

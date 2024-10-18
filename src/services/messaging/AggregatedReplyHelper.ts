@@ -3,13 +3,14 @@ import { Logger } from 'winston'
 import { WinstonUtil } from '../../utilz/winstonUtil'
 import { StringCounter } from '../../utilz/stringCounter'
 import {Check} from "../../utilz/check";
+import {Coll} from "../../utilz/coll";
 
 export enum NodeHttpStatus {
   REPLY_TIMEOUT = 0
 }
 const log: Logger = WinstonUtil.newLog('AggregatedReplyHelper');
 // todo move tests from another repo
-export class AggregatedReplyHelper {
+export class AggregatedReplyHelper<T> {
   // initial request
   aggrReq: AggregatedRequest
   // replies
@@ -17,21 +18,10 @@ export class AggregatedReplyHelper {
   mapNodeToStatus: Map<string, number> = new Map<string, number>()
   // nodeIds item lists, reverted in a map
   // skey -> nodeId -> item
-  mapKeyToNodeItems: Map<string, Map<string, Rec>> = new Map<
+  mapKeyToNodeItems: Map<string, Map<string, Rec<T>>> = new Map<
     string,
-    Map<string, Rec>
+    Map<string, Rec<T>>
   >();
-
-  // add each node reply which contains [item, item, item]
-  // @Deprecated
-  public oldAppendItems(nodeId: string, nodeHttpStatus: number, httpReplyData: any) {
-    this.mapNodeToStatus.set(nodeId, nodeHttpStatus)
-    if (httpReplyData?.items?.length > 0) {
-      for (const srcItem of httpReplyData.items) {
-        this.doAppendItem(nodeId, srcItem)
-      }
-    }
-  }
 
   // add node http code
   public appendHttpCode(nodeId: string, nodeHttpStatus: number) {
@@ -39,14 +29,15 @@ export class AggregatedReplyHelper {
   }
 
   // add each node reply which contains [item]
-  public appendItem(nodeId: string, storageRecord: Rec) {
+  public appendItem(nodeId: string, storageRecord: Rec<T>) {
     Check.isTrue(this.mapNodeToStatus.get(nodeId)!=null, 'call appendHttpCode before appendSingleItem');
     this.doAppendItem(nodeId, storageRecord)
   }
 
+  // todo ? not used
   // add each node reply which contains [item, item, item]
   public appendMultipleItems(nodeId: string, httpReplyData: any,
-                             mapper: (httpReplyData: any) => Rec[]) {
+                             mapper: (httpReplyData: any) => Rec<T>[]) {
     if (httpReplyData?.items?.length > 0) {
       let items = mapper(httpReplyData);
       for (const item of items) {
@@ -60,12 +51,8 @@ export class AggregatedReplyHelper {
   // cat = INIT_DID
   // ts = null
   // payload = ALL FIELDS
-  private doAppendItem(nodeId: string, storageRecord: Rec) {
-    let map2 = this.mapKeyToNodeItems.get(storageRecord.skey)
-    if (map2 == null) {
-      map2 = new Map<string, Rec>()
-      this.mapKeyToNodeItems.set(storageRecord.skey, map2)
-    }
+  private doAppendItem(nodeId: string, storageRecord: Rec<T>) {
+    let map2 = Coll.computeIfAbsent(this.mapKeyToNodeItems, storageRecord.skey, () => new Map<string, Rec<T>>())
     map2.set(nodeId, storageRecord)
   }
 
@@ -101,7 +88,7 @@ export class AggregatedReplyHelper {
       // let's figure out quorum for this skey, we have replies from every node
       // sc: hash(StorageRecord) -> count, [storageRecord1, .., storageRecordN]
       // our goal is to grab top used hashes with frequency > quorum
-      const sc = new StringCounter<Rec>()
+      const sc = new StringCounter<Rec<T>>()
 
       for (const [nodeId, code] of this.mapNodeToStatus) {
         if (code == 200) {
@@ -172,7 +159,7 @@ export class AggregatedReplyHelper {
     return reply
   }
 
-  private static copyNonNullKeysTo(context: Rec[], target: Set<string>) {
+  private static copyNonNullKeysTo<T>(context: Rec<T>[], target: Set<string>) {
     // alternative: target.push(context.filter(value => value !=null).map(sr => sr.key).find(key => true))
     for (const record of context) {
       if (record != null) {
@@ -183,7 +170,7 @@ export class AggregatedReplyHelper {
   }
 
   // alphabetical order for hashing (!)
-  public static computeMd5Hash(rec: Rec): string {
+  public static computeMd5Hash<T>(rec: Rec<T>): string {
     return crypto
       .createHash('md5')
       .update(rec.skey)
@@ -229,14 +216,15 @@ export class AggregatedReply {
 }
 
 // this is a single record , received from a node/list
-export class Rec {
+export class Rec<T> {
   skey: string
-  ts: string
-  payload: any
+  ts: string | null
+  payload: T | null
 
-  constructor(payload: any, skeyField: string = 'salt', tsField: string = 'ts') {
+  constructor(payload: T, skeyField: string = 'salt', tsField: string = 'ts') {
     this.skey = payload[skeyField];
-    this.ts = payload[tsField];
+    Check.notNull(this.skey, 'skey is null');
+    this.ts = tsField == null ? null : payload[tsField];
     this.payload = payload
   }
 }

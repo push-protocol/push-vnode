@@ -25,7 +25,7 @@ export class RandomUtil {
         return DateTime.fromMillis(rnd);
     }
 
-    public static getRandomSubArray(sourceArray:any[], subArraySize:number):any[] {
+    public static getRandomSubArray<T>(sourceArray:T[], subArraySize:number):T[] {
         let len = sourceArray.length;
         const result = new Array(subArraySize);
         const taken = new Array(len);
