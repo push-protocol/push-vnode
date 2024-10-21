@@ -19,12 +19,12 @@ async function testCreateThenResolve() {
     });
     setTimeout(() => {
         deferred.resolve();
-    }, 1000);
+    }, 300);
     await promise1;
 }
 
 async function testRejectByTimeout() {
-    let deferred = PromiseUtil.createDeferred(1000);
+    let deferred = PromiseUtil.createDeferred(300);
     console.log('waiting for promise');
     try {
         await deferred.promise;
@@ -35,7 +35,7 @@ async function testRejectByTimeout() {
 }
 
 async function testResolveByTimeout() {
-    let deferred = PromiseUtil.createDeferred(0, 1000);
+    let deferred = PromiseUtil.createDeferred(0, 300);
     console.log('waiting for promise');
     await deferred.promise;
     console.log('completed: waiting for promise');
