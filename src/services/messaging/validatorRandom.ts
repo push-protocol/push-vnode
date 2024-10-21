@@ -9,7 +9,7 @@ import DateUtil from '../../utilz/dateUtil'
 import schedule from 'node-schedule'
 import { PingReply, PingStatus, ValidatorPing } from './validatorPing'
 import { RandomUtil } from '../../utilz/randomUtil'
-import { EthUtil, Signed } from '../../utilz/ethUtil'
+import { EthUtil } from '../../utilz/ethUtil'
 import crypto from 'crypto'
 import { BitUtil } from '../../utilz/bitUtil'
 import {StrUtil} from '../../utilz/strUtil'
@@ -463,7 +463,6 @@ export class AttestToken {
 /*
 A single node random value
  */
-@Signed
 export class NodeRandom {
   randomHex: string // a random number from that node
   signature: string // sign the whole structure
