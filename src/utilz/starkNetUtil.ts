@@ -1,7 +1,4 @@
-import {ec, hash, num, json, Contract, WeierstrassSignatureType, BigNumberish} from 'starknet';
-import nacl from "tweetnacl";
-import {Check} from "./check";
-import {Keypair} from "@solana/web3.js";
+import {ec, hash, WeierstrassSignatureType, BigNumberish} from 'starknet';
 import {BitUtil} from "./bitUtil";
 
 

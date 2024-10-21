@@ -1,4 +1,4 @@
-import StrUtil from './strUtil'
+import {StrUtil} from './strUtil'
 import {Check} from "./check";
 
 export class ChainUtil {

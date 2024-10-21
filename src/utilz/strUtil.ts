@@ -1,6 +1,6 @@
 import {BitUtil} from "./bitUtil";
 
-export default class StrUtil {
+export class StrUtil {
 
   public static isEmpty(s: string): boolean {
     if (s == null) {

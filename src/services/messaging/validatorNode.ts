@@ -7,7 +7,7 @@ import {WaitNotify} from '../../utilz/waitNotify'
 import {NodeInfo, ValidatorContractState} from '../messaging-common/validatorContractState'
 import {ValidatorRandom} from './validatorRandom'
 import {ValidatorPing} from './validatorPing'
-import StrUtil from '../../utilz/strUtil'
+import {StrUtil} from '../../utilz/strUtil'
 import {FeedItem, FeedItemSig, MessageBlockUtil} from '../messaging-common/messageBlock'
 import {WinstonUtil} from '../../utilz/winstonUtil'
 import {RedisClient} from '../messaging-common/redisClient'
@@ -173,12 +173,6 @@ export class ValidatorNode implements StorageContractListener {
     if (!txCheck.success) {
       throw new BlockError(txCheck.err);
     }
-
-    let payloadCheck = await BlockUtil.checkTxPayload(tx);
-    if (!payloadCheck.success) {
-      throw new BlockError(payloadCheck.err);
-    }
-
     // append transaction
     let txObj = new TransactionObj();
     txObj.setTx(tx);
@@ -426,12 +420,6 @@ export class ValidatorNode implements StorageContractListener {
     let result = new TxAttestorData();
 
     let txCheck = await BlockUtil.checkTx(txObj.getTx());
-    if (!txCheck.success) {
-      result.setVote(Vote.REJECTED);
-      return result;
-    }
-
-    let payloadCheck = await BlockUtil.checkTxPayload(txObj.getTx());
     if (!txCheck.success) {
       result.setVote(Vote.REJECTED);
       return result;

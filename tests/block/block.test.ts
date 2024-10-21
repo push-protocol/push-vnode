@@ -20,7 +20,7 @@ import {Wallet} from "ethers";
 import fs from "fs";
 import {Check} from "../../src/utilz/check";
 import * as jspb from "google-protobuf";
-import StrUtil from "../../src/utilz/strUtil";
+import {StrUtil} from "../../src/utilz/strUtil";
 import {NetworkRandom, NodeRandom, ValidatorRandom} from "../../src/services/messaging/validatorRandom";
 import {ChainUtil} from "../../src/utilz/chainUtil";
 import {RandomUtil} from "../../src/utilz/randomUtil";
@@ -87,14 +87,20 @@ function getUserWallet(index: number): Wallet {
   return new Wallet(USER_KEYS[index].privateKey);
 }
 
+let masterKeyIndex = 2;
+
 function printObj(msg: string, obj: any) {
   console.log(msg);
   console.log('%s\n%o', StrUtil.fmtProtoBytes(obj), obj.toObject());
 }
 
+function getMasterKey() {
+  return getUserWallet(2);
+}
+
 async function buildSampleTranaction1() {
   const data = new InitDid();
-  data.setMasterpubkey('0xBB');
+  data.setMasterpubkey(getMasterKey().publicKey);
   data.setDerivedkeyindex(1);
   data.setDerivedpubkey('0xCC');
 
@@ -127,6 +133,20 @@ async function buildSampleTranaction1() {
 }
 
 describe('signature tests', async function () {
+
+  it('sign INIT DID', async function () {
+      let tx = await buildSampleTranaction1();
+      tx.setSignature(null); // no signature
+
+      let wallet = getMasterKey();
+      tx.setSender('push:1:' + wallet.address); // some push chain address generated; we don't parse this
+      await BlockUtil.signInitDid(tx, wallet);
+      console.log('signed tx %o', tx.toObject());
+      console.log('signed tx %o', StrUtil.fmtProtoBytes(tx));
+      const check = await BlockUtil.checkTxSignature(tx);
+      expect(check.success).to.be.equal(true);
+    }
+  )
 
   it('sign ETH tx and check that signature matches the sender', async function () {
       let tx = await buildSampleTranaction1();

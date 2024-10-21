@@ -7,6 +7,8 @@ import {BitUtil} from "./bitUtil";
 import {Check} from "./check";
 import {Logger} from "winston";
 import {WinstonUtil} from "./winstonUtil";
+import {secp256k1} from "ethereum-cryptography/secp256k1";
+import {keccak256} from "ethereum-cryptography/keccak";
 
 /**
  * Utitily class that allows
@@ -109,7 +111,19 @@ export class EthUtil {
     Check.isTrue(result != null && result.length > 0);
     return result;
   }
-}
 
-export function Signed(target: Function) {
+  public static convertPrivKeyToPubKey(privKey: Uint8Array, compressed: boolean = true): Uint8Array {
+    return secp256k1.getPublicKey(privKey, compressed);
+  }
+
+
+  public static convertPrivKeyToAddr(privKey: Uint8Array): string {
+    let pubKeyUncomp = this.convertPrivKeyToPubKey(privKey, false);
+    return this.convertPubKeyToAddr(pubKeyUncomp);
+  }
+
+  public static convertPubKeyToAddr(publicKeyUncompressed: Uint8Array): string {
+    const address = keccak256(publicKeyUncompressed.slice(1)).slice(-20);
+    return BitUtil.bytesToBase16(address);
+  }
 }

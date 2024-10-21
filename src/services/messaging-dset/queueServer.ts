@@ -6,7 +6,7 @@ import { Logger } from 'winston'
 import { WinstonUtil } from '../../utilz/winstonUtil'
 import { MySqlUtil } from '../../utilz/mySqlUtil'
 import { Consumer, DCmd, QItem } from './queueTypes'
-import StrUtil from '../../utilz/strUtil'
+import {StrUtil} from '../../utilz/strUtil'
 import { ObjectHasher } from '../../utilz/objectHasher'
 
 export class QueueServer implements Consumer<QItem> {

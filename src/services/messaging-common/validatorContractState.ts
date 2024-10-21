@@ -1,6 +1,6 @@
 import { Service } from 'typedi'
 import { Contract, ethers, Wallet } from 'ethers'
-import StrUtil from '../../utilz/strUtil'
+import {StrUtil} from '../../utilz/strUtil'
 
 import fs, { readFileSync } from 'fs'
 import path from 'path'

@@ -6,7 +6,7 @@ import {assert} from "chai";
 import {ChainUtil} from "../../src/utilz/chainUtil";
 import {BigNumberish, ec, encode, hash, WeierstrassSignatureType} from "starknet";
 import {StarkNetUtil} from "../../src/utilz/starkNetUtil";
-import StrUtil from "../../src/utilz/strUtil";
+import {StrUtil} from "../../src/utilz/strUtil";
 
 describe('starknet sig tests', async function () {
 

@@ -117,6 +117,7 @@ export class BitUtil {
   }
 
   static asciis = {_0: 48, _9: 57, _A: 65, _F: 70, _a: 97, _f: 102} as const;
+
   public static asciiToBase16(char: number): number | undefined {
     const a = this.asciis;
     if (char >= a._0 && char <= a._9) return char - a._0;
@@ -126,14 +127,7 @@ export class BitUtil {
   }
 
   public static hex0xToBytes(hexString: string): Uint8Array {
-    Check.notNull(hexString, 'hex string is null');
-    Check.isTrue(typeof hexString === 'string', 'string is expected');
-    if (hexString.length >= 2 && hexString.startsWith('0x')) {
-      hexString = hexString.substring(2);
-    }
-    if (hexString.length % 2 == 1) {
-      hexString = '0' + hexString;
-    }
+    hexString = this.hex0xRemove(hexString);
     const result = this.base16ToBytes(hexString);
     // there is no way to check for illegal characters without iterating over each char
     // and Buffer silently ignores invalid chars
@@ -141,6 +135,27 @@ export class BitUtil {
     const conversionHadNoErrors = result.length == hexString.length / 2;
     Check.isTrue(hexString.length == 0 || conversionHadNoErrors, 'hex string contains invalid chars');
     return result;
+  }
+
+  public static hex0xRemove(hexString: string) {
+    Check.notNull(hexString, 'hex string is null');
+    Check.isTrue(typeof hexString === 'string', 'string is expected');
+    if (hexString.length >= 2 && (hexString.startsWith('0x') || hexString.startsWith('0X'))) {
+      hexString = hexString.substring(2);
+    }
+    if (hexString.length % 2 == 1) {
+      hexString = '0' + hexString;
+    }
+    return hexString.toLowerCase();
+  }
+
+  public static hex0xAppend(hexString: string) {
+    Check.notNull(hexString, 'hex string is null');
+    Check.isTrue(typeof hexString === 'string', 'string is expected');
+    if (hexString.length >= 2 && (hexString.startsWith('0x') || hexString.startsWith('0X'))) {
+      return hexString;
+    }
+    return '0x' + hexString;
   }
 
 }

@@ -10,7 +10,7 @@
  { d1, 0x1}, { d2, 0x2}, { d3, 0x3} ]
  */
 import { Coll } from '../../utilz/coll'
-import StrUtil from '../../utilz/strUtil'
+import {StrUtil} from '../../utilz/strUtil'
 import { EthUtil } from '../../utilz/ethUtil'
 import { Logger } from 'winston'
 import { WinstonUtil } from '../../utilz/winstonUtil'

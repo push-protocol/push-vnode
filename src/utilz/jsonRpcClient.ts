@@ -1,7 +1,7 @@
 import axios, {AxiosError} from "axios";
 import {Logger} from "winston";
 import {WinstonUtil} from "./winstonUtil";
-import {UrlUtil} from "./urlUtil";
+import {NumUtil} from "./numUtil";
 
 
 export class JsonRpcClient {
@@ -22,12 +22,16 @@ export class JsonRpcClient {
     };
     try {
       JsonRpcClient.log.debug(`>> Calling RPC POST ${url} (req${requestId}) with body %o`, req);
-      const resp = await axios.post(url, req, {timeout: this.timeout});
-      JsonRpcClient.log.debug(`<< RPC Reply POST ${url} (req${requestId}) code: ${resp.status} with body: %o`, resp.data);
-      if (resp.status !== 200) {
-        return [null, new RpcError(resp.data?.error?.code ?? resp.status, resp.data?.error?.message ?? 'Call error')];
+      const axiosResp = await axios.post(url, req, {timeout: this.timeout, headers: {"Content-Type": "application/json"}});
+      const resp = axiosResp.data;
+      JsonRpcClient.log.debug(`<< RPC Reply POST ${url} (req${requestId}) code: ${axiosResp.status} with body: %o`, resp);
+      if (axiosResp.status !== 200) {
+        return [null, new RpcError(resp?.error?.code ?? axiosResp.status, resp?.error?.message ?? 'Call error')];
       }
-      const resultField = resp.data?.result;
+      if (resp?.id !== NumUtil.toString(requestId)) {
+        return [null, new RpcError(-2, 'Call error: Request id does not match reply id')];
+      }
+      const resultField = resp?.result;
       if (!resultField) {
         return [null, new RpcError(-1, 'Missing reply data')];
       }

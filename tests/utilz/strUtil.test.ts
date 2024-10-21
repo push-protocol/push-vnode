@@ -1,5 +1,5 @@
 import {assert} from "chai";
-import StrUtil from "../../src/utilz/strUtil";
+import {StrUtil} from "../../src/utilz/strUtil";
 
 describe('strUtil test', () => {
     it('test1', function () {

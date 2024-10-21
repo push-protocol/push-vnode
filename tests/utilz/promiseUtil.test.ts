@@ -1,6 +1,6 @@
 import {PromiseUtil} from "../../src/utilz/promiseUtil";
 import {assert} from "chai";
-import StrUtil from "../../src/utilz/strUtil";
+import {StrUtil} from "../../src/utilz/strUtil";
 
 
 describe('testPromiseUtil', () => {

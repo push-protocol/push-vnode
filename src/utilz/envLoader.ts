@@ -1,5 +1,5 @@
 import dotenv from 'dotenv'
-import StrUtil from './strUtil'
+import {StrUtil} from './strUtil'
 import {NumUtil} from "./numUtil";
 
 export class EnvLoader {

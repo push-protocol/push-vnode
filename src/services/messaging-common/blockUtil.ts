@@ -11,7 +11,7 @@ import {
 import {EnvLoader} from "../../utilz/envLoader";
 import {HashUtil} from "../../utilz/hashUtil";
 import {BitUtil} from "../../utilz/bitUtil";
-import StrUtil from "../../utilz/strUtil";
+import {StrUtil} from "../../utilz/strUtil";
 import {ChainUtil} from "../../utilz/chainUtil";
 import {Check} from "../../utilz/check";
 import {NumUtil} from "../../utilz/numUtil";
@@ -105,12 +105,7 @@ export class BlockUtil {
     return BitUtil.bytesToBase16(tx.serializeBinary());
   }
 
-  // 1) try to get first byte from caip address
-  // eip155:5:0xD8634C39BBFd4033c0d3289C4515275102423681 -> d8 -> 216
-  // and use it as shard
-  // 2) take sha256(addr) ->
-  // shard count is a smart contract constant; normally it should never change
-  // lets read this value from a contract
+
   public static calculateAffectedShard(walletInCaip: string, shardCount: number): number | null {
     if (StrUtil.isEmpty(walletInCaip)) {
       return null
@@ -136,11 +131,27 @@ export class BlockUtil {
     return shardId % shardCount;
   }
 
+  static calculateAffectedShardsTx(tx: Transaction, shardCount: number, shards = new Set<number>()): Set<number> {
+    const category = tx.getCategory()
+    if (category === 'INIT_DID') {
+      return shards;
+    }
+    let senderAndRecipients = [tx.getSender(), ...tx.getRecipientsList()];
+    for (const wallet of senderAndRecipients) {
+      const shardId = this.calculateAffectedShard(wallet, shardCount)
+      if (shardId == null) {
+        continue
+      }
+      shards.add(shardId);
+    }
+    return shards;
+  }
+
   /**
    * Evaluates all messageBlock target recipients (normally these are addresses)
    * for every included packet
    *
-   * And for every recipient finds which shard will host this address
+   * And for every tx finds which shard will host this address
    *
    * @param block
    * @param shardCount total amount of shards; see smart contract for this value
@@ -149,14 +160,8 @@ export class BlockUtil {
   static calculateAffectedShards(block: Block, shardCount: number): Set<number> {
     const shards = new Set<number>()
     for (const txObj of block.getTxobjList()) {
-      let senderAndRecipients = [txObj.getTx().getSender(), ...txObj.getTx().getRecipientsList()];
-      for (const wallet of senderAndRecipients) {
-        const shardId = this.calculateAffectedShard(wallet, shardCount)
-        if (shardId == null) {
-          continue
-        }
-        shards.add(shardId);
-      }
+      const tx = txObj.getTx();
+      this.calculateAffectedShardsTx(tx, shardCount, shards);
     }
     return shards;
   }
@@ -175,6 +180,20 @@ export class BlockUtil {
       return CheckR.failWithText(`invalid attestor token; ${StrUtil.fmt(attestorTokenBytes)} should start with ${BlockUtil.ATT_TOKEN_PREFIX}`);
     }
     return CheckR.ok();
+  }
+
+  // for tests
+  // signs InitDid(has masterPublicKey field) with the same private key
+  public static async signInitDid(tx: Transaction, evmWallet: Wallet) {
+    Check.isTrue(ArrayUtil.isEmpty(tx.getSignature_asU8()), ' clear the signature field first, signature is:' + tx.getSignature());
+    Check.isTrue(tx.getCategory() == 'INIT_DID', 'not an INIT_DID transaction');
+    const initDid = InitDid.deserializeBinary(tx.getData_asU8());
+    Check.isTrue(initDid.getMasterpubkey() == evmWallet.publicKey,
+      `masterPublicKey ${initDid.getMasterpubkey()}
+       does not match evmWallet publicKey ${evmWallet.publicKey}`);
+    let tmpBytes = tx.serializeBinary();
+    let sig = await EthUtil.signBytes(evmWallet, tmpBytes);
+    tx.setSignature(sig);
   }
 
   public static async signTxEVM(tx: Transaction, evmWallet: Wallet) {
@@ -207,7 +226,26 @@ export class BlockUtil {
       return CheckR.failWithText('signature should have at least 4 bytes size');
     }
     this.log.debug("checking signature `%s`", StrUtil.fmt(tx.getSignature_asU8()));
-    // todo if(tx.getCategory() === 'INIT_DID') or === startsWith("CUSTOM:") or ANY OTHER ?
+    if (tx.getCategory() === 'INIT_DID') {
+      let sig = tx.getSignature_asU8();
+      let tmp = Transaction.deserializeBinary(tx.serializeBinary());
+      tmp.setSignature(null);
+      let tmpBytes = tmp.serializeBinary();
+
+      let recoveredAddr = EthUtil.recoverAddressFromMsg(tmpBytes, sig);
+      Check.isTrue(recoveredAddr != null && recoveredAddr.startsWith('0x'), 'invalid recovered addr');
+      recoveredAddr = BitUtil.hex0xRemove(recoveredAddr);
+      let initDid = InitDid.deserializeBinary(tx.getData_asU8());
+      const masterPublicKeyBytes = BitUtil.hex0xToBytes(initDid.getMasterpubkey());
+      const masterAddr = EthUtil.convertPubKeyToAddr(masterPublicKeyBytes);
+      const valid = recoveredAddr.toUpperCase() === masterAddr.toUpperCase();
+      this.log.debug('recoveredAddr %s; masterPubKey: %s; valid: %s', StrUtil.fmt(recoveredAddr), StrUtil.fmt(initDid.getMasterpubkey()), valid);
+      if (!valid) {
+        return CheckR.failWithText(`masterpubkey ${initDid.getMasterpubkey()} does not match recovered address ${recoveredAddr} 
+        signature was: ${StrUtil.fmt(`${tx.getSignature()}`)}`);
+      }
+      return CheckR.ok();
+    }
     let sig = tx.getSignature_asU8();
     let tmp = Transaction.deserializeBinary(tx.serializeBinary());
     tmp.setSignature(null);
@@ -268,7 +306,10 @@ export class BlockUtil {
     if (!ArrayUtil.hasMinSize(tx.getSalt_asU8(), 4)) {
       return CheckR.failWithText(`salt field requires >=4 bytes ; ` + StrUtil.fmt(tx.getSalt_asU8()));
     }
-
+    let payloadCheck = await BlockUtil.checkTxPayload(tx);
+    if (!payloadCheck.success) {
+      return payloadCheck;
+    }
     let validSignature = await BlockUtil.checkTxSignature(tx);
     if (!validSignature.success) {
       return CheckR.failWithText(`signature field is invalid`);
@@ -433,10 +474,6 @@ export class BlockUtil {
       let check1 = await BlockUtil.checkTx(tx);
       if (!check1.success) {
         return check1;
-      }
-      let check2 = await BlockUtil.checkTxPayload(tx);
-      if (!check2.success) {
-        return check2;
       }
     }
     if (totalTxBytes > BlockUtil.MAX_TOTAL_TRANSACTION_SIZE_BYTES) {
