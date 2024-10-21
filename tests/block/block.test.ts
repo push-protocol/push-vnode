@@ -134,7 +134,7 @@ async function buildInitDidTx() {
 }
 
 async function buildCustomTx1() {
-  const data = BitUtil.base16ToBytes("0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+  const data = BitUtil.base16ToBytes("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
 
   const t = new Transaction();
   t.setType(0);

@@ -271,7 +271,7 @@ export class ValidatorNode implements StorageContractListener {
       const apiClient = new ValidatorClient(vi.url);
       const [patch, attestorErr] = await apiClient.v_attestBlock(blockSignedByVBytes); // todo make parallel
       if (attestorErr != null) {
-        this.log.error('attestor %s failed to attest the block, reason: %s', attesterNodeId, patch);
+        this.log.error('attestor %s failed to attest the block, reason: %s', attesterNodeId, attestorErr);
         throw new Error('failed to sign'); // todo remove
       }
       attestersWhichSignedBlock.push(attesterNodeId);
