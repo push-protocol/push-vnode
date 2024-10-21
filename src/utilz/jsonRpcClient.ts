@@ -47,7 +47,7 @@ export class JsonRpcClient {
         const axiosError = error as AxiosError;
         return [null, new RpcError(
           axiosError.response?.status ?? -1,
-          'http error: ' + axiosError.message
+          'http error: ' + axiosError.name + ' ' + axiosError.code + ' ' + axiosError.message
         )];
       }
       return [null, new RpcError(-1, 'Request failed')];
