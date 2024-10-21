@@ -1,6 +1,7 @@
-import { Coll } from './coll';
+import {Coll} from './coll';
 // @ts-ignore
 import bs58 from 'bs58';
+import {Check} from "./check";
 
 // bytes      (as hex numbers)            = 0x41 0x41 0x42 0x42
 // Uint8Array (as decimal numbers)        = 65 65 66 66
@@ -67,11 +68,11 @@ export class BitUtil {
   }
 
 
-  public static base16ToBytes(base16String:string):Uint8Array {
+  public static base16ToBytes(base16String: string): Uint8Array {
     return Uint8Array.from(Buffer.from(base16String, 'hex'));
   }
 
-  public static bytesToBase16(arr:Uint8Array):string {
+  public static bytesToBase16(arr: Uint8Array): string {
     return Buffer.from(arr).toString('hex');
   }
 
@@ -79,31 +80,31 @@ export class BitUtil {
     return buf.toString('hex');
   }
 
-  public static base64ToString(base64String:string):string {
+  public static base64ToString(base64String: string): string {
     return Buffer.from(base64String, 'base64').toString('utf8');
   }
 
-  public static bytesToBase64(bytes:Uint8Array):string {
+  public static bytesToBase64(bytes: Uint8Array): string {
     return Buffer.from(bytes).toString('base64');
   }
 
-  public static base64ToBytes(base64String:string):Uint8Array {
+  public static base64ToBytes(base64String: string): Uint8Array {
     return new Uint8Array(Buffer.from(base64String, 'base64'));
   }
 
-  public static bytesUtfToString(bytes:Uint8Array):string {
+  public static bytesUtfToString(bytes: Uint8Array): string {
     return Buffer.from(bytes).toString('utf8');
   }
 
-  public static stringToBytesUtf(str:string):Uint8Array {
+  public static stringToBytesUtf(str: string): Uint8Array {
     return new Uint8Array(Buffer.from(str, 'utf-8'));
   }
 
-  public static stringToBase64(str:string):string {
+  public static stringToBase64(str: string): string {
     return Buffer.from(str, 'utf-8').toString('base64');
   }
 
-  public static base64ToBase16(base64String:string):string {
+  public static base64ToBase16(base64String: string): string {
     return Buffer.from(base64String, 'base64').toString('hex');
   }
 
@@ -113,6 +114,33 @@ export class BitUtil {
 
   public static bytesToBase58(bytes: Uint8Array): string {
     return bs58.encode(bytes);
+  }
+
+  static asciis = {_0: 48, _9: 57, _A: 65, _F: 70, _a: 97, _f: 102} as const;
+  public static asciiToBase16(char: number): number | undefined {
+    const a = this.asciis;
+    if (char >= a._0 && char <= a._9) return char - a._0;
+    if (char >= a._A && char <= a._F) return char - (a._A - 10);
+    if (char >= a._a && char <= a._f) return char - (a._a - 10);
+    return;
+  }
+
+  public static hex0xToBytes(hexString: string): Uint8Array {
+    Check.notNull(hexString, 'hex string is null');
+    Check.isTrue(typeof hexString === 'string', 'string is expected');
+    if (hexString.length >= 2 && hexString.startsWith('0x')) {
+      hexString = hexString.substring(2);
+    }
+    if (hexString.length % 2 == 1) {
+      hexString = '0' + hexString;
+    }
+    const result = this.base16ToBytes(hexString);
+    // there is no way to check for illegal characters without iterating over each char
+    // and Buffer silently ignores invalid chars
+    // so we will simply compare the output length; it should be 1 byte per 2 chars of input!
+    const conversionHadNoErrors = result.length == hexString.length / 2;
+    Check.isTrue(hexString.length == 0 || conversionHadNoErrors, 'hex string contains invalid chars');
+    return result;
   }
 
 }
