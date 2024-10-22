@@ -1,71 +1,41 @@
 import crypto from 'crypto'
-import { Logger } from 'winston'
-import { WinstonUtil } from '../../utilz/winstonUtil'
-import { StringCounter } from '../../utilz/stringCounter'
+import {Logger} from 'winston'
+import {WinstonUtil} from '../../utilz/winstonUtil'
+import {StringCounter} from '../../utilz/stringCounter'
+import {Check} from "../../utilz/check";
+import {Coll} from "../../utilz/coll";
 
 export enum NodeHttpStatus {
   REPLY_TIMEOUT = 0
 }
 
-// todo move tests from another repo
-export class AggregatedReplyHelper {
-  public log: Logger = WinstonUtil.newLog(AggregatedReplyHelper)
-  // initial request
-  aggrReq: AggregatedRequest
+const log: Logger = WinstonUtil.newLog('ReplyMerger');
+
+
+export class ReplyMerger<T> {
   // replies
   // nodeIds -> httpCode
   mapNodeToStatus: Map<string, number> = new Map<string, number>()
   // nodeIds item lists, reverted in a map
   // skey -> nodeId -> item
-  mapKeyToNodeItems: Map<string, Map<string, StorageRecord>> = new Map<
-    string,
-    Map<string, StorageRecord>
-  >()
+  mapKeyToNodeItems: Map<string, Map<string, Rec<T>>> = new Map<string, Map<string, Rec<T>>>();
 
-  // add each node reply which contains [item, item, item]
-  public appendItems(nodeId: string, nodeHttpStatus: number, httpReplyData: any) {
-    this.mapNodeToStatus.set(nodeId, nodeHttpStatus)
-    if (httpReplyData?.items?.length > 0) {
-      for (const srcItem of httpReplyData.items) {
-        this.doAppendItem(nodeId, srcItem)
-      }
-    }
+  public appendHttpCode(nodeId: string, nodeHttpStatus: number) {
+    this.mapNodeToStatus.set(nodeId, nodeHttpStatus);
   }
 
-  private doAppendItem(nodeId: string, storageRecord: any) {
-    const skey = storageRecord.skey
-    let map2 = this.mapKeyToNodeItems.get(skey)
-    if (map2 == null) {
-      map2 = new Map<string, StorageRecord>()
-      this.mapKeyToNodeItems.set(skey, map2)
-    }
-    const dstItem = new StorageRecord(
-      storageRecord.ns,
-      skey,
-      storageRecord.ts,
-      storageRecord.payload
-    )
-    map2.set(nodeId, dstItem)
+  public appendItem(nodeId: string, rec: Rec<T>) {
+    Check.isTrue(this.mapNodeToStatus.get(nodeId) != null, 'call appendHttpCode before appendSingleItem');
+    let map2 = Coll.computeIfAbsent(this.mapKeyToNodeItems, rec.skey, () => new Map<string, Rec<T>>())
+    map2.set(nodeId, rec)
   }
 
-  private isEnoughReplies(requiredReplies: number): boolean {
-    let goodReplies = 200
-    for (const [key, value] of this.mapNodeToStatus) {
-      if (value == 200 || value == 204) {
-        goodReplies++
-      }
-    }
-    if (goodReplies > requiredReplies) {
-      return true
-    }
-  }
-
-  public aggregateItems(minQuorumThreshold: number): AggregatedReply {
-    console.log(`aggregateItems()`)
-    const reply = new AggregatedReply()
+  public group(minQuorumThreshold: number): ReplyGrouped {
+    log.debug(`aggregateItems()`)
+    const reply = new ReplyGrouped()
     // if we have this amount of SAME replies for a key => we have this key
     const nodeCount = this.mapNodeToStatus.size
-    console.log(`quorumForKey=${minQuorumThreshold} nodeCount=${nodeCount}`)
+    log.debug(`quorumForKey=${minQuorumThreshold} nodeCount=${nodeCount}`)
     const keysWithoutQuorumSet = new Set<string>()
     let goodReplies = 0
     let lastTsStr = '0'
@@ -75,19 +45,19 @@ export class AggregatedReplyHelper {
       }
     }
     for (const [skey, mapNodeIdToStorageRecord] of this.mapKeyToNodeItems) {
-      console.log(`checking skey: ${skey}`)
+      log.debug(`checking skey: ${skey}`)
 
       // let's figure out quorum for this skey, we have replies from every node
       // sc: hash(StorageRecord) -> count, [storageRecord1, .., storageRecordN]
       // our goal is to grab top used hashes with frequency > quorum
-      const sc = new StringCounter<StorageRecord>()
+      const sc = new StringCounter<Rec<T>>()
 
       for (const [nodeId, code] of this.mapNodeToStatus) {
         if (code == 200) {
           const record = mapNodeIdToStorageRecord.get(nodeId)
           const recordKey = record?.skey
-          const recordHash = record == null ? 'null' : record.computeMd5Hash()
-          console.log(
+          const recordHash = record == null ? 'null' : ReplyMerger.computeMd5Hash(record);
+          log.debug(
             `nodeId=${nodeId} recordKey=${recordKey}, recordHash=${recordHash}, record=${JSON.stringify(
               record
             )}`
@@ -108,7 +78,7 @@ export class AggregatedReplyHelper {
             // 2. we have at least 1 item
             // so we can grab the first one reply , since all are the same
             const first = incrementArr[0]
-            reply.items.push(first)
+            reply.items.push(first.payload)
             // lastTs = latest item ; we use string to preserve equality for all type of hashes
             // TODO a good discussion is required to figure out the best way to transfer high precision timestamps via rest
             if (first.ts != null) {
@@ -118,14 +88,14 @@ export class AggregatedReplyHelper {
             }
           } else {
             // top item has not enough copies on the network
-            AggregatedReplyHelper.copyNonNullKeysTo(incrementArr, keysWithoutQuorumSet)
+            ReplyMerger.copyNonNullKeysTo(incrementArr, keysWithoutQuorumSet)
           }
         } else {
-          AggregatedReplyHelper.copyNonNullKeysTo(incrementArr, keysWithoutQuorumSet)
+          ReplyMerger.copyNonNullKeysTo(incrementArr, keysWithoutQuorumSet)
         }
       })
     }
-    console.log(`non200Replies=${goodReplies}`)
+    log.debug(`non200Replies=${goodReplies}`)
     const r = reply.result
     if (goodReplies < minQuorumThreshold) {
       // not enough nodes replies => we can't do anything
@@ -151,7 +121,7 @@ export class AggregatedReplyHelper {
     return reply
   }
 
-  private static copyNonNullKeysTo(context: StorageRecord[], target: Set<string>) {
+  private static copyNonNullKeysTo<T>(context: Rec<T>[], target: Set<string>) {
     // alternative: target.push(context.filter(value => value !=null).map(sr => sr.key).find(key => true))
     for (const record of context) {
       if (record != null) {
@@ -160,19 +130,16 @@ export class AggregatedReplyHelper {
       }
     }
   }
-}
 
-class AggregatedRequest {
-  nsName: string
-  nsIndex: string
-  month: string
-  firstTs: string
-
-  constructor(nsName: string, nsIndex: string, month: string, firstTs: string) {
-    this.nsName = nsName
-    this.nsIndex = nsIndex
-    this.month = month
-    this.firstTs = firstTs
+  // alphabetical order for hashing (!)
+  public static computeMd5Hash<T>(rec: Rec<T>): string {
+    return crypto
+      .createHash('md5')
+      .update(rec.skey)
+      .update(JSON.stringify(rec.payload))
+      .update(rec.ts + '')
+      .digest()
+      .toString('hex')
   }
 }
 
@@ -183,7 +150,7 @@ export enum QuorumResult {
   QUORUM_FAILED_BY_MIN_ITEMS = 'QUORUM_FAILED_BY_MIN_ITEMS'
 }
 
-export class Result {
+export class ResultMeta {
   quorumResult: QuorumResult
   itemCount: number = 0
   lastTs: string
@@ -191,34 +158,21 @@ export class Result {
   keysWithoutQuorum: string[] = []
 }
 
-export class AggregatedReply {
-  items: StorageRecord[] = []
-  result: Result = new Result()
+export class ReplyGrouped {
+  items = []
+  result: ResultMeta = new ResultMeta()
 }
 
 // this is a single record , received from a node/list
-export class StorageRecord {
-  ns: string
+export class Rec<T> {
   skey: string
-  ts: string
-  payload: any
+  ts: string | null
+  payload: T | null
 
-  constructor(ns: string, skey: string, ts: string, payload: any) {
-    this.ns = ns
-    this.skey = skey
-    this.ts = ts
+  constructor(payload: T, skeyField: string = 'salt', tsField: string = 'ts') {
+    this.skey = payload[skeyField];
+    Check.notNull(this.skey, 'skey is null');
+    this.ts = tsField == null ? null : payload[tsField];
     this.payload = payload
-  }
-
-  // alphabetical order for hashing (!)
-  public computeMd5Hash(): string {
-    return crypto
-      .createHash('md5')
-      .update(this.skey)
-      .update(this.ns)
-      .update(JSON.stringify(this.payload))
-      .update(this.ts + '')
-      .digest()
-      .toString('hex')
   }
 }

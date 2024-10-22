@@ -1,7 +1,5 @@
 import * as CryptoJS from 'crypto-js'
 import crypto from "crypto";
-import StrUtil from "./strUtil";
-import {BitUtil} from "./bitUtil";
 
 // todo use a better lib
 export class HashUtil {

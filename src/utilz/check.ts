@@ -1,4 +1,4 @@
-import StrUtil from './strUtil'
+import {StrUtil} from './strUtil'
 
 export class Check {
   public static isTrue(condition: any, err?: string) {

@@ -1,6 +1,6 @@
 import { Service } from 'typedi'
 import { Contract, ethers, Wallet } from 'ethers'
-import StrUtil from '../../utilz/strUtil'
+import {StrUtil} from '../../utilz/strUtil'
 
 import fs, { readFileSync } from 'fs'
 import path from 'path'
@@ -8,6 +8,7 @@ import { JsonRpcProvider } from '@ethersproject/providers/src.ts/json-rpc-provid
 import { EnvLoader } from '../../utilz/envLoader'
 import { Logger } from 'winston'
 import { WinstonUtil } from '../../utilz/winstonUtil'
+import { URL } from 'url'
 
 /*
 Validator contract abstraction.

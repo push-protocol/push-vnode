@@ -1,6 +1,7 @@
 import {BitUtil} from "../../src/utilz/bitUtil";
 import {assert} from "chai";
 import {expect} from 'chai';
+import {StrUtil} from "../../src/utilz/strUtil";
 
 describe('test bitUtil.xor', () => {
 
@@ -240,4 +241,70 @@ describe('BitUtil byte conversion tests', () => {
   })
 });
 
+describe('hex0xToBytes', () => {
+  it('should throw error when hexString is null', () => {
+    expect(() => BitUtil.hex0xToBytes(null as any)).to.throw('hex string is null');
+  });
 
+  it('should throw error when hexString is undefined', () => {
+    expect(() => BitUtil.hex0xToBytes(undefined as any)).to.throw('hex string is null');
+  });
+
+  it('should throw error when hexString is not a string', () => {
+    expect(() => BitUtil.hex0xToBytes(123 as any)).to.throw('string is expected');
+    expect(() => BitUtil.hex0xToBytes({} as any)).to.throw('string is expected');
+  });
+
+  it('should return empty Uint8Array when hexString is empty', () => {
+    const result = BitUtil.hex0xToBytes('');
+    expect(result).to.deep.equal(new Uint8Array([]));
+  });
+
+  it('should return empty Uint8Array when hexString is "0x"', () => {
+    const result = BitUtil.hex0xToBytes('0x');
+    expect(result).to.deep.equal(new Uint8Array([]));
+  });
+
+  it('should convert "0x0" to Uint8Array([0])', () => {
+    const result = BitUtil.hex0xToBytes('0x0');
+    expect(result).to.deep.equal(new Uint8Array([0]));
+  });
+
+  it('should convert "0x1" to Uint8Array([1])', () => {
+    const result = BitUtil.hex0xToBytes('0x1');
+    expect(result).to.deep.equal(new Uint8Array([1]));
+  });
+
+  it('should convert "0x01" to Uint8Array([1])', () => {
+    const result = BitUtil.hex0xToBytes('0x01');
+    expect(result).to.deep.equal(new Uint8Array([1]));
+  });
+
+  it('should handle odd length hex strings by prepending zero', () => {
+    const result = BitUtil.hex0xToBytes('0x123');
+    expect(result).to.deep.equal(new Uint8Array([1, 35]));
+  });
+
+  it('should handle hex strings without "0x" prefix', () => {
+    const result = BitUtil.hex0xToBytes('123');
+    expect(result).to.deep.equal(new Uint8Array([1, 35]));
+  });
+
+  it('should throw error for invalid hex characters', () => {
+    expect(() => BitUtil.hex0xToBytes('0xGG')).to.throw();
+    expect(() => BitUtil.hex0xToBytes('0x0G')).to.throw();
+  });
+
+  it('should handle multiple "0x" prefixes', () => {
+    expect(() => BitUtil.hex0xToBytes('0x0x123')).to.throw();
+  });
+
+  it('should handle large hex strings', () => {
+    const hexString = '0x' + 'F'.repeat(1000);
+    const result = BitUtil.hex0xToBytes(hexString);
+    expect(result.length).to.equal(500);
+    for (let i = 0; i < result.length; i++) {
+      expect(result[i]).to.equal(0xFF);
+    }
+  })
+});

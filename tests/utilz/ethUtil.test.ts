@@ -10,7 +10,7 @@ import {Check} from "../../src/utilz/check";
 import {BlockUtil} from "../../src/services/messaging-common/blockUtil";
 
 import * as ed from '@noble/ed25519';
-import StrUtil from "../../src/utilz/strUtil";
+import {StrUtil} from "../../src/utilz/strUtil";
 
 describe('api test3', function () {
   it('testSig', async function () {
@@ -81,6 +81,7 @@ describe('api test3', function () {
     }
     {
       // # StarkNet Testnet
+      // starknet:SN_MAIN:0x02DdfB499765c064eaC5039E3841AA5f382E73B598097a40073BD8B48170Ab57
       let addr = 'starknet:SN_GOERLI:0x02dd1b492765c064eac4039e3841aa5f382773b598097a40073bd8b48170ab57';
       let c = ChainUtil.parseCaipAddress(addr);
       expect(c).to.deep.equal([{
@@ -153,5 +154,21 @@ describe('api test3', function () {
       expect(c).to.deep.equal([{namespace: "hedera", chainId: "mainnet", addr: "0.0.1234567890-zbhlt"}, null]);
       expect(ChainUtil.isFullCAIPAddress(addr)).to.be.true;
     }
+  });
+
+  it("tests private to public to address conversions for ETH", async function () {
+    let privKey = BitUtil.base16ToBytes('c8aee432ef2035adc6f71a7094c0677eedf74a04f4e17227fa1a4155ad511047');
+
+    const pubKey = EthUtil.convertPrivKeyToPubKey(privKey, false);
+    expect(pubKey).to.deep.equal(BitUtil.base16ToBytes("0462117d6727ddd50b8f1d60ce50ef9fa511c7b43b6b6e6f763b32b942e515a4d47df6eb61d3dceb615176c80a16484e773885f3de31e0344ed3d74cce103646f4"));
+
+    const pubKeyComp = EthUtil.convertPrivKeyToPubKey(privKey, true);
+    expect(pubKeyComp).to.deep.equal(BitUtil.base16ToBytes("0262117d6727ddd50b8f1d60ce50ef9fa511c7b43b6b6e6f763b32b942e515a4d4"));
+
+    const addr1 = EthUtil.convertPrivKeyToAddr(privKey);
+    const addr2 = EthUtil.convertPubKeyToAddr(pubKey);
+    expect(addr1).to.deep.equal("9cea81b9d2e900d6027125378ee2ddfa15feeed1")
+    expect(addr2).to.deep.equal("9cea81b9d2e900d6027125378ee2ddfa15feeed1")
   })
+
 })
