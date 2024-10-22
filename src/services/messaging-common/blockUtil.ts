@@ -260,7 +260,7 @@ export class BlockUtil {
         signature was: ${StrUtil.fmt(`${tx.getSignature()}`)}`);
       }
     } else if (caip.namespace === 'solana') {
-      // EVM SIGNATURES
+      // SOLANA SIGNATURES
       const expectedPubKey = SolUtil.convertAddrToPubKey(caip.addr);
       const valid = SolUtil.checkSignature(expectedPubKey, tmpBytes, sig);
       this.log.debug('expectedPubKey %s; valid: %s', StrUtil.fmt(expectedPubKey), valid);

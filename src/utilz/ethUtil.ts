@@ -10,13 +10,6 @@ import {WinstonUtil} from "./winstonUtil";
 import {secp256k1} from "ethereum-cryptography/secp256k1";
 import {keccak256} from "ethereum-cryptography/keccak";
 
-/**
- * Utitily class that allows
- * - to sign objects with an eth private key
- * - to check that signature later
- *
- * Ignores 'signature' properties
- */
 export class EthUtil {
   public static log: Logger = WinstonUtil.newLog(EthUtil);
 

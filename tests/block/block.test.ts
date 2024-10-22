@@ -1,7 +1,7 @@
 // noinspection DuplicatedCode
 
 import 'mocha'
-import chai, {assert, expect} from 'chai'
+import {assert, expect} from 'chai'
 import {
   Block, EncryptedText,
   InitDid,
@@ -16,19 +16,14 @@ import {BitUtil} from "../../src/utilz/bitUtil";
 import {HashUtil} from "../../src/utilz/hashUtil";
 import DateUtil from "../../src/utilz/dateUtil";
 import {BlockUtil} from "../../src/services/messaging-common/blockUtil";
-import {Wallet} from "ethers";
+import {ethers, Wallet} from "ethers";
 import fs from "fs";
-import {Check} from "../../src/utilz/check";
-import * as jspb from "google-protobuf";
 import {StrUtil} from "../../src/utilz/strUtil";
 import {NetworkRandom, NodeRandom, ValidatorRandom} from "../../src/services/messaging/validatorRandom";
 import {ChainUtil} from "../../src/utilz/chainUtil";
-import {RandomUtil} from "../../src/utilz/randomUtil";
-import {Keypair} from "@solana/web3.js";
 import {SolUtil} from "../../src/utilz/solUtil";
 import {StarkNetUtil} from "../../src/utilz/starkNetUtil";
 
-// const expect = chai.expect;
 
 type WalletInfo = {
   address: string;
