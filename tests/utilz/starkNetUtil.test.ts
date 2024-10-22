@@ -1,10 +1,5 @@
-import {Keypair} from "@solana/web3.js";
 import {BitUtil} from "../../src/utilz/bitUtil";
-import {decodeUTF8} from "tweetnacl-util";
-import {SolUtil} from "../../src/utilz/solUtil";
 import {assert} from "chai";
-import {ChainUtil} from "../../src/utilz/chainUtil";
-import {BigNumberish, ec, encode, hash, WeierstrassSignatureType} from "starknet";
 import {StarkNetUtil} from "../../src/utilz/starkNetUtil";
 import {StrUtil} from "../../src/utilz/strUtil";
 
@@ -12,7 +7,7 @@ describe('starknet sig tests', async function () {
 
   it('sig and check 2', async function () {
     const msg = BitUtil.stringToBytesUtf('Test for starknet!');
-    const privateKey = BitUtil.base16ToBytes('1234567890987654321');
+    const privateKey = BitUtil.base16ToBytes('12345678909876543210');
     const fullPublicKey = StarkNetUtil.convertPrivKeyToPubKey(privateKey);
 
     // sign

@@ -70,7 +70,7 @@ export class BitUtil {
 
   public static base16ToBytes(base16String: string): Uint8Array {
     const result = Uint8Array.from(Buffer.from(base16String, 'hex'));
-    const conversionHadNoErrors = result.length == base16String.length / 2;
+    const conversionHadNoErrors = base16String.length == 0 || result.length == base16String.length / 2;
     Check.isTrue(conversionHadNoErrors, 'failed to convert hex string ' + base16String);
     return result;
   }
