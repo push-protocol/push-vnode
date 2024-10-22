@@ -194,6 +194,7 @@ describe('signature tests', async function () {
       console.log('signed tx %o', tx.toObject());
       console.log('signed tx %o', StrUtil.fmtProtoBytes(tx));
       const check = await BlockUtil.checkTxSignature(tx);
+      console.log('check tx %o', check);
       expect(check.success).to.be.equal(true);
     }
   )
@@ -207,6 +208,7 @@ describe('signature tests', async function () {
       console.log('signed tx %o', tx.toObject());
       console.log('signed tx %o', StrUtil.fmtProtoBytes(tx));
       const check = await BlockUtil.checkTxSignature(tx);
+      console.log('check tx %o', check);
       expect(check.success).to.be.equal(true);
     }
   )
