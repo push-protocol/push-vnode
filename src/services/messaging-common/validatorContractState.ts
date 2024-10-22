@@ -162,7 +162,7 @@ interface ValidatorContract {
 
   getSNodes(): Promise<string[]>
 
-  getDNodes(): Promise<string[]>
+  getANodes(): Promise<string[]>
 
   getNodeInfo(address: string): Promise<NodeInfo2>
 }
@@ -186,12 +186,10 @@ export class ValidatorCtClient {
   contract: TypedValidatorContract
   private log: Logger
 
-  // read on start, todo update on event
+  // reads on start, updates on events
   vnodes: Map<string, NodeInfo> = new Map<string, NodeInfo>()
-  // read on start, todo update on event
   snodes: Map<string, NodeInfo> = new Map<string, NodeInfo>()
-  // read on start, todo update on event
-  dnodes: Map<string, NodeInfo> = new Map<string, NodeInfo>()
+  anodes: Map<string, NodeInfo> = new Map<string, NodeInfo>()
 
   // read on start, updated on change
   public valPerBlock: number
@@ -292,8 +290,8 @@ export class ValidatorCtClient {
     }
     this.log.info('storage nodes loaded %o', this.snodes)
 
-    const dNodes = await this.contract.getDNodes()
-    for (const nodeAddr of dNodes) {
+    const aNodes = await this.contract.getANodes()
+    for (const nodeAddr of aNodes) {
       const niFromCt = await this.contract.getNodeInfo(nodeAddr)
       const ni = new NodeInfo(
         niFromCt.nodeWallet,
@@ -301,9 +299,9 @@ export class ValidatorCtClient {
         niFromCt.nodeType,
         niFromCt.status
       )
-      this.dnodes.set(niFromCt.nodeWallet, ni)
+      this.anodes.set(niFromCt.nodeWallet, ni)
     }
-    this.log.info('delivery nodes loaded %o', this.dnodes)
+    this.log.info('delivery nodes loaded %o', this.anodes)
 
     this.contract.on(
       'NodeAdded',
@@ -342,7 +340,7 @@ export class ValidatorCtClient {
         this.log.info('NodeStatusChanged', arguments)
         this.log.info('NodeStatusChanged', nodeWallet, nodeStatus, nodeTokens)
         const ni =
-          this.vnodes.get(nodeWallet) ?? this.snodes.get(nodeWallet) ?? this.dnodes.get(nodeWallet)
+          this.vnodes.get(nodeWallet) ?? this.snodes.get(nodeWallet) ?? this.anodes.get(nodeWallet)
         if (ni == null) {
           this.log.error(`unknown node ${nodeWallet}`)
           return
@@ -358,8 +356,8 @@ export class ValidatorCtClient {
       return this.vnodes
     } else if (nodeType == NodeType.SNode) {
       return this.snodes
-    } else if (nodeType == NodeType.DNode) {
-      return this.dnodes
+    } else if (nodeType == NodeType.ANode) {
+      return this.anodes
     } else {
       throw new Error('unsupported node type ' + nodeType)
     }
@@ -419,5 +417,5 @@ export class NodeInfo {
 export enum NodeType {
   VNode = 0, // validator 0
   SNode = 1, // storage 1
-  DNode = 2 // delivery 2
+  ANode = 2 // delivery 2
 }
