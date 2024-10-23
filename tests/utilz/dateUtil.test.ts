@@ -1,5 +1,5 @@
 import {expect} from "chai";
-import DateUtil from "../../src/utilz/dateUtil";
+import {DateUtil} from  "../../src/utilz/dateUtil";
 
 describe('DateUtil.parseUnixFloatAsDouble', () => {
   const MAX_UNIX_TS = DateUtil.MAX_UNIX_TS;

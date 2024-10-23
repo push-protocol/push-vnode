@@ -18,11 +18,12 @@ import {NumUtil} from "../../utilz/numUtil";
 import {EthUtil} from "../../utilz/ethUtil";
 import {Logger} from "winston";
 import {WinstonUtil} from "../../utilz/winstonUtil";
-import DateUtil from "../../utilz/dateUtil";
+import {DateUtil} from  "../../utilz/dateUtil";
 import {Wallet} from "ethers";
 import {ArrayUtil} from "../../utilz/arrayUtil";
 import {SolUtil} from "../../utilz/solUtil";
 import {StarkNetUtil} from "../../utilz/starkNetUtil";
+import {PushSdkUtil} from "./pushSdkUtil";
 
 
 export class BlockUtil {
@@ -191,28 +192,31 @@ export class BlockUtil {
     Check.isTrue(initDid.getMasterpubkey() == evmWallet.publicKey,
       `masterPublicKey ${initDid.getMasterpubkey()}
        does not match evmWallet publicKey ${evmWallet.publicKey}`);
-    let tmpBytes = tx.serializeBinary();
+    let tmpBytes = PushSdkUtil.messageBytesToHashBytes(tx.serializeBinary());
     let sig = await EthUtil.signBytes(evmWallet, tmpBytes);
     tx.setSignature(sig);
   }
 
+  // for tests
   public static async signTxEVM(tx: Transaction, evmWallet: Wallet) {
     Check.isTrue(ArrayUtil.isEmpty(tx.getSignature_asU8()), ' clear the signature field first, signature is:' + tx.getSignature());
-    let tmpBytes = tx.serializeBinary();
+    let tmpBytes = PushSdkUtil.messageBytesToHashBytes(tx.serializeBinary());
     let sig = await EthUtil.signBytes(evmWallet, tmpBytes);
     tx.setSignature(sig);
   }
 
+  // for tests
   public static async signTxSolana(tx: Transaction, solanaPrivateKey: Uint8Array) {
     Check.isTrue(ArrayUtil.isEmpty(tx.getSignature_asU8()), ' clear the signature field first, signature is:' + tx.getSignature());
-    let tmpBytes = tx.serializeBinary();
+    let tmpBytes = PushSdkUtil.messageBytesToHashBytes(tx.serializeBinary());
     let sig = SolUtil.signBytes(solanaPrivateKey, tmpBytes);
     tx.setSignature(sig);
   }
 
+  // for tests
   public static async signTxStarkNet(tx: Transaction, starkNetPrivateKey: Uint8Array) {
     Check.isTrue(ArrayUtil.isEmpty(tx.getSignature_asU8()), ' clear the signature field first, signature is:' + tx.getSignature());
-    let tmpBytes = tx.serializeBinary();
+    let tmpBytes = PushSdkUtil.messageBytesToHashBytes(tx.serializeBinary());
     let sig = StarkNetUtil.signBytes(starkNetPrivateKey, tmpBytes);
     tx.setSignature(sig);
   }
@@ -232,17 +236,12 @@ export class BlockUtil {
       tmp.setSignature(null);
       let tmpBytes = tmp.serializeBinary();
 
-      let recoveredAddr = EthUtil.recoverAddressFromMsg(tmpBytes, sig);
-      Check.isTrue(recoveredAddr != null && recoveredAddr.startsWith('0x'), 'invalid recovered addr');
-      recoveredAddr = BitUtil.hex0xRemove(recoveredAddr);
       let initDid = InitDid.deserializeBinary(tx.getData_asU8());
-      const masterPublicKeyBytes = BitUtil.hex0xToBytes(initDid.getMasterpubkey());
-      const masterAddr = EthUtil.convertPubKeyToAddr(masterPublicKeyBytes);
-      const valid = recoveredAddr.toUpperCase() === masterAddr.toUpperCase();
-      this.log.debug('recoveredAddr %s; masterPubKey: %s; valid: %s', StrUtil.fmt(recoveredAddr), StrUtil.fmt(initDid.getMasterpubkey()), valid);
-      if (!valid) {
-        return CheckR.failWithText(`masterpubkey ${initDid.getMasterpubkey()} does not match recovered address ${recoveredAddr} 
-        signature was: ${StrUtil.fmt(`${tx.getSignature()}`)}`);
+      const masterPublicKeyBytesUncompressed = BitUtil.hex0xToBytes(initDid.getMasterpubkey());
+
+      const sigCheck = await PushSdkUtil.checkPushInitDidSignature(masterPublicKeyBytesUncompressed, tmpBytes, sig);
+      if (!sigCheck.success) {
+        return CheckR.failWithText(sigCheck.err);
       }
       return CheckR.ok();
     }
@@ -250,36 +249,10 @@ export class BlockUtil {
     let tmp = Transaction.deserializeBinary(tx.serializeBinary());
     tmp.setSignature(null);
     let tmpBytes = tmp.serializeBinary();
-    if (caip.namespace === 'eip155') {
-      // EVM SIGNATURES
-      const recoveredAddr = EthUtil.recoverAddressFromMsg(tmpBytes, sig);
-      const valid = recoveredAddr === caip.addr;
-      this.log.debug('recoveredAddr %s; valid: %s', StrUtil.fmt(recoveredAddr), valid);
-      if (!valid) {
-        return CheckR.failWithText(`sender address${tx.getSender()} does not match recovered address ${recoveredAddr} 
-        signature was: ${StrUtil.fmt(`${tx.getSignature()}`)}`);
-      }
-    } else if (caip.namespace === 'solana') {
-      // EVM SIGNATURES
-      const expectedPubKey = SolUtil.convertAddrToPubKey(caip.addr);
-      const valid = SolUtil.checkSignature(expectedPubKey, tmpBytes, sig);
-      this.log.debug('expectedPubKey %s; valid: %s', StrUtil.fmt(expectedPubKey), valid);
-      if (!valid) {
-        return CheckR.failWithText(`sender address ${tx.getSender()} does not match  
-        signature: ${StrUtil.fmt(`${tx.getSignature()}`)}`);
-      }
-    } else if (caip.namespace === 'starknet') {
-      return CheckR.failWithText('not suported')
-      // STARKNET SIGNATURES
-      // const expectedPubKey = StarkNetUtil.convertAddrToPubKey(caip.addr);
-      // const valid = StarkNetUtil.checkSignature(expectedPubKey, tmpBytes, sig);
-      // this.log.debug('expectedPubKey %s; valid: %s', StrUtil.fmt(expectedPubKey), valid);
-      // if (!valid) {
-      //   return CheckR.failWithText(`sender address ${tx.getSender()} does not match
-      //   signature: ${StrUtil.fmt(`${tx.getSignature()}`)}`);
-      // }
-    } else {
-      return CheckR.failWithText(`unsupported chain id: ${tx.getSender()}`);
+
+    const sigCheck = await PushSdkUtil.checkPushNetworkSignature(caip.namespace, caip.chainId, caip.addr, tmpBytes, sig);
+    if (!sigCheck.success) {
+      return CheckR.failWithText(sigCheck.err);
     }
     return CheckR.ok();
   }
@@ -312,7 +285,7 @@ export class BlockUtil {
     }
     let validSignature = await BlockUtil.checkTxSignature(tx);
     if (!validSignature.success) {
-      return CheckR.failWithText(`signature field is invalid`);
+      return CheckR.failWithText(validSignature.err);
     }
     return CheckR.ok();
   }

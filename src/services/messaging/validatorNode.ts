@@ -12,7 +12,7 @@ import {FeedItem, FeedItemSig, MessageBlockUtil} from '../messaging-common/messa
 import {WinstonUtil} from '../../utilz/winstonUtil'
 import {RedisClient} from '../messaging-common/redisClient'
 import {Coll} from '../../utilz/coll'
-import DateUtil from '../../utilz/dateUtil'
+import {DateUtil} from  '../../utilz/dateUtil'
 import {QueueManager} from './QueueManager'
 import {Check} from '../../utilz/check'
 import schedule from 'node-schedule'
@@ -271,7 +271,7 @@ export class ValidatorNode implements StorageContractListener {
       const apiClient = new ValidatorClient(vi.url);
       const [patch, attestorErr] = await apiClient.v_attestBlock(blockSignedByVBytes); // todo make parallel
       if (attestorErr != null) {
-        this.log.error('attestor %s failed to attest the block, reason: %s', attesterNodeId, patch);
+        this.log.error('attestor %s failed to attest the block, reason: %s', attesterNodeId, attestorErr);
         throw new Error('failed to sign'); // todo remove
       }
       attestersWhichSignedBlock.push(attesterNodeId);

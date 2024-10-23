@@ -1,7 +1,7 @@
 import {BytesLike, ethers, Wallet} from 'ethers'
 import {verifyMessage} from 'ethers/lib/utils'
 import {ObjectHasher} from './objectHasher'
-import {recoverAddress} from "@ethersproject/transactions";
+import {recoverAddress,computeAddress} from "@ethersproject/transactions";
 import {hashMessage} from "@ethersproject/hash";
 import {BitUtil} from "./bitUtil";
 import {Check} from "./check";
@@ -10,24 +10,19 @@ import {WinstonUtil} from "./winstonUtil";
 import {secp256k1} from "ethereum-cryptography/secp256k1";
 import {keccak256} from "ethereum-cryptography/keccak";
 
-/**
- * Utitily class that allows
- * - to sign objects with an eth private key
- * - to check that signature later
- *
- * Ignores 'signature' properties
- */
 export class EthUtil {
   public static log: Logger = WinstonUtil.newLog(EthUtil);
 
-  // sign object
+  // sign json object
+  // @deprecated
   public static async create(wallet: Wallet, ...objectsToHash: any[]): Promise<string> {
     const ethMessage = ObjectHasher.hashToSha256IgnoreSig(objectsToHash)
     const sig = await wallet.signMessage(ethMessage)
     return sig
   }
 
-  // check object
+  // check json object
+  // @deprecated
   public static check(sig: string, targetWallet: string, ...objectsToHash: any[]): boolean {
     const ethMessage = ObjectHasher.hashToSha256IgnoreSig(objectsToHash)
     const verificationAddress = verifyMessage(ethMessage, sig)
@@ -90,12 +85,12 @@ export class EthUtil {
     return true
   }
 
-  // 0xAAAA == eip155:1:0xAAAAA
+
   public static recoverAddressFromMsg(message: Uint8Array, signature: Uint8Array): string {
     return recoverAddress(hashMessage(message), signature)
   }
 
-  public static recoverAddress(hash: Uint8Array, signature: Uint8Array): string {
+  public static recoverAddressFromHash(hash: Uint8Array, signature: Uint8Array): string {
     return recoverAddress(hash, signature)
   }
 
@@ -122,8 +117,15 @@ export class EthUtil {
     return this.convertPubKeyToAddr(pubKeyUncomp);
   }
 
-  public static convertPubKeyToAddr(publicKeyUncompressed: Uint8Array): string {
+  // first naive version
+  public static convertPubKeyToAddrOld(publicKeyUncompressed: Uint8Array): string {
     const address = keccak256(publicKeyUncompressed.slice(1)).slice(-20);
     return BitUtil.bytesToBase16(address);
+  }
+
+
+  public static convertPubKeyToAddr(publicKeyUncompressed: Uint8Array): string {
+    const address1 = computeAddress(publicKeyUncompressed);
+    return BitUtil.hex0xRemove(address1);
   }
 }

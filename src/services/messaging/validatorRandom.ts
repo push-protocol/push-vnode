@@ -5,7 +5,7 @@ import { NodeInfo, ValidatorContractState } from '../messaging-common/validatorC
 import { ValidatorClient } from './validatorClient'
 import { PromiseUtil } from '../../utilz/promiseUtil'
 import { Logger } from 'winston'
-import DateUtil from '../../utilz/dateUtil'
+import {DateUtil} from  '../../utilz/dateUtil'
 import schedule from 'node-schedule'
 import { PingReply, PingStatus, ValidatorPing } from './validatorPing'
 import { RandomUtil } from '../../utilz/randomUtil'

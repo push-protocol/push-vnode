@@ -1,7 +1,7 @@
 import { Inject, Service } from 'typedi'
 import { Logger } from 'winston'
 import { ValidatorContractState } from '../messaging-common/validatorContractState'
-import DateUtil from '../../utilz/dateUtil'
+import {DateUtil} from  '../../utilz/dateUtil'
 import { ValidatorClient } from './validatorClient'
 import schedule from 'node-schedule'
 import { PromiseUtil } from '../../utilz/promiseUtil'
