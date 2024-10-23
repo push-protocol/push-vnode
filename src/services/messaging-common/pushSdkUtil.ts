@@ -14,7 +14,7 @@ const hexes = /*#__PURE__*/ Array.from({length: 256}, (_v, i) =>
 
 /*
 A utility SDK class which is shared between back and front.
-Provides signature validation logic.
+Provides signature validation logic which should be in sync.
 
 Rules:
 1. Don't use any utility classes
@@ -50,10 +50,11 @@ export class PushSdkUtil {
     } else if (caipNamespace === 'solana') {
       // SOLANA SIGNATURES
       const expectedPubKey = bs58.decode(caipAddr);
-      const valid = nacl.sign.detached.verify(expectedPubKey, hashBytes, sig);
+      const valid = nacl.sign.detached.verify(hashBytes, sig, expectedPubKey);
       if (!valid) {
         return SigCheck.failWithText(`sender address ${caipAddr} does not match with signature: ${sig}`);
       }
+      return SigCheck.ok();
     } else {
       return SigCheck.failWithText(`unsupported chain id: ${caipNamespace}`);
     }
