@@ -290,18 +290,21 @@ export class ValidatorCtClient {
     }
     this.log.info('storage nodes loaded %o', this.snodes)
 
-    const aNodes = await this.contract.getANodes()
-    for (const nodeAddr of aNodes) {
-      const niFromCt = await this.contract.getNodeInfo(nodeAddr)
-      const ni = new NodeInfo(
-        niFromCt.nodeWallet,
-        this.fixNodeUrl(niFromCt.nodeApiBaseUrl),
-        niFromCt.nodeType,
-        niFromCt.status
-      )
-      this.anodes.set(niFromCt.nodeWallet, ni)
+    // turned off unless we will refresh the contract
+    if (EnvLoader.getPropertyAsBool('ARCHIVAL_NODES_ON')) {
+      const aNodes = await this.contract.getANodes()
+      for (const nodeAddr of aNodes) {
+        const niFromCt = await this.contract.getNodeInfo(nodeAddr)
+        const ni = new NodeInfo(
+          niFromCt.nodeWallet,
+          this.fixNodeUrl(niFromCt.nodeApiBaseUrl),
+          niFromCt.nodeType,
+          niFromCt.status
+        )
+        this.anodes.set(niFromCt.nodeWallet, ni)
+      }
+      this.log.info('archival nodes loaded %o', this.anodes)
     }
-    this.log.info('delivery nodes loaded %o', this.anodes)
 
     this.contract.on(
       'NodeAdded',

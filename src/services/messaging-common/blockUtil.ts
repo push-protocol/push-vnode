@@ -18,7 +18,7 @@ import {NumUtil} from "../../utilz/numUtil";
 import {EthUtil} from "../../utilz/ethUtil";
 import {Logger} from "winston";
 import {WinstonUtil} from "../../utilz/winstonUtil";
-import DateUtil from "../../utilz/dateUtil";
+import {DateUtil} from  "../../utilz/dateUtil";
 import {Wallet} from "ethers";
 import {ArrayUtil} from "../../utilz/arrayUtil";
 import {SolUtil} from "../../utilz/solUtil";

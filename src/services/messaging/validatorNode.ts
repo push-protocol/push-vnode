@@ -12,7 +12,7 @@ import {FeedItem, FeedItemSig, MessageBlockUtil} from '../messaging-common/messa
 import {WinstonUtil} from '../../utilz/winstonUtil'
 import {RedisClient} from '../messaging-common/redisClient'
 import {Coll} from '../../utilz/coll'
-import DateUtil from '../../utilz/dateUtil'
+import {DateUtil} from  '../../utilz/dateUtil'
 import {QueueManager} from './QueueManager'
 import {Check} from '../../utilz/check'
 import schedule from 'node-schedule'

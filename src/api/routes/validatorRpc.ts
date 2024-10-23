@@ -10,7 +10,7 @@ import {AttestBlockResult, AttestSignaturesRequest, Signer, TxAttestorData} from
 import {BlockError} from "../../services/messaging/blockError";
 import {ChainUtil} from "../../utilz/chainUtil";
 import {Check} from "../../utilz/check";
-import DateUtil from "../../utilz/dateUtil";
+import {DateUtil} from  "../../utilz/dateUtil";
 
 type RpcResult = {
   result: string;

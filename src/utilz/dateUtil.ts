@@ -1,7 +1,7 @@
 import { DateTime } from 'ts-luxon'
 import {Check} from "./check";
 
-export default class DateUtil {
+export class DateUtil {
   public static readonly MAX_UNIX_TS = Math.floor(new Date('9999-12-31T23:59:59Z').getTime() / 1000);
   public static readonly TIMESTAMP_REGEXP = /^(\d+)$|^(\d+)\.(\d{0,6})$/;
 
