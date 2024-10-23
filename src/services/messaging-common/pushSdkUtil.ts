@@ -2,13 +2,10 @@ import {ethers} from "ethers";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
 import {sha256} from '@noble/hashes/sha256';
-import {keccak256} from "ethereum-cryptography/keccak";
 import util from "util";
 import {getAddress, verifyMessage} from "ethers/lib/utils";
-import {EthUtil} from "../../utilz/ethUtil";
 import {computeAddress} from "@ethersproject/transactions";
 import { bech32m } from 'bech32';
-import {toHex, toHexString} from "starknet";
 
 const hexes = /*#__PURE__*/ Array.from({length: 256}, (_v, i) =>
   i.toString(16).padStart(2, '0'),
@@ -42,7 +39,7 @@ export class PushSdkUtil {
                                                 msgBytes: Uint8Array, sig: Uint8Array): Promise<SigCheck> {
     let hashBytes = this.messageBytesToHashBytes(msgBytes);
     if (caipNamespace === 'push') {
-      // EVM SIGNATURES
+      // PUSH NETWORK SIGNATURES
       const evmAddr = this.pushAddrToEvmAddr(caipAddr);
       const recoveredAddr = ethers.utils.recoverAddress(ethers.utils.hashMessage(hashBytes), sig);
       const valid = recoveredAddr?.toLowerCase() === evmAddr?.toLowerCase();
@@ -73,8 +70,10 @@ export class PushSdkUtil {
 
   /**
    * Converts a Push (bech32m) address to an EVM address
-   * @param address Push address, ex: pushconsumer1ulpxwud78ctaar5zgeuhmju5k8gpz8najcvxkn
-   * @returns EVM address in checksum format, ex: 0xE7C26771bE3E17dE8e8246797DCB94b1D0111E7D
+   * @param address Push address,
+   * ex: pushconsumer1ulpxwud78ctaar5zgeuhmju5k8gpz8najcvxkn
+   * @returns EVM address in checksum format,
+   * ex: 0xE7C26771bE3E17dE8e8246797DCB94b1D0111E7D
    */
   public static pushAddrToEvmAddr(address: string): string {
     const decoded = bech32m.decode(address);
