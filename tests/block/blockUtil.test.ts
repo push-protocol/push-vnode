@@ -147,6 +147,25 @@ async function buildCustomTx1() {
   return t;
 }
 
+async function buildCustomTxRandom() {
+  const data = BitUtil.base16ToBytes(DateUtil.currentTimeMillis().toString(16));
+  console.log(BitUtil.bytesToBase64(data));
+  const t = new Transaction();
+  t.setType(0);
+  t.setCategory('CUSTOM:EMAIL');
+  t.setSender('eip155:1:' + getUserWallet(0).address);
+  t.setRecipientsList(
+    ['eip155:1:' + getUserWallet(1).address,
+      'eip155:1:' + getUserWallet(2).address]);
+  t.setData(data)
+  t.setSalt(IdUtil.getUuidV4AsBytes());
+  const apiToken = 'VT1eyJub2RlcyI6W3sibm9kZUlkIjoiMHhmREFFYWY3YWZDRmJiNGU0ZDE2REM2NmJEMjAzOWZkNjAwNENGY2U4IiwidHNNaWxsaXMiOjE3Mjg2NzEyODAwMjMsInJhbmRvbUhleCI6ImFjM2YzNjg5ZGIyMDllYjhmNDViZWEzNDU5MjRkN2ZlYTZjMTlhNmMiLCJwaW5nUmVzdWx0cyI6W3sibm9kZUlkIjoiMHg4ZTEyZEUxMkMzNWVBQmYzNWI1NmIwNEU1M0M0RTQ2OGU0NjcyN0U4IiwidHNNaWxsaXMiOjE3Mjg2NzEyNTAwMjEsInN0YXR1cyI6MX0seyJub2RlSWQiOiIweDk4RjlEOTEwQWVmOUIzQjlBNDUxMzdhZjFDQTc2NzVlRDkwYTUzNTUiLCJ0c01pbGxpcyI6MTcyODY3MTI1MDAyMSwic3RhdHVzIjoxfV0sInNpZ25hdHVyZSI6IjB4MTA0ZmIwNTEzNTJiYTcxYjM4Zjk5M2ZhNDZiY2U2NGM2ZDMyYzBhZDRlZWYxZTgxODVjZjViMDRmYmVjOGM4YTRmMDhmYzg3MzBjZGI4NDcyMmZkYTIxMDU3MzRkOWU5MGNjMzlmZGE0ZjVkMTYxZjljOWFiNGEyMzIxM2RlZGExYyJ9LHsibm9kZUlkIjoiMHg5OEY5RDkxMEFlZjlCM0I5QTQ1MTM3YWYxQ0E3Njc1ZUQ5MGE1MzU1IiwidHNNaWxsaXMiOjE3Mjg2NzEyODAwMjAsInJhbmRvbUhleCI6Ijk5NTAyYmM4MWQyNWE2NjdlODlmYTZkNmY3ZDBjZmUxNzdmODkyZjMiLCJwaW5nUmVzdWx0cyI6W3sibm9kZUlkIjoiMHg4ZTEyZEUxMkMzNWVBQmYzNWI1NmIwNEU1M0M0RTQ2OGU0NjcyN0U4IiwidHNNaWxsaXMiOjE3Mjg2NzEyNTAwMjIsInN0YXR1cyI6MX0seyJub2RlSWQiOiIweGZEQUVhZjdhZkNGYmI0ZTRkMTZEQzY2YkQyMDM5ZmQ2MDA0Q0ZjZTgiLCJ0c01pbGxpcyI6MTcyODY3MTI1MDAyMSwic3RhdHVzIjoxfV0sInNpZ25hdHVyZSI6IjB4MmRiNjY4MTI5NGY0NGVhMzVmYWUxZGRhODhhMTIyZjk1NTBlNjg4MzIwZGY1MzU1MDJmNjQ1N2U2YmYyNmEwYzIzOGVjNDlkNTFhNGM3MTlmODhhYzEzMWFmOGIyZTcxOTdhOWY4MGQzMDAyYThkOTQ4YzM5YTU4NDgzNTYwYzQxYiJ9LHsibm9kZUlkIjoiMHg4ZTEyZEUxMkMzNWVBQmYzNWI1NmIwNEU1M0M0RTQ2OGU0NjcyN0U4IiwidHNNaWxsaXMiOjE3Mjg2NzEyODAwMjQsInJhbmRvbUhleCI6IjYzYWIxYWU4ZDk0MDNkY2I1NzM4NGZiNzE0NDQyYmIyMmI0NjYxN2UiLCJwaW5nUmVzdWx0cyI6W3sibm9kZUlkIjoiMHhmREFFYWY3YWZDRmJiNGU0ZDE2REM2NmJEMjAzOWZkNjAwNENGY2U4IiwidHNNaWxsaXMiOjE3Mjg2NzEyNTAwMjIsInN0YXR1cyI6MX0seyJub2RlSWQiOiIweDk4RjlEOTEwQWVmOUIzQjlBNDUxMzdhZjFDQTc2NzVlRDkwYTUzNTUiLCJ0c01pbGxpcyI6MTcyODY3MTI1MDAyMiwic3RhdHVzIjoxfV0sInNpZ25hdHVyZSI6IjB4M2Q3ZDAxMzdiNGE0MWNlNDczZTljZjBkNDkzZWE4OTM0YWFhZWIxYThiZGFlNzFlMWYyNTM1MDYxZDc2MjAxMTIyMDY5ZTYzOGU3ZTBkMmNiY2U1MmFiN2I3YzZlMTkwYzJlNWEzM2U1YTVkZjg0ZTJmY2ViZjllZDgwODlkMjgxYyJ9XX0=';
+  t.setApitoken(BitUtil.stringToBytesUtf(apiToken)); // fake token
+  t.setFee("0");
+  await BlockUtil.signTxEVM(t, getUserWallet(0));
+  return t;
+}
+
 
 describe('sample data', async function () {
 
@@ -284,6 +303,15 @@ describe('block tests', function () {
     let parsedT = Transaction.deserializeBinary(tBlob);
     console.log("\n\n\ntx as json (re-parsed)", JSON.stringify(parsedT.toObject()));
     console.log("\n\n\ntx api token as string", StrUtil.fmt(BitUtil.bytesUtfToString(parsedT.getApitoken_asU8())));
+    console.log("\n\n\ntx hash", BitUtil.bytesToBase16(HashUtil.sha256AsBytes(tBlob)));
+
+  })
+  it('sample random transaction', async function () {
+    const t = await buildCustomTxRandom();
+    let tBlob = t.serializeBinary();
+
+    console.log("\n\n\ntx as base16", BitUtil.bytesToBase16(tBlob));
+    console.log("\n\n\ntx as json", JSON.stringify(t.toObject()));
     console.log("\n\n\ntx hash", BitUtil.bytesToBase16(HashUtil.sha256AsBytes(tBlob)));
 
   })
