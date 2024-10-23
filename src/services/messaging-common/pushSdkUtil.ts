@@ -4,9 +4,11 @@ import bs58 from "bs58";
 import {sha256} from '@noble/hashes/sha256';
 import {keccak256} from "ethereum-cryptography/keccak";
 import util from "util";
-import {verifyMessage} from "ethers/lib/utils";
+import {getAddress, verifyMessage} from "ethers/lib/utils";
 import {EthUtil} from "../../utilz/ethUtil";
 import {computeAddress} from "@ethersproject/transactions";
+import { bech32m } from 'bech32';
+import {toHex, toHexString} from "starknet";
 
 const hexes = /*#__PURE__*/ Array.from({length: 256}, (_v, i) =>
   i.toString(16).padStart(2, '0'),
@@ -39,7 +41,16 @@ export class PushSdkUtil {
   public static async checkPushNetworkSignature(caipNamespace: string, caipChainId: string, caipAddr: string,
                                                 msgBytes: Uint8Array, sig: Uint8Array): Promise<SigCheck> {
     let hashBytes = this.messageBytesToHashBytes(msgBytes);
-    if (caipNamespace === 'eip155') {
+    if (caipNamespace === 'push') {
+      // EVM SIGNATURES
+      const evmAddr = this.pushAddrToEvmAddr(caipAddr);
+      const recoveredAddr = ethers.utils.recoverAddress(ethers.utils.hashMessage(hashBytes), sig);
+      const valid = recoveredAddr?.toLowerCase() === evmAddr?.toLowerCase();
+      if (!valid) {
+        return SigCheck.failWithText(`sender address ${caipAddr} does not match recovered address ${recoveredAddr} signature was: ${sig}`);
+      }
+      return SigCheck.ok();
+    } else if (caipNamespace === 'eip155') {
       // EVM SIGNATURES
       const recoveredAddr = ethers.utils.recoverAddress(ethers.utils.hashMessage(hashBytes), sig);
       const valid = recoveredAddr === caipAddr;
@@ -59,6 +70,18 @@ export class PushSdkUtil {
       return SigCheck.failWithText(`unsupported chain id: ${caipNamespace}`);
     }
   }
+
+  /**
+   * Converts a Push (bech32m) address to an EVM address
+   * @param address Push address, ex: pushconsumer1ulpxwud78ctaar5zgeuhmju5k8gpz8najcvxkn
+   * @returns EVM address in checksum format, ex: 0xE7C26771bE3E17dE8e8246797DCB94b1D0111E7D
+   */
+  public static pushAddrToEvmAddr(address: string): string {
+    const decoded = bech32m.decode(address);
+    const bytes = new Uint8Array(bech32m.fromWords(decoded.words));
+    const result = getAddress(this.toHex(bytes));
+    return result;
+  };
 
 
   /**

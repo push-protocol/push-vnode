@@ -285,7 +285,7 @@ export class BlockUtil {
     }
     let validSignature = await BlockUtil.checkTxSignature(tx);
     if (!validSignature.success) {
-      return CheckR.failWithText(`signature field is invalid`);
+      return CheckR.failWithText(validSignature.err);
     }
     return CheckR.ok();
   }
