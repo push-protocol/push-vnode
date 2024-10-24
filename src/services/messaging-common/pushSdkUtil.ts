@@ -104,7 +104,7 @@ export class PushSdkUtil {
    * @returns Push address,
    * ex: pushconsumer1ulpxwud78ctaar5zgeuhmju5k8gpz8najcvxkn
    */
-  public static evmAddrToPushAddr(address: string): string {
+  public static evmAddrToPushAddr(address: string, prefix: string = 'pushconsumer'): string {
     if(address==null || address.length==0){
       throw new Error('address is empty');
     }
@@ -118,7 +118,7 @@ export class PushSdkUtil {
       throw new Error('invalid evm address characters');
     }
     const words = bech32m.toWords(bytes);
-    const bech32Address = bech32m.encode('pushconsumer', words);
+    const bech32Address = bech32m.encode(prefix, words);
     return bech32Address;
   };
 
