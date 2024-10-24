@@ -100,6 +100,7 @@ message AttestorReport {
 // TRANSACTION ---------------------------------------------------------------------------------------------------------
 
 
+// VALIDATION (non-INIT_DID): parseAddress(sender)=extractAddress(recoverPubKey(transaction.signature)))
 message Transaction {
     uint32 type = 1;         // 0 for non-value, 1 for value
     string category = 2;     // INIT_DID, INIT_SESSION_KEY, NOTIF, EMAIL
@@ -123,7 +124,7 @@ message EncryptedText {
     string nonce = 3;
     string version = 4; 
     string preKey = 5;
-  }
+}
 
 message WalletToEncDerivedKey {
     EncryptedText encDerivedPrivKey = 1;
@@ -133,6 +134,8 @@ message WalletToEncDerivedKey {
 // INIT_DID
 
 message InitDid {
+    // VALIDATION1: masterPubKey=recover(transaction.signature)
+    // VALIDATION2: toEvmAddr(masterPubKey)==pushAddrToEvmAddr(tx.sender.address)
     string masterPubKey = 1;
     uint32 derivedKeyIndex = 2;
     string derivedPubKey = 3;
