@@ -24,6 +24,7 @@ Rules:
 export class PushSdkUtil {
 
 
+  // VALIDATION1: masterPubKey=recover(transaction.signature)
   public static async checkPushInitDidSignature(masterPublicKeyUncompressed: Uint8Array, msgBytes: Uint8Array,
                                                 sig: Uint8Array): Promise<SigCheck> {
     const masterAddrStr = computeAddress(masterPublicKeyUncompressed).toLowerCase();
@@ -31,6 +32,20 @@ export class PushSdkUtil {
     let recoverAddrStr = verifyMessage(hashBytes, sig).toLowerCase();
     if (recoverAddrStr !== masterAddrStr) {
       return SigCheck.failWithText(`masterPublicKey address ${masterAddrStr} differs from signature addr ${recoverAddrStr}`);
+    }
+    return SigCheck.ok();
+  }
+
+  // VALIDATION2: toEvmAddress(masterPubKey)==pushAddrToEvmAddr(tx.sender.address)
+  public static async checkPushInitDidSender(caipNamespace: string, caipChainId: string, caipAddr: string,
+                                             masterPublicKeyUncompressed: Uint8Array): Promise<SigCheck> {
+    // PUSH NETWORK SIGNATURES
+    const evmAddr = this.pushAddrToEvmAddr(caipAddr).toLowerCase();
+    const masterEvmAddr = computeAddress(masterPublicKeyUncompressed).toLowerCase();
+    const valid = evmAddr === masterEvmAddr;
+    if (!valid) {
+      return SigCheck.failWithText(`sender address ${caipAddr} does not match master address ${masterEvmAddr} 
+      master public key was: ${masterPublicKeyUncompressed}`);
     }
     return SigCheck.ok();
   }
@@ -82,6 +97,30 @@ export class PushSdkUtil {
     return result;
   };
 
+  /**
+   * Converts an EVM address to a Push (bech32m) address
+   * @param address EVM address in checksum format,
+   * ex: 0xE7C26771bE3E17dE8e8246797DCB94b1D0111E7D
+   * @returns Push address,
+   * ex: pushconsumer1ulpxwud78ctaar5zgeuhmju5k8gpz8najcvxkn
+   */
+  public static evmAddrToPushAddr(address: string, prefix: string = 'pushconsumer'): string {
+    if(address==null || address.length==0){
+      throw new Error('address is empty');
+    }
+    if (address.length != 42 || !address.startsWith('0x')) {
+      throw new Error('invalid evm address length');
+    }
+    const hexString = address.startsWith('0x') ? address.slice(2) : address;
+    const bytes = Buffer.from(hexString, 'hex');
+    const conversionHadNoErrors = hexString.length == 0 || bytes.length == hexString.length / 2;
+    if (!conversionHadNoErrors) {
+      throw new Error('invalid evm address characters');
+    }
+    const words = bech32m.toWords(bytes);
+    const bech32Address = bech32m.encode(prefix, words);
+    return bech32Address;
+  };
 
   /**
    * For some web3 wallet compatibility we cannot sign

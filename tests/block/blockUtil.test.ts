@@ -23,6 +23,7 @@ import {NetworkRandom, NodeRandom, ValidatorRandom} from "../../src/services/mes
 import {ChainUtil} from "../../src/utilz/chainUtil";
 import {SolUtil} from "../../src/utilz/solUtil";
 import {StarkNetUtil} from "../../src/utilz/starkNetUtil";
+import {PushSdkUtil} from "../../src/services/messaging-common/pushSdkUtil";
 
 
 type WalletInfo = {
@@ -123,7 +124,9 @@ async function buildInitDidTx() {
   t.setFee("0"); // tbd
 
   let wallet = getMasterKey();
-  t.setSender('push:1:' + wallet.address); // some push chain address generated;
+  const pushAddr = PushSdkUtil.evmAddrToPushAddr(wallet.address);
+  const pushAddrCaip = 'push:1:' + pushAddr;
+  t.setSender(pushAddrCaip); // some push chain address generated;
   await BlockUtil.signInitDid(t, wallet);
   return t;
 }

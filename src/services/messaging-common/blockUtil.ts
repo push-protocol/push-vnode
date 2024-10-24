@@ -243,6 +243,10 @@ export class BlockUtil {
       if (!sigCheck.success) {
         return CheckR.failWithText(sigCheck.err);
       }
+      const sigCheck2 = await PushSdkUtil.checkPushInitDidSender(caip.namespace, caip.chainId, caip.addr, masterPublicKeyBytesUncompressed);
+      if (!sigCheck2.success) {
+        return CheckR.failWithText(sigCheck2.err);
+      }
       return CheckR.ok();
     }
     let sig = tx.getSignature_asU8();
