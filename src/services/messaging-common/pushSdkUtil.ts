@@ -6,6 +6,7 @@ import util from "util";
 import {getAddress, verifyMessage} from "ethers/lib/utils";
 import {computeAddress} from "@ethersproject/transactions";
 import { bech32m } from 'bech32';
+import crypto from "crypto";
 
 const hexes = /*#__PURE__*/ Array.from({length: 256}, (_v, i) =>
   i.toString(16).padStart(2, '0'),
@@ -24,7 +25,7 @@ Rules:
 export class PushSdkUtil {
 
 
-  // VALIDATION1: masterPubKey=recover(transaction.signature)
+  // VALIDATION1: initDid.masterPubKey=recover(transaction.signature)
   public static async checkPushInitDidSignature(masterPublicKeyUncompressed: Uint8Array, msgBytes: Uint8Array,
                                                 sig: Uint8Array): Promise<SigCheck> {
     const masterAddrStr = computeAddress(masterPublicKeyUncompressed).toLowerCase();
@@ -36,7 +37,7 @@ export class PushSdkUtil {
     return SigCheck.ok();
   }
 
-  // VALIDATION2: toEvmAddress(masterPubKey)==pushAddrToEvmAddr(tx.sender.address)
+  // VALIDATION2: toEvmAddress(initDid.masterPubKey)==pushAddrToEvmAddr(tx.sender.address)
   public static async checkPushInitDidSender(caipNamespace: string, caipChainId: string, caipAddr: string,
                                              masterPublicKeyUncompressed: Uint8Array): Promise<SigCheck> {
     // PUSH NETWORK SIGNATURES
@@ -46,6 +47,33 @@ export class PushSdkUtil {
     if (!valid) {
       return SigCheck.failWithText(`sender address ${caipAddr} does not match master address ${masterEvmAddr} 
       master public key was: ${masterPublicKeyUncompressed}`);
+    }
+    return SigCheck.ok();
+  }
+
+  // VALIDATION3: wallettoencderivedkeyMap: toEvmAddress(key)=recover(value.signature, magicDataWithDid)
+  public static checkPushInitDidWalletMapping(caipNamespace: string, caipChainId: string, caipAddr: string,
+                                              masterPublicKeyUncompressed: Uint8Array,
+                                                    sig: Uint8Array): SigCheck {
+    console.log("caipAddr:", caipAddr);
+    const evmAddr = this.pushAddrToEvmAddr(caipAddr).toLowerCase();
+    console.log("evmAddr:", evmAddr);
+
+    console.log("masterPublicKeyUncompressed: '%s'", Buffer.from(masterPublicKeyUncompressed).toString("hex"));
+    const pubKeySha256 = this.sha256AsBytesEx(masterPublicKeyUncompressed);
+    const pushDid = "PUSH_DID:" + Buffer.from(pubKeySha256).toString("hex");
+    const magicDataWithDid = "Connect Account to " + pushDid;
+    console.log("magicDataWithDid: '%s'", magicDataWithDid);
+    console.log("checking signature: '%s'", Buffer.from(sig).toString("hex"));
+
+
+
+
+    const recoveredAddr = ethers.utils.recoverAddress(ethers.utils.hashMessage(magicDataWithDid), sig).toLowerCase();
+
+    const valid = evmAddr === recoveredAddr;
+    if (!valid) {
+      return SigCheck.failWithText(`INIT_DID wallet address ${caipAddr} (evm ${evmAddr}) does not match signer address ${recoveredAddr}`);
     }
     return SigCheck.ok();
   }
@@ -161,6 +189,13 @@ export class PushSdkUtil {
       hexString = '0' + hexString;
     }
     return hexString.toLowerCase();
+  }
+
+  public static sha256AsBytesEx(data: Uint8Array): Uint8Array {
+    const hasher = crypto.createHash('sha256');
+    hasher.update(data);
+    const hash = hasher.digest();
+    return new Uint8Array(hash);
   }
 }
 

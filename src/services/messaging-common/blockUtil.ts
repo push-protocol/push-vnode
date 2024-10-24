@@ -6,7 +6,7 @@ import {
   Transaction,
   TxAttestorData,
   TxValidatorData,
-  Vote
+  Vote, WalletToEncDerivedKey
 } from "../../generated/push/block_pb";
 import {EnvLoader} from "../../utilz/envLoader";
 import {HashUtil} from "../../utilz/hashUtil";
@@ -18,12 +18,12 @@ import {NumUtil} from "../../utilz/numUtil";
 import {EthUtil} from "../../utilz/ethUtil";
 import {Logger} from "winston";
 import {WinstonUtil} from "../../utilz/winstonUtil";
-import {DateUtil} from  "../../utilz/dateUtil";
+import {DateUtil} from "../../utilz/dateUtil";
 import {Wallet} from "ethers";
 import {ArrayUtil} from "../../utilz/arrayUtil";
 import {SolUtil} from "../../utilz/solUtil";
 import {StarkNetUtil} from "../../utilz/starkNetUtil";
-import {PushSdkUtil} from "./pushSdkUtil";
+import {PushSdkUtil, SigCheck} from "./pushSdkUtil";
 
 
 export class BlockUtil {
@@ -247,6 +247,43 @@ export class BlockUtil {
       if (!sigCheck2.success) {
         return CheckR.failWithText(sigCheck2.err);
       }
+
+      let sigCheck3 = SigCheck.ok();
+      // note: this is the only way to iterate jspb map : map.get() , ...map.entries(), for .. of doesn't work ?
+      initDid.getWallettoencderivedkeyMap().forEach((value: WalletToEncDerivedKey, key: string) => {
+        /*
+        sample data:
+        key: 'push:devnet:push1mhnc6g4vnulz45magupnyu2j6esekr7pqs5jqe' ->
+        value:
+        {
+        encderivedprivkey: {
+          ciphertext: '316d531a984b67895f49c5eb98bc95e30fefaeea91a8f1e735328c6e24cdff2bf0188f628f210464df3cbe72b6c04d2e2738a58480f0e12d06a75dbd203c3937eaff61b01b2685be649a3abcc8dd717be665a62f8178af9bfa612d86a5feb5fa037617bb26d7a5babb5316dc6798191e025a5f3a65d8bd9eb11bf3de35e8df',
+          salt: '0ba0dabffaa01cca26cd13684b378afa9f18f2a9c36e2fb7238782ab8ce25428',
+          nonce: 'b69557a026c9e9315c2dc94f',
+          version: 'push:v5',
+          prekey: '8ef1f7bb8d8897351efa0b4cbc8de8e859388f9df6cf1fe1d0e55ff3c4a722b9'
+        },
+        signature: 'JIdXUPURr8wLhc6O0GUqf7KQfElbkyyrWBXP5qeaReJvt/PmalDPySY57b1vs7IO8GUQRaj8D36A5TumUgcm/xs='
+        }
+         */
+        console.log(key, '->', value.toObject());
+        const [caip, err] = ChainUtil.parseCaipAddress(key);
+        if (err != null) {
+          return CheckR.failWithText('failed to parse caip address: ' + err);
+        }
+        const encryptedTextBytes = value.getEncderivedprivkey().serializeBinary();
+        const check = PushSdkUtil.checkPushInitDidWalletMapping(caip.namespace, caip.chainId, caip.addr,
+          masterPublicKeyBytesUncompressed, value.getSignature_asU8());
+        if (!check.success) {
+          sigCheck3 = check;
+          return;
+        }
+        //end for-each
+      });
+      if (!sigCheck3.success) {
+        return sigCheck3;
+      }
+
       return CheckR.ok();
     }
     let sig = tx.getSignature_asU8();
