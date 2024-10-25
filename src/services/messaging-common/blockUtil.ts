@@ -248,9 +248,12 @@ export class BlockUtil {
         return CheckR.failWithText(sigCheck2.err);
       }
 
-      let sigCheck3 = SigCheck.ok();
-      // note: this is the only way to iterate jspb map : map.get() , ...map.entries(), for .. of doesn't work ?
+
+      let map = new Map<string, WalletToEncDerivedKey>();
       initDid.getWallettoencderivedkeyMap().forEach((value: WalletToEncDerivedKey, key: string) => {
+        map.set(key, value);
+      });
+      for (const [key, value] of map) {
         /*
         sample data:
         key: 'push:devnet:push1mhnc6g4vnulz45magupnyu2j6esekr7pqs5jqe' ->
@@ -266,22 +269,18 @@ export class BlockUtil {
         signature: 'JIdXUPURr8wLhc6O0GUqf7KQfElbkyyrWBXP5qeaReJvt/PmalDPySY57b1vs7IO8GUQRaj8D36A5TumUgcm/xs='
         }
          */
-        console.log(key, '->', value.toObject());
+        console.log('checking mapping for INIT_DID' , key, '->', value.toObject());
         const [caip, err] = ChainUtil.parseCaipAddress(key);
         if (err != null) {
           return CheckR.failWithText('failed to parse caip address: ' + err);
         }
         const encryptedTextBytes = value.getEncderivedprivkey().serializeBinary();
-        const check = PushSdkUtil.checkPushInitDidWalletMapping(caip.namespace, caip.chainId, caip.addr,
+        const check = await PushSdkUtil.checkPushInitDidWalletMapping(caip.namespace, caip.chainId, caip.addr,
           masterPublicKeyBytesUncompressed, value.getSignature_asU8());
         if (!check.success) {
-          sigCheck3 = check;
-          return;
+          console.log('!!!!!!! RESULT IS ', check); // todo RETURN HERE !!!!
+          // return check;
         }
-        //end for-each
-      });
-      if (!sigCheck3.success) {
-        return sigCheck3;
       }
 
       return CheckR.ok();

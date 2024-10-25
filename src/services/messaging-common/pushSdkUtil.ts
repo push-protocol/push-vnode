@@ -5,8 +5,9 @@ import {sha256} from '@noble/hashes/sha256';
 import util from "util";
 import {getAddress, verifyMessage} from "ethers/lib/utils";
 import {computeAddress} from "@ethersproject/transactions";
-import { bech32m } from 'bech32';
+import {bech32m} from 'bech32';
 import crypto from "crypto";
+import {BitUtil} from "../../utilz/bitUtil";
 
 const hexes = /*#__PURE__*/ Array.from({length: 256}, (_v, i) =>
   i.toString(16).padStart(2, '0'),
@@ -51,43 +52,44 @@ export class PushSdkUtil {
     return SigCheck.ok();
   }
 
-  // VALIDATION3: wallettoencderivedkeyMap: toEvmAddress(key)=recover(value.signature, magicDataWithDid)
-  public static checkPushInitDidWalletMapping(caipNamespace: string, caipChainId: string, caipAddr: string,
-                                              masterPublicKeyUncompressed: Uint8Array,
-                                                    sig: Uint8Array): SigCheck {
-    console.log("caipAddr:", caipAddr);
-    const evmAddr = this.pushAddrToEvmAddr(caipAddr).toLowerCase();
-    console.log("evmAddr:", evmAddr);
-
-    console.log("masterPublicKeyUncompressed: '%s'", Buffer.from(masterPublicKeyUncompressed).toString("hex"));
+  // VALIDATION3: wallettoencderivedkeyMap: caipAddr=====recover(value.signature, magicDataWithDid)
+  public static async checkPushInitDidWalletMapping(caipNamespace: string, caipChainId: string, caipAddr: string,
+                                                    masterPublicKeyUncompressed: Uint8Array, sig: Uint8Array): Promise<SigCheck> {
     const pubKeySha256 = this.sha256AsBytesEx(masterPublicKeyUncompressed);
-    const pushDid = "PUSH_DID:" + Buffer.from(pubKeySha256).toString("hex");
+    const pushDid = "PUSH_DID:" + this.toHex(pubKeySha256);
     const magicDataWithDid = "Connect Account to " + pushDid;
+
+    // const inBase16With0x = '0x' + BitUtil.bytesToBase16(BitUtil.stringToBytesUtf(magicDataWithDid));
+    // console.log("inBase16With0x", inBase16With0x);
+
+    // str -> base16 -> 0xAAA -> bytes
+    // const magicDataBytes: Uint8Array = Buffer.from(inBase16With0x, 'utf8');
+    const magicDataBytes: Uint8Array = Buffer.from(magicDataWithDid, 'utf8');
+
+    console.log("masterPublicKeyUncompressed: '%s'", this.toHex(masterPublicKeyUncompressed));
+    console.log("pubKeySha256: '%s'", this.toHex(pubKeySha256));
     console.log("magicDataWithDid: '%s'", magicDataWithDid);
-    console.log("checking signature: '%s'", Buffer.from(sig).toString("hex"));
+    console.log("checking signature: '%s' \nagainst data: '%s' \nto match address: %s",
+      this.toHex(sig), this.toHex(magicDataBytes), caipNamespace + ':' + caipChainId + ':' + caipAddr);
 
-
-
-
-    const recoveredAddr = ethers.utils.recoverAddress(ethers.utils.hashMessage(magicDataWithDid), sig).toLowerCase();
-
-    const valid = evmAddr === recoveredAddr;
-    if (!valid) {
-      return SigCheck.failWithText(`INIT_DID wallet address ${caipAddr} (evm ${evmAddr}) does not match signer address ${recoveredAddr}`);
+    const check = await this.checkPushNetworkSignature(caipNamespace, caipChainId, caipAddr, magicDataBytes, sig, false);
+    if (!check.success) {
+      return SigCheck.failWithText(`INIT_DID wallet address ${caipAddr} does not match signer: ` + check.err);
     }
     return SigCheck.ok();
   }
 
   public static async checkPushNetworkSignature(caipNamespace: string, caipChainId: string, caipAddr: string,
-                                                msgBytes: Uint8Array, sig: Uint8Array): Promise<SigCheck> {
-    let hashBytes = this.messageBytesToHashBytes(msgBytes);
+                                                msgBytes: Uint8Array, sig: Uint8Array, substituteBodyWithHash: boolean = true): Promise<SigCheck> {
+    let hashBytes = substituteBodyWithHash ? this.messageBytesToHashBytes(msgBytes) : msgBytes;
     if (caipNamespace === 'push') {
       // PUSH NETWORK SIGNATURES
       const evmAddr = this.pushAddrToEvmAddr(caipAddr);
       const recoveredAddr = ethers.utils.recoverAddress(ethers.utils.hashMessage(hashBytes), sig);
       const valid = recoveredAddr?.toLowerCase() === evmAddr?.toLowerCase();
       if (!valid) {
-        return SigCheck.failWithText(`sender address ${caipAddr} does not match recovered address ${recoveredAddr} signature was: ${sig}`);
+        return SigCheck.failWithText(`sender address ${caipAddr} does not match recovered address ${recoveredAddr} 
+        signature was: ${this.toHex(sig)}`);
       }
       return SigCheck.ok();
     } else if (caipNamespace === 'eip155') {
@@ -95,7 +97,8 @@ export class PushSdkUtil {
       const recoveredAddr = ethers.utils.recoverAddress(ethers.utils.hashMessage(hashBytes), sig);
       const valid = recoveredAddr === caipAddr;
       if (!valid) {
-        return SigCheck.failWithText(`sender address ${caipAddr} does not match recovered address ${recoveredAddr} signature was: ${sig}`);
+        return SigCheck.failWithText(`sender address ${caipAddr} does not match recovered address ${recoveredAddr} 
+        signature was: ${this.toHex(sig)}`);
       }
       return SigCheck.ok();
     } else if (caipNamespace === 'solana') {
@@ -103,7 +106,8 @@ export class PushSdkUtil {
       const expectedPubKey = bs58.decode(caipAddr);
       const valid = nacl.sign.detached.verify(hashBytes, sig, expectedPubKey);
       if (!valid) {
-        return SigCheck.failWithText(`sender address ${caipAddr} does not match with signature: ${sig}`);
+        return SigCheck.failWithText(`sender address ${caipAddr} does not match with signature: 
+        ${this.toHex(sig)}`);
       }
       return SigCheck.ok();
     } else {
@@ -121,7 +125,7 @@ export class PushSdkUtil {
   public static pushAddrToEvmAddr(address: string): string {
     const decoded = bech32m.decode(address);
     const bytes = new Uint8Array(bech32m.fromWords(decoded.words));
-    const result = getAddress(this.toHex(bytes));
+    const result = getAddress(this.toHex0x(bytes));
     return result;
   };
 
@@ -133,7 +137,7 @@ export class PushSdkUtil {
    * ex: pushconsumer1ulpxwud78ctaar5zgeuhmju5k8gpz8najcvxkn
    */
   public static evmAddrToPushAddr(address: string, prefix: string = 'pushconsumer'): string {
-    if(address==null || address.length==0){
+    if (address == null || address.length == 0) {
       throw new Error('address is empty');
     }
     if (address.length != 42 || !address.startsWith('0x')) {
@@ -167,17 +171,23 @@ export class PushSdkUtil {
    */
   public static messageBytesToHashBytes(payload: Uint8Array): Uint8Array {
     let txSha = sha256(payload); // raw bytes (non ascii)
-    let hexedSha = this.toHex(txSha);
+    let hexedSha = this.toHex0x(txSha);
     const textShaInBytesUtf8 = new util.TextEncoder().encode(hexedSha); // utf-8
     return textShaInBytesUtf8;
   }
+
+  public static toHex0x(value: Uint8Array): string {
+    return '0x' + this.toHex(value);
+  }
+
+  // 0xAA -> Uint8Array
 
   public static toHex(value: Uint8Array): string {
     let string = ''
     for (let i = 0; i < value.length; i++) {
       string += hexes[value[i]]
     }
-    const hex = `0x${string}` as const
+    const hex = `${string}` as const
     return hex
   }
 
