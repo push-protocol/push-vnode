@@ -9,12 +9,17 @@ describe('Messaging validator contract', () => {
 
   it('replace .local with localhost', () => {
     process.env["LOCALH"] = "true";
+    // https + local -> https + localhost
     assert.equal(ValidatorContractState.fixNodeUrl("https://mynode.local"), "https://localhost");
-    process.env["LOCALH"] = "";
-    assert.equal(ValidatorContractState.fixNodeUrl("https://mynode.local"), "https://mynode.local");
+    // http + local -> http + localhost
+    assert.equal(ValidatorContractState.fixNodeUrl("http://mynode.local"), "http://localhost");
   })
 
   it('replace http with https', () => {
+    process.env["LOCALH"] = "";
+    // no .local processing
+    assert.equal(ValidatorContractState.fixNodeUrl("https://mynode.local"), "https://mynode.local");
+    // http -> https
     assert.equal(ValidatorContractState.fixNodeUrl("http://mynode.com"), "https://mynode.com");
   })
 })

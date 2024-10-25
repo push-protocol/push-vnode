@@ -101,12 +101,14 @@ export class ValidatorContractState {
 
     try {
       const urlObj = new URL(nodeUrl);
-      if (urlObj.protocol === "http:") {
-        urlObj.protocol = "https:";
-      }
-      if (EnvLoader.getPropertyAsBool("LOCALH") && !StrUtil.isEmpty(nodeUrl)) {
-        if (urlObj.hostname.endsWith('.local')) {
-          urlObj.hostname = 'localhost';
+      if(!StrUtil.isEmpty(nodeUrl)) {
+        if (EnvLoader.getPropertyAsBool("LOCALH")) {
+          if (urlObj.hostname.endsWith('.local')) {
+            urlObj.hostname = 'localhost';
+          }
+        }
+        if (!EnvLoader.getPropertyAsBool("LOCALH") && urlObj.protocol === "http:") {
+          urlObj.protocol = "https:";
         }
       }
 
