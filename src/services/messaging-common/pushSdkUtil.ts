@@ -57,13 +57,7 @@ export class PushSdkUtil {
                                                     masterPublicKeyUncompressed: Uint8Array, sig: Uint8Array): Promise<SigCheck> {
     const pubKeySha256 = this.sha256AsBytesEx(masterPublicKeyUncompressed);
     const pushDid = "PUSH_DID:" + this.toHex(pubKeySha256);
-    const magicDataWithDid = "Connect Account to " + pushDid;
-
-    // const inBase16With0x = '0x' + BitUtil.bytesToBase16(BitUtil.stringToBytesUtf(magicDataWithDid));
-    // console.log("inBase16With0x", inBase16With0x);
-
-    // str -> base16 -> 0xAAA -> bytes
-    // const magicDataBytes: Uint8Array = Buffer.from(inBase16With0x, 'utf8');
+    const magicDataWithDid = "Connect Account To " + pushDid;
     const magicDataBytes: Uint8Array = Buffer.from(magicDataWithDid, 'utf8');
 
     console.log("masterPublicKeyUncompressed: '%s'", this.toHex(masterPublicKeyUncompressed));
@@ -72,9 +66,11 @@ export class PushSdkUtil {
     console.log("checking signature: '%s' \nagainst data: '%s' \nto match address: %s",
       this.toHex(sig), this.toHex(magicDataBytes), caipNamespace + ':' + caipChainId + ':' + caipAddr);
 
-    const check = await this.checkPushNetworkSignature(caipNamespace, caipChainId, caipAddr, magicDataBytes, sig, false);
-    if (!check.success) {
-      return SigCheck.failWithText(`INIT_DID wallet address ${caipAddr} does not match signer: ` + check.err);
+    const evmAddr = this.pushAddrToEvmAddr(caipAddr);
+    const recoveredAddr = ethers.utils.verifyMessage(magicDataWithDid, sig); // todo try passing a string
+
+    if (evmAddr.toLowerCase() !== recoveredAddr.toLowerCase()) {
+      return SigCheck.failWithText(`INIT_DID wallet address ${caipAddr} does not match signer: `);
     }
     return SigCheck.ok();
   }
