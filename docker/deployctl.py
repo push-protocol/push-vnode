@@ -83,7 +83,7 @@ def deployValidator():
 
     sh('git config credential.helper store', dir_vnode)
     sh('git fetch', dir_vnode)
-    sh('git switch master', dir_vnode)
+    sh('git switch main', dir_vnode)
     sh('git pull', dir_vnode)
     sh('git status', dir_vnode)
     sleep(10)
@@ -107,7 +107,7 @@ def deployStorage():
 
     sh('git config credential.helper store', dir_snode)
     sh('git fetch', dir_snode)
-    sh('git switch master', dir_snode)
+    sh('git switch main', dir_snode)
     sh('git pull', dir_snode)
     sh('git status', dir_snode)
     sleep(10)

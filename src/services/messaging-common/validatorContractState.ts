@@ -101,12 +101,16 @@ export class ValidatorContractState {
 
     try {
       const urlObj = new URL(nodeUrl);
-      if (urlObj.protocol === "http:") {
-        urlObj.protocol = "https:";
-      }
-      if (EnvLoader.getPropertyAsBool("LOCALH") && !StrUtil.isEmpty(nodeUrl)) {
-        if (urlObj.hostname.endsWith('.local')) {
-          urlObj.hostname = 'localhost';
+      if(!StrUtil.isEmpty(nodeUrl)) {
+        const isLocalDocker = urlObj.hostname.endsWith('.local');
+        if (!isLocalDocker && urlObj.protocol === "http:") {
+          urlObj.protocol = "https:";
+        }
+        const replaceLocalDomain = EnvLoader.getPropertyAsBool("LOCALH");
+        if (replaceLocalDomain) {
+          if (urlObj.hostname.endsWith('.local')) {
+            urlObj.hostname = 'localhost';
+          }
         }
       }
 
