@@ -278,8 +278,8 @@ export class BlockUtil {
         const check = await PushSdkUtil.checkPushInitDidWalletMapping(caip.namespace, caip.chainId, caip.addr,
           masterPublicKeyBytesUncompressed, value.getSignature_asU8());
         if (!check.success) {
-          console.log('!!!!!!! RESULT IS ', check); // todo RETURN HERE !!!!
-          // return check;
+          // console.log('!!!!!!! RESULT IS ', check); // todo RETURN HERE !!!!
+          return check;
         }
       }
 
@@ -289,8 +289,8 @@ export class BlockUtil {
     let tmp = Transaction.deserializeBinary(tx.serializeBinary());
     tmp.setSignature(null);
     let tmpBytes = tmp.serializeBinary();
-
-    const sigCheck = await PushSdkUtil.checkPushNetworkSignature(caip.namespace, caip.chainId, caip.addr, tmpBytes, sig);
+    let hashBytes = PushSdkUtil.messageBytesToHashBytes(tmpBytes);
+    const sigCheck = await PushSdkUtil.checkPushNetworkSignature(caip.namespace, caip.chainId, caip.addr, hashBytes, sig);
     if (!sigCheck.success) {
       return CheckR.failWithText(sigCheck.err);
     }

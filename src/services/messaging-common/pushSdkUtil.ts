@@ -7,7 +7,7 @@ import {getAddress, verifyMessage} from "ethers/lib/utils";
 import {computeAddress} from "@ethersproject/transactions";
 import {bech32m} from 'bech32';
 import crypto from "crypto";
-import {BitUtil} from "../../utilz/bitUtil";
+
 
 const hexes = /*#__PURE__*/ Array.from({length: 256}, (_v, i) =>
   i.toString(16).padStart(2, '0'),
@@ -56,32 +56,22 @@ export class PushSdkUtil {
   public static async checkPushInitDidWalletMapping(caipNamespace: string, caipChainId: string, caipAddr: string,
                                                     masterPublicKeyUncompressed: Uint8Array, sig: Uint8Array): Promise<SigCheck> {
     const pubKeySha256 = this.sha256AsBytesEx(masterPublicKeyUncompressed);
-    const pushDid = "PUSH_DID:" + this.toHex(pubKeySha256);
-    const magicDataWithDid = "Connect Account To " + pushDid;
-    const magicDataBytes: Uint8Array = Buffer.from(magicDataWithDid, 'utf8');
-
-    console.log("masterPublicKeyUncompressed: '%s'", this.toHex(masterPublicKeyUncompressed));
-    console.log("pubKeySha256: '%s'", this.toHex(pubKeySha256));
-    console.log("magicDataWithDid: '%s'", magicDataWithDid);
-    console.log("checking signature: '%s' \nagainst data: '%s' \nto match address: %s",
-      this.toHex(sig), this.toHex(magicDataBytes), caipNamespace + ':' + caipChainId + ':' + caipAddr);
-
-    const evmAddr = this.pushAddrToEvmAddr(caipAddr);
-    const recoveredAddr = ethers.utils.verifyMessage(magicDataWithDid, sig); // todo try passing a string
-
-    if (evmAddr.toLowerCase() !== recoveredAddr.toLowerCase()) {
-      return SigCheck.failWithText(`INIT_DID wallet address ${caipAddr} does not match signer: `);
+    const magicDataWithDid = `Connect Account To PUSH_DID:${this.toHex(pubKeySha256)}`;
+    const msgBytes: Uint8Array = Buffer.from(magicDataWithDid, 'utf8');
+    const check = await this.checkPushNetworkSignature(caipNamespace, caipChainId, caipAddr, msgBytes, sig);
+    if (!check.success) {
+      return SigCheck.failWithText(`INIT_DID wallet address ${caipAddr} does not match signer: ` + check.err);
     }
     return SigCheck.ok();
   }
 
   public static async checkPushNetworkSignature(caipNamespace: string, caipChainId: string, caipAddr: string,
-                                                msgBytes: Uint8Array, sig: Uint8Array, substituteBodyWithHash: boolean = true): Promise<SigCheck> {
-    let hashBytes = substituteBodyWithHash ? this.messageBytesToHashBytes(msgBytes) : msgBytes;
+                                                msgBytes: Uint8Array, sig: Uint8Array): Promise<SigCheck> {
+    let hashBytes = msgBytes;
     if (caipNamespace === 'push') {
       // PUSH NETWORK SIGNATURES
       const evmAddr = this.pushAddrToEvmAddr(caipAddr);
-      const recoveredAddr = ethers.utils.recoverAddress(ethers.utils.hashMessage(hashBytes), sig);
+      const recoveredAddr = ethers.utils.verifyMessage(hashBytes, sig);
       const valid = recoveredAddr?.toLowerCase() === evmAddr?.toLowerCase();
       if (!valid) {
         return SigCheck.failWithText(`sender address ${caipAddr} does not match recovered address ${recoveredAddr} 
@@ -90,7 +80,7 @@ export class PushSdkUtil {
       return SigCheck.ok();
     } else if (caipNamespace === 'eip155') {
       // EVM SIGNATURES
-      const recoveredAddr = ethers.utils.recoverAddress(ethers.utils.hashMessage(hashBytes), sig);
+      const recoveredAddr = ethers.utils.verifyMessage(hashBytes, sig);
       const valid = recoveredAddr === caipAddr;
       if (!valid) {
         return SigCheck.failWithText(`sender address ${caipAddr} does not match recovered address ${recoveredAddr} 
