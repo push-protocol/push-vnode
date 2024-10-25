@@ -324,6 +324,11 @@ export class ValidatorNode implements StorageContractListener {
     if (!checkResult.success) {
       throw new BlockError('failed to produce block; self-validation failed for constructed block:' + checkResult.err);
     }
+    let checkResultForSNode = await BlockUtil.checkBlockAsSNode(blockSignedByVA,
+      validatorSet, this.valContractState.contractCli.valPerBlock);
+    if (!checkResultForSNode.success) {
+      throw new BlockError('failed to produce block; self-validation failed for constructed block:' + checkResult.err);
+    }
 
     // ** deliver
     await this.publishFinalizedBlock(blockSignedByVA);

@@ -20,7 +20,7 @@ Provides signature validation logic which should be in sync.
 Rules:
 1. Don't use any utility classes
 2. Only public libs which work in the browser
-3. NO BACKEND DEPENDENCIES: THIS IS FRONT END LIB
+3. NO BACKEND DEPENDENCIES: THIS IS A FRONTEND LIB
 
 */
 export class PushSdkUtil {
