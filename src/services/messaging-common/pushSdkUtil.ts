@@ -55,14 +55,22 @@ export class PushSdkUtil {
   // VALIDATION3: wallettoencderivedkeyMap: caipAddr=====recover(value.signature, magicDataWithDid)
   public static async checkPushInitDidWalletMapping(caipNamespace: string, caipChainId: string, caipAddr: string,
                                                     masterPublicKeyUncompressed: Uint8Array, sig: Uint8Array): Promise<SigCheck> {
-    const pubKeySha256 = this.sha256AsBytesEx(masterPublicKeyUncompressed);
-    const magicDataWithDid = `Connect Account To PUSH_DID:${this.toHex(pubKeySha256)}`;
-    const msgBytes: Uint8Array = Buffer.from(magicDataWithDid, 'utf8');
+    const msgBytes = this.buildConnectAccountString(masterPublicKeyUncompressed);
     const check = await this.checkPushNetworkSignature(caipNamespace, caipChainId, caipAddr, msgBytes, sig);
     if (!check.success) {
       return SigCheck.failWithText(`INIT_DID wallet address ${caipAddr} does not match signer: ` + check.err);
     }
     return SigCheck.ok();
+  }
+
+  /**
+   * This is the string which gets signed on the frontend
+   */
+  public static buildConnectAccountString(masterPublicKeyUncompressed: Uint8Array) {
+    const pubKeySha256 = this.sha256AsBytesEx(masterPublicKeyUncompressed);
+    const magicDataWithDid = `Connect Account To PUSH_DID:${this.toHex(pubKeySha256)}`;
+    const msgBytes: Uint8Array = Buffer.from(magicDataWithDid, 'utf8');
+    return msgBytes;
   }
 
   public static async checkPushNetworkSignature(caipNamespace: string, caipChainId: string, caipAddr: string,

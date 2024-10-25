@@ -274,11 +274,9 @@ export class BlockUtil {
         if (err != null) {
           return CheckR.failWithText('failed to parse caip address: ' + err);
         }
-        const encryptedTextBytes = value.getEncderivedprivkey().serializeBinary();
         const check = await PushSdkUtil.checkPushInitDidWalletMapping(caip.namespace, caip.chainId, caip.addr,
           masterPublicKeyBytesUncompressed, value.getSignature_asU8());
         if (!check.success) {
-          // console.log('!!!!!!! RESULT IS ', check); // todo RETURN HERE !!!!
           return check;
         }
       }
