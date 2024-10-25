@@ -33,7 +33,7 @@ export class PushSdkUtil {
     let hashBytes = this.messageBytesToHashBytes(msgBytes);
     let recoverAddrStr = verifyMessage(hashBytes, sig).toLowerCase();
     if (recoverAddrStr !== masterAddrStr) {
-      return SigCheck.failWithText(`masterPublicKey address ${masterAddrStr} differs from signature addr ${recoverAddrStr}`);
+      return SigCheck.failWithText(`InitDidSignature: masterPublicKey address ${masterAddrStr} differs from signature addr ${recoverAddrStr}`);
     }
     return SigCheck.ok();
   }
@@ -46,7 +46,7 @@ export class PushSdkUtil {
     const masterEvmAddr = computeAddress(masterPublicKeyUncompressed).toLowerCase();
     const valid = evmAddr === masterEvmAddr;
     if (!valid) {
-      return SigCheck.failWithText(`sender address ${caipAddr} does not match master address ${masterEvmAddr} 
+      return SigCheck.failWithText(`InitDidSender: sender address ${caipAddr} does not match master address ${masterEvmAddr} 
       master public key was: ${masterPublicKeyUncompressed}`);
     }
     return SigCheck.ok();
@@ -58,7 +58,7 @@ export class PushSdkUtil {
     const msgBytes = this.buildConnectAccountString(masterPublicKeyUncompressed);
     const check = await this.checkPushNetworkSignature(caipNamespace, caipChainId, caipAddr, msgBytes, sig);
     if (!check.success) {
-      return SigCheck.failWithText(`INIT_DID wallet address ${caipAddr} does not match signer: ` + check.err);
+      return SigCheck.failWithText(`InitDidMapping: wallet address ${caipAddr} does not match signer: ` + check.err);
     }
     return SigCheck.ok();
   }

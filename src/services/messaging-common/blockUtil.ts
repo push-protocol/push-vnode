@@ -239,6 +239,8 @@ export class BlockUtil {
       let initDid = InitDid.deserializeBinary(tx.getData_asU8());
       const masterPublicKeyBytesUncompressed = BitUtil.hex0xToBytes(initDid.getMasterpubkey());
 
+      this.log.debug('checkPushInitDidSignature masterPublicKeyBytesUncompressed=%s, tmpBytes=%s, sig=%s',
+        StrUtil.fmt(masterPublicKeyBytesUncompressed), StrUtil.fmt(tmpBytes), StrUtil.fmt(sig));
       const sigCheck = await PushSdkUtil.checkPushInitDidSignature(masterPublicKeyBytesUncompressed, tmpBytes, sig);
       if (!sigCheck.success) {
         return CheckR.failWithText(sigCheck.err);
