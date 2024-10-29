@@ -74,7 +74,11 @@ export class BlockUtil {
   }
 
   public static hashBlockAsHex(blockRaw: Uint8Array): string {
-    return BitUtil.bytesToBase16(HashUtil.sha256AsBytes(blockRaw));
+    return BitUtil.bytesToBase16(HashUtil.sha256AsBytesEx(blockRaw));
+  }
+
+  public static blockAsHex(blockRaw: Uint8Array): string {
+    return BitUtil.bytesToBase16(blockRaw);
   }
 
   // when the block has not been signed, we still need a valid immutable hash based on tx data
@@ -135,6 +139,11 @@ export class BlockUtil {
   static calculateAffectedShardsTx(tx: Transaction, shardCount: number, shards = new Set<number>()): Set<number> {
     const category = tx.getCategory()
     if (category === 'INIT_DID') {
+      for (let i = 0; i < shardCount; i++) {
+        // init did affects all shards
+        // NOTE: improve later
+        shards.add(i);
+      }
       return shards;
     }
     let senderAndRecipients = [tx.getSender(), ...tx.getRecipientsList()];

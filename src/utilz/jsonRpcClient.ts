@@ -10,7 +10,7 @@ export class JsonRpcClient {
   constructor(public timeout: number, public baseRpcUri: string) {
   }
 
-  public async call<T>(method: string, params: any[], resultDeserializer: (result: any) => T): Promise<Tuple<T, RpcError>> {
+  public async call<T>(method: string, params: object|any[], resultDeserializer: (result: any) => T): Promise<Tuple<T, RpcError>> {
     const url = this.baseRpcUri;
     const requestId = this.requestCounter++;
     const req = {
@@ -67,5 +67,9 @@ export class RpcError {
   constructor(code: number, message: string) {
     this.code = code;
     this.message = message;
+  }
+
+  public toString(): string {
+      return `RpcError - Code: ${this.code}, Message: ${this.message}`;
   }
 }

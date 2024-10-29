@@ -12,7 +12,7 @@ import {FeedItem, FeedItemSig, MessageBlockUtil} from '../messaging-common/messa
 import {WinstonUtil} from '../../utilz/winstonUtil'
 import {RedisClient} from '../messaging-common/redisClient'
 import {Coll} from '../../utilz/coll'
-import {DateUtil} from  '../../utilz/dateUtil'
+import {DateUtil} from '../../utilz/dateUtil'
 import {QueueManager} from './QueueManager'
 import {Check} from '../../utilz/check'
 import schedule from 'node-schedule'
@@ -350,9 +350,55 @@ export class ValidatorNode implements StorageContractListener {
   }
 
 
-  public async publishFinalizedBlock(mb: Block) {
+  public async publishFinalizedBlock(block: Block) {
+    const blockRaw = block.serializeBinary();
+    const blockHashHex = BlockUtil.hashBlockAsHex(blockRaw);
+    const blockHex = BitUtil.bytesToBase16(blockRaw);
+    const affectedShards = BlockUtil.calculateAffectedShards(block, this.storageContractState.shardCount);
+    const affectedNodes = new Set<string>();
+    for (const shardId of affectedShards) {
+      const nodes = this.storageContractState.getStorageNodesForShard(shardId);
+      for (const node of nodes) {
+        affectedNodes.add(node);
+      }
+    }
+    for (const nodeId of affectedNodes) {
+      const nodeInfo = this.valContractState.getStorageNodesMap().get(nodeId)
+      Check.notNull(nodeInfo, 'node info unknown for ' + nodeId);
+      if (!ValidatorContractState.isEnabled(nodeInfo)) {
+        continue;
+      }
+      const nodeBaseUrl = nodeInfo.url
+      if (StrUtil.isEmpty(nodeBaseUrl)) {
+        this.log.error(`node: ${nodeId} has no url in the database`)
+        continue
+      }
+      this.log.debug(`delivering block (hash=%s) to node %s baseUrl=%s`, blockHashHex, nodeId, nodeBaseUrl);
+      const client = new StorageClient(nodeBaseUrl);
+      let [reply1, err] = await client.push_putBlockHash([blockHashHex]);
+      if (err != null) {
+        this.log.error(`Error pushing block hash to node: ${nodeId}, error: ${err.toString()}`);
+        // we do not retry
+        continue;
+      }
+      for (const hashReply of reply1) {
+        if (hashReply !== "SEND") {
+          this.log.error('Ignoring block delivery (DO_NOT_SEND) to node: %s', nodeId);
+          continue;
+        }
+        const [reply2, err] = await client.push_putBlock([blockHex]);
+        if (err != null) {
+          this.log.error(`Error pushing block to node: ${nodeId}`);
+          continue;
+        }
+        this.log.debug('reply: %s', StrUtil.fmt(reply2));
+      }
+    }
+
+
+    // todo remove when anode will get apis
     const queue = this.queueInitializer.getQueue(QueueManager.QUEUE_MBLOCK);
-    let blockBytes = mb.serializeBinary();
+    let blockBytes = block.serializeBinary();
     let blockAsBase16 = BitUtil.bytesToBase16(blockBytes);
     const blockHashAsBase16 = BlockUtil.hashBlockAsHex(blockBytes);
     const insertResult = await queue.accept({
@@ -650,115 +696,6 @@ export class ValidatorNode implements StorageContractListener {
   }
 
 
-  // todo migrate to new storage nodes
-  /*public async getRecord(nsName: string, nsIndex: string, dt: string, key: string): Promise<any> {
-    this.log.debug(`getRecord() nsName=${nsName}, nsIndex=${nsIndex}, dt=${dt}, key=${key}`)
-    // const shardId = DbService.calculateShardForNamespaceIndex(nsName, nsIndex);
-    const shardId = MessageBlockUtil.calculateAffectedShard(
-      nsIndex,
-      this.storageContractState.shardCount
-    )
-    this.log.debug('shardId=%s', shardId)
-    const nodeShards = await this.storageContractState.getStorageNodesForShard(shardId)
-    const nodeIdList = Coll.setToArray(nodeShards)
-
-    const promiseList: Promise<AxiosResponse>[] = []
-    const client = new StorageClient()
-    for (let i = 0; i < nodeIdList.length; i++) {
-      this.log.debug('query')
-      const nodeId = nodeIdList[i]
-      const nodeInfo = this.valContractState.getStorageNodesMap().get(nodeId)
-      Check.notNull(nodeInfo)
-      if (!ValidatorContractState.isEnabled(nodeInfo)) {
-        continue
-      }
-      const nodeBaseUrl = nodeInfo.url
-      if (StrUtil.isEmpty(nodeBaseUrl)) {
-        this.log.error(`node: ${nodeId} has no url in the database`)
-        continue
-      }
-      this.log.debug(`baseUrl=${nodeBaseUrl}`)
-      promiseList.push(client.getRecord(nodeBaseUrl, nsName, nsIndex, dt, key))
-    }
-    const prList = await PromiseUtil.allSettled(promiseList)
-
-    // handle reply
-    const arh = new AggregatedReplyHelper()
-    for (let i = 0; i < nodeIdList.length; i++) {
-      const nodeId = nodeIdList[i]
-      const pr = prList[i]
-      const nodeHttpStatus = pr.isRejected() ? NodeHttpStatus.REPLY_TIMEOUT : pr.val?.status
-      const replyBody = pr.val?.data
-      this.log.debug(`promise: ${pr.status} nodeHttpStatus: ${nodeHttpStatus}`)
-      this.log.debug(`body: ${JSON.stringify(replyBody)}`)
-      arh.oldAppendItems(nodeId, nodeHttpStatus, replyBody)
-    }
-    this.log.debug('internal state %o', arh)
-    const ar = arh.aggregateItems(this.readQuorum)
-    this.log.debug('result %o', arh)
-    return ar
-  }*/
-
-  // todo migrate to new storage nodes
-  // @Post('/ns/:nsName/nsidx/:nsIndex/month/:month/list/')
-  /*public async listRecordsByMonth(
-    nsName: string,
-    nsIndex: string,
-    month: string,
-    firstTs: string
-  ): Promise<any> {
-    this.log.debug(
-      `listRecordsByMonthStartFromTs() nsName=${nsName}, nsIndex=${nsIndex}, month=${month}, firstTs=${firstTs}`
-    )
-    const shardId = MessageBlockUtil.calculateAffectedShard(
-      nsIndex,
-      this.storageContractState.shardCount
-    )
-    this.log.debug('shardId=%s', shardId)
-    const nodeShards = await this.storageContractState.getStorageNodesForShard(shardId)
-    const nodeIdList = Coll.setToArray(nodeShards)
-
-    // todo V2 cache nodeIds and nodeUrls in ram, expire once per minute
-    // todo V2 handle case where n/2+1 list are sync, and rest can be async
-    // todo V2 query only specific amount of nodes
-    const promiseList: Promise<AxiosResponse>[] = []
-    const client = new StorageClient()
-    for (let i = 0; i < nodeIdList.length; i++) {
-      this.log.debug('query')
-      const nodeId = nodeIdList[i]
-      const nodeInfo = this.valContractState.getStorageNodesMap().get(nodeId)
-      Check.notNull(nodeInfo)
-      if (!ValidatorContractState.isEnabled(nodeInfo)) {
-        continue
-      }
-      const nodeBaseUrl = nodeInfo.url
-      if (StrUtil.isEmpty(nodeBaseUrl)) {
-        this.log.error(`node: ${nodeId} has no url in the database`)
-        continue
-      }
-      this.log.debug(`baseUrl=${nodeBaseUrl}`)
-      promiseList.push(client.listRecordsByMonth(nodeBaseUrl, nsName, nsIndex, month, firstTs))
-    }
-    const prList = await PromiseUtil.allSettled(promiseList)
-
-    // handle reply
-    const arh = new AggregatedReplyHelper()
-    for (let i = 0; i < nodeIdList.length; i++) {
-      const nodeId = nodeIdList[i]
-      const pr = prList[i]
-      const nodeHttpStatus = pr.isRejected() ? NodeHttpStatus.REPLY_TIMEOUT : pr.val?.status
-      const replyBody = pr.val?.data
-      this.log.debug(`promise: ${pr.status} nodeHttpStatus: ${nodeHttpStatus}`)
-      this.log.debug(`body: ${JSON.stringify(replyBody)}`)
-      arh.oldAppendItems(nodeId, nodeHttpStatus, replyBody)
-    }
-    this.log.debug('internal state')
-    console.dir(arh)
-    const ar = arh.aggregateItems(this.readQuorum)
-    this.log.debug('result %j', ar)
-    return ar
-  }*/
-
   public async accountInfo(accountInCaip: string) {
     Check.isTrue(ChainUtil.isFullCAIPAddress(accountInCaip), 'non-CAIP address' + accountInCaip);
     const sNodes = Array.from(this.storageContractState.nodeShardMap.keys());
@@ -821,7 +758,7 @@ export class ValidatorNode implements StorageContractListener {
   async getTransactions(accountInCaip: string, category: string, ts: string, sortOrder: string) {
     Check.isTrue(ChainUtil.isFullCAIPAddress(accountInCaip), 'non-CAIP address' + accountInCaip);
     Check.isTrue(category == "INIT_DID" || category.startsWith('CUSTOM:'), 'unsupported category' + category);
-    Check.isTrue(DateUtil.parseUnixFloatOrFail(ts)!=null, 'unsupported timestamp');
+    Check.isTrue(DateUtil.parseUnixFloatOrFail(ts) != null, 'unsupported timestamp');
     Check.isTrue(sortOrder == "ASC" || sortOrder == "DESC", 'unsupported category' + category);
 
 
