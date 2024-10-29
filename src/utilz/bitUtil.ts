@@ -78,6 +78,10 @@ export class BitUtil {
     return result;
   }
 
+  /**
+   * Returns a lowercase base16 string [0-9a-f]*
+   * @param arr array
+   */
   public static bytesToBase16(arr: Uint8Array): string {
     return Buffer.from(arr).toString('hex');
   }

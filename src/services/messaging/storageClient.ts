@@ -4,6 +4,7 @@ import {WinstonUtil} from '../../utilz/winstonUtil'
 import {JsonRpcClient, RpcError} from "../../utilz/jsonRpcClient";
 import {UrlUtil} from "../../utilz/urlUtil";
 import {EnvLoader} from "../../utilz/envLoader";
+import {TypeUtil} from "../../utilz/typeUtil";
 
 export default class StorageClient {
   public log: Logger = WinstonUtil.newLog(StorageClient)
@@ -181,6 +182,63 @@ export default class StorageClient {
         return txInfos;
       });
   }
+
+/*
+REQ
+{
+    "jsonrpc": "2.0",
+    "method": "push_putBlockHash",
+    "params":{
+        "hashes" : ["ccf10ae9371c4636af37b9e86e042ab888b2699e813ae2eb6955ded220abba84"]
+    },
+    "id": 1
+}
+REPLY
+{
+    "jsonrpc": "2.0",
+    "result": {
+        "result": [
+            "SEND"
+        ]
+    },
+    "id": 1
+}
+ */
+  /**
+   * Returns [SEND, SEND, DO_NOT_SEND]
+   * @param blockHashesBase16 lowercase hex hash , i.e. "aaaaaaaaaaa"
+   */
+  public async push_putBlockHash(blockHashesBase16: string[]): Promise<Tuple<HashReply[], RpcError>> {
+    return await this.rpc.call(
+      "push_putBlockHash",
+      {"hashes": blockHashesBase16},
+      (result: any): HashReply[] => {
+        if (result==null || !TypeUtil.isStringArray(result)) {
+          return [];
+        }
+        return result;
+      });
+  }
+
+  public async push_putBlock(blocksBase16: string[]): Promise<Tuple<BlockReply[], RpcError>> {
+    return await this.rpc.call(
+      "push_putBlock",
+      {"blocks": blocksBase16},
+      (result: any): BlockReply[] => {
+        if (!(result instanceof Array)) {
+          return [];
+        }
+        return result.map(value => <BlockReply>value);
+      });
+  }
+
+}
+
+export type HashReply = "SEND"|"DO_NOT_SEND";
+
+export type BlockReply = {
+  status: 'ACCEPTED'|'REJECTED',
+  reason?: string;
 }
 
 export type KeyInfo = {

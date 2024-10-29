@@ -16,12 +16,6 @@ export class HashUtil {
     return shaAsArray;
   }
 
-  public static sha256AsBytes(data: Uint8Array): Uint8Array {
-    const wa = HashUtil.arrayToWordArray(data);
-    const shaAsWordArray = CryptoJS.SHA256(wa);
-    return HashUtil.wordArrayToArray(shaAsWordArray);
-  }
-
   public static sha256ArrayAsBytes(data: Uint8Array[]): Uint8Array {
     const sha256 = CryptoJS.algo.SHA256.create();
     for (const chunk of data) {
@@ -48,5 +42,12 @@ export class HashUtil {
     hasher.update(data);
     const hash = hasher.digest();
     return new Uint8Array(hash);
+  }
+
+  // @Deprecated
+  public static sha256AsBytes(data: Uint8Array): Uint8Array {
+    const wa = HashUtil.arrayToWordArray(data);
+    const shaAsWordArray = CryptoJS.SHA256(wa);
+    return HashUtil.wordArrayToArray(shaAsWordArray);
   }
 }

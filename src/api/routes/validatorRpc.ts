@@ -11,6 +11,7 @@ import {BlockError} from "../../services/messaging/blockError";
 import {ChainUtil} from "../../utilz/chainUtil";
 import {Check} from "../../utilz/check";
 import {DateUtil} from  "../../utilz/dateUtil";
+import {StrUtil} from "../../utilz/strUtil";
 
 type RpcResult = {
   result: string;
@@ -146,6 +147,13 @@ export class ValidatorRpc {
 
   public async push_getTransactions([walletInCaip, category, ts, sortOrder]: [string, string, string, string]) {
     try {
+      if(StrUtil.isEmpty(ts)) {
+        const nowUnix = DateUtil.millisToUnixSeconds(DateUtil.currentTimeMillis());
+        ts = NumUtil.toString(nowUnix);
+      }
+      if(StrUtil.isEmpty(sortOrder)) {
+        sortOrder = "DESC";
+      }
       let result = await this.validatorNode.getTransactions(walletInCaip, category, ts, sortOrder);
       return result;
     } catch (e) {
