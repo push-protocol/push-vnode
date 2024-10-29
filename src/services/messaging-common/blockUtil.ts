@@ -148,6 +148,24 @@ export class BlockUtil {
     return shards;
   }
 
+  static calculateTxAffectedAddresses(block: Block, txIndex: number = null): string[] {
+    let arr = [];
+    if (txIndex == null) {
+      for (let txObj of block.getTxobjList()) {
+        const tx = txObj.getTx();
+        arr.push(tx.getRecipientsList());
+        arr.push(tx.getSender());
+      }
+    } else {
+      const txObj = block.getTxobjList()[txIndex];
+      Check.notNull(txObj, 'invalid txIndex ' + txIndex);
+      const tx = txObj.getTx();
+      arr.push(tx.getRecipientsList());
+      arr.push(tx.getSender());
+    }
+    return arr;
+  }
+
   /**
    * Evaluates all messageBlock target recipients (normally these are addresses)
    * for every included packet
@@ -492,7 +510,7 @@ export class BlockUtil {
     const blockValidatorNodeId = await BlockUtil.recoverSignerAddress(blockSignedByV, 0);
     BlockUtil.log.debug('signature # %s by %s (validator) ', 0, blockValidatorNodeId);
     const allowed = validatorsFromContract.has(blockValidatorNodeId);
-    if(!allowed) {
+    if (!allowed) {
       return CheckR.failWithText(`unregistered validator_: ${blockValidatorNodeId}`);
     }
     return CheckR.ok();
