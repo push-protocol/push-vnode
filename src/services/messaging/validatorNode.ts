@@ -181,7 +181,20 @@ export class ValidatorNode implements StorageContractListener {
     this.totalTransactionBytes += tx.serializeBinary().length;
     this.log.debug(`block contains %d transacitons, totalling as %d bytes`,
       this.currentBlock.getTxobjList().length, this.totalTransactionBytes);
+    this.scheduleTxProcessing();
     return true
+  }
+
+  // todo: extend timer by +200ms if new tx comes,
+  //  but no more than 500ms in total delay from the first tx registered and waiting
+  public scheduleTxProcessing() {
+    let timer: ReturnType<typeof setTimeout> = setTimeout(async () => {
+      try {
+        let b = await this.batchProcessBlock(true);
+      } catch (e) {
+        this.log.error('error', e);
+      }
+    }, 100);
   }
 
 
