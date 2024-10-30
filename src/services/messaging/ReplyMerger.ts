@@ -96,7 +96,7 @@ export class ReplyMerger<T> {
       })
     }
     log.debug(`non200Replies=${goodReplies}`)
-    const r = reply.result
+    const r = reply.summary
     if (goodReplies < minQuorumThreshold) {
       // not enough nodes replies => we can't do anything
       r.quorumResult = QuorumResult.QUORUM_FAILED_NODE_REPLIES
@@ -160,7 +160,7 @@ export class ResultMeta {
 
 export class ReplyGrouped {
   items = []
-  result: ResultMeta = new ResultMeta()
+  summary: ResultMeta = new ResultMeta()
 }
 
 // this is a single record , received from a node/list

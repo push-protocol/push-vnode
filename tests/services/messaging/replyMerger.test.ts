@@ -124,10 +124,10 @@ describe('AppController (e2e)', () => {
     {
       let r = ar.group(2);
       console.log(r);
-      expect(r.result.quorumResult).to.be.equal(QuorumResult.QUORUM_OK);
-      expect(r.result.keysWithoutQuorumCount).to.be.equal(0);
-      expect(r.result.keysWithoutQuorum.length).to.be.equal(0);
-      expect(r.result.itemCount).to.be.equal(2);
+      expect(r.summary.quorumResult).to.be.equal(QuorumResult.QUORUM_OK);
+      expect(r.summary.keysWithoutQuorumCount).to.be.equal(0);
+      expect(r.summary.keysWithoutQuorum.length).to.be.equal(0);
+      expect(r.summary.itemCount).to.be.equal(2);
       expect(r.items).to.be.deep.equal([
         {
           "salt": "key1",
@@ -145,10 +145,10 @@ describe('AppController (e2e)', () => {
     {
       let r = ar.group(3); // no quorum
       console.dir(r);
-      expect(r.result.quorumResult).to.be.equal(QuorumResult.QUORUM_FAILED_NODE_REPLIES);
-      expect(r.result.keysWithoutQuorumCount).to.be.equal(2);
-      expect(r.result.keysWithoutQuorum.length).to.be.equal(2);
-      expect(r.result.itemCount).to.be.equal(0);
+      expect(r.summary.quorumResult).to.be.equal(QuorumResult.QUORUM_FAILED_NODE_REPLIES);
+      expect(r.summary.keysWithoutQuorumCount).to.be.equal(2);
+      expect(r.summary.keysWithoutQuorum.length).to.be.equal(2);
+      expect(r.summary.itemCount).to.be.equal(0);
       expect(r.items.length).to.be.equal(0);
     }
   });
@@ -208,11 +208,11 @@ describe('AppController (e2e)', () => {
     console.dir(ar, {depth: null});
     let r = ar.group(3);
     console.log(r);
-    expect(r.result.quorumResult).to.be.equal(QuorumResult.QUORUM_OK_PARTIAL);
-    expect(r.result.keysWithoutQuorumCount).to.be.equal(2);
-    expect(r.result.keysWithoutQuorum.length).to.be.equal(2);
-    expect(r.result.keysWithoutQuorum).to.be.deep.equal(['key2', 'key3']);
-    expect(r.result.itemCount).to.be.equal(1);
+    expect(r.summary.quorumResult).to.be.equal(QuorumResult.QUORUM_OK_PARTIAL);
+    expect(r.summary.keysWithoutQuorumCount).to.be.equal(2);
+    expect(r.summary.keysWithoutQuorum.length).to.be.equal(2);
+    expect(r.summary.keysWithoutQuorum).to.be.deep.equal(['key2', 'key3']);
+    expect(r.summary.itemCount).to.be.equal(1);
     expect(r.items).to.be.deep.equal([
       {
         "salt": "key1",
@@ -232,11 +232,11 @@ describe('AppController (e2e)', () => {
     console.dir(ar, {depth: null});
     let r = ar.group(3);
     console.log(r);
-    expect(r.result.quorumResult).to.be.equal(QuorumResult.QUORUM_OK);
-    expect(r.result.keysWithoutQuorumCount).to.be.equal(0);
-    expect(r.result.keysWithoutQuorum.length).to.be.equal(0);
-    expect(r.result.keysWithoutQuorum).to.be.deep.equal([]);
-    expect(r.result.itemCount).to.be.equal(0);
+    expect(r.summary.quorumResult).to.be.equal(QuorumResult.QUORUM_OK);
+    expect(r.summary.keysWithoutQuorumCount).to.be.equal(0);
+    expect(r.summary.keysWithoutQuorum.length).to.be.equal(0);
+    expect(r.summary.keysWithoutQuorum).to.be.deep.equal([]);
+    expect(r.summary.itemCount).to.be.equal(0);
     expect(r.items).to.be.deep.equal([]);
   });
 
@@ -250,11 +250,11 @@ describe('AppController (e2e)', () => {
     console.dir(ar, {depth: null});
     let r = ar.group(3);
     console.log(r);
-    expect(r.result.quorumResult).to.be.equal(QuorumResult.QUORUM_FAILED_NODE_REPLIES);
-    expect(r.result.keysWithoutQuorumCount).to.be.equal(0);
-    expect(r.result.keysWithoutQuorum.length).to.be.equal(0);
-    expect(r.result.keysWithoutQuorum).to.be.deep.equal([]);
-    expect(r.result.itemCount).to.be.equal(0);
+    expect(r.summary.quorumResult).to.be.equal(QuorumResult.QUORUM_FAILED_NODE_REPLIES);
+    expect(r.summary.keysWithoutQuorumCount).to.be.equal(0);
+    expect(r.summary.keysWithoutQuorum.length).to.be.equal(0);
+    expect(r.summary.keysWithoutQuorum).to.be.deep.equal([]);
+    expect(r.summary.itemCount).to.be.equal(0);
     expect(r.items).to.be.deep.equal([]);
   });
 
@@ -268,11 +268,11 @@ describe('AppController (e2e)', () => {
     console.dir(ar, {depth: null});
     let r = ar.group(3);
     console.log(r);
-    expect(r.result.quorumResult).to.be.equal(QuorumResult.QUORUM_FAILED_NODE_REPLIES);
-    expect(r.result.keysWithoutQuorumCount).to.be.equal(0);
-    expect(r.result.keysWithoutQuorum.length).to.be.equal(0);
-    expect(r.result.keysWithoutQuorum).to.be.deep.equal([]);
-    expect(r.result.itemCount).to.be.equal(0);
+    expect(r.summary.quorumResult).to.be.equal(QuorumResult.QUORUM_FAILED_NODE_REPLIES);
+    expect(r.summary.keysWithoutQuorumCount).to.be.equal(0);
+    expect(r.summary.keysWithoutQuorum.length).to.be.equal(0);
+    expect(r.summary.keysWithoutQuorum).to.be.deep.equal([]);
+    expect(r.summary.itemCount).to.be.equal(0);
     expect(r.items).to.be.deep.equal([]);
   });
 });
