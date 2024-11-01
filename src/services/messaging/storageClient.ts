@@ -64,86 +64,13 @@ export default class StorageClient {
     return resp
   }
 
-  /*
-  REQ
-  ```
-  {
-      "jsonrpc": "2.0",
-      "method": "get_accountInfo",
-      "params":["eip155:1:0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"],
-      "id": 1
-  }
-  ```
-  REPLY
-  ```
-  {
-      "jsonrpc": "2.0",
-      "result": {
-          "pushKeys": [
-              {
-                  "masterpublickey": "0xBB",
-                  "did": "eip155:1:0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-                  "derivedkeyindex": 1,
-                  "derivedpublickey": "0xCC",
-                  "address": "0xAA",
-                  "encrypteddervivedprivatekey": "{\"ciphertext\":\"qwe\",\"salt\":\"qaz\",\"nonce\":\"\",\"version\":\"push:v5\",\"prekey\":\"\"}",
-                  "signature": "ESIz"
-              }
-          ]
-      },
-      "id": 1
-  }
-  ```
-   */
   public async push_accountInfo(walletInCaip: string): Promise<Tuple<KeyInfo, RpcError>> {
     return await this.rpc.call(
       "push_accountInfo",
       [walletInCaip],
-      (result: any): KeyInfo => result.pushKeys?.[0]);
+      (result: any): KeyInfo => result.pushKeys);
   }
 
-  /*
-  REQUEST
-  {
-        "jsonrpc": "2.0",
-        "method": "storage_getTransactions",
-       "params":["eip155:1:0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC","INIT_DID","1728904874.000", "ASC"],
-      "id": 1
-  }
-
-  REPLY
-
-  {
-      "jsonrpc": "2.0",
-      "result": {
-          "transactions": {
-              "items": [
-                  {
-                      "ns": "INIT_DID",
-                      "skey": "cdYO7MAPTMisiYeEp+65jw==",
-                      "ts": "1729083585.013000",
-                      "payload": {
-                          "fee": "0",
-                          "data": "CgQweEJCEAEaBDB4Q0MiIgoEMHhBQRIaChMKA3F3ZRIDcWF6IgdwdXNoOnY1EgMRIjM=",
-                          "salt": "cdYO7MAPTMisiYeEp+65jw==",
-                          "type": 0,
-                          "sender": "eip155:1:0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-                          "apitoken": "VlQx...gwPQ==",
-                          "category": "INIT_DID",
-                          "signature": "nRXlPQ4sA/hAVT9lpqCaRJEiE/8xRbT1FA6MqLb2Q7dnQ3miLWSyzta5rPp3X9EZXDSz0HLkenMHfJkToHgJpRw=",
-                          "recipientsList": [
-                              "eip155:1:0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-                              "eip155:1:0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
-                          ]
-                      }
-                  }
-              ],
-              "lastTs": "1729083585.013000"
-          }
-      },
-      "id": 1
-  }
-  */
   public async push_getTransactions(accountInCaip: string, category: string, ts: string, sortOrder: string) {
     interface Item {
       ns: string;
@@ -183,27 +110,6 @@ export default class StorageClient {
       });
   }
 
-/*
-REQ
-{
-    "jsonrpc": "2.0",
-    "method": "push_putBlockHash",
-    "params":{
-        "hashes" : ["ccf10ae9371c4636af37b9e86e042ab888b2699e813ae2eb6955ded220abba84"]
-    },
-    "id": 1
-}
-REPLY
-{
-    "jsonrpc": "2.0",
-    "result": {
-        "result": [
-            "SEND"
-        ]
-    },
-    "id": 1
-}
- */
   /**
    * Returns [SEND, SEND, DO_NOT_SEND]
    * @param blockHashesBase16 lowercase hex hash , i.e. "aaaaaaaaaaa"
@@ -248,7 +154,7 @@ export type KeyInfo = {
   derivedPublicKey: string;
   address: string;
   encryptedDerivedPrivateKey: string;
-  signature: string;
+  attachedaccounts: any;
 }
 
 // removed technical fields: signature, apitoken, salt, fee
