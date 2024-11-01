@@ -709,8 +709,8 @@ export class ValidatorNode implements StorageContractListener {
   }
 
 
-  public async accountInfo(accountInCaip: string) {
-    Check.isTrue(ChainUtil.isFullCAIPAddress(accountInCaip), 'non-CAIP address' + accountInCaip);
+  public async accountInfo(caipOrDid: string) {
+    Check.isTrue(ChainUtil.isFullCAIPAddress(caipOrDid) || ChainUtil.isPushDid(caipOrDid), 'non-CAIP address' + caipOrDid);
     const sNodes = Array.from(this.storageContractState.nodeShardMap.keys());
     // query1 = we plan some amount of nodes + some buffer; if this is successfull or the failure rate is less than buffer
     // all the logic would end in O(1) because all queries are parallel
@@ -736,7 +736,7 @@ export class ValidatorNode implements StorageContractListener {
       }
       this.log.debug(`baseUrl=${nodeBaseUrl}`);
       const client = new StorageClient(nodeBaseUrl);
-      promiseList.push(client.push_accountInfo(accountInCaip));
+      promiseList.push(client.push_accountInfo(caipOrDid));
     }
 
     // await them

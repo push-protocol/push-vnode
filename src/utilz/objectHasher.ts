@@ -1,4 +1,4 @@
-const hash = require('object-hash')
+import hash from "object-hash";
 
 /**
  * Allows to build a consistent hash out of a json object

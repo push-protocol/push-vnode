@@ -4,6 +4,8 @@ import {WinstonUtil} from '../../utilz/winstonUtil'
 import {StringCounter} from '../../utilz/stringCounter'
 import {Check} from "../../utilz/check";
 import {Coll} from "../../utilz/coll";
+import {HashUtil} from "../../utilz/hashUtil";
+import {ObjectHasher} from "../../utilz/objectHasher";
 
 export enum NodeHttpStatus {
   REPLY_TIMEOUT = 0
@@ -96,7 +98,7 @@ export class ReplyMerger<T> {
       })
     }
     log.debug(`non200Replies=${goodReplies}`)
-    const r = reply.result
+    const r = reply.summary
     if (goodReplies < minQuorumThreshold) {
       // not enough nodes replies => we can't do anything
       r.quorumResult = QuorumResult.QUORUM_FAILED_NODE_REPLIES
@@ -134,12 +136,12 @@ export class ReplyMerger<T> {
   // alphabetical order for hashing (!)
   public static computeMd5Hash<T>(rec: Rec<T>): string {
     return crypto
-      .createHash('md5')
+      .createHash('sha256')
       .update(rec.skey)
-      .update(JSON.stringify(rec.payload))
+      .update(ObjectHasher.hashToSha256(rec.payload))
       .update(rec.ts + '')
       .digest()
-      .toString('hex')
+      .toString('hex');
   }
 }
 
@@ -160,7 +162,7 @@ export class ResultMeta {
 
 export class ReplyGrouped {
   items = []
-  result: ResultMeta = new ResultMeta()
+  summary: ResultMeta = new ResultMeta()
 }
 
 // this is a single record , received from a node/list

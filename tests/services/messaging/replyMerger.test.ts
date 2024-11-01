@@ -92,20 +92,22 @@ describe('AppController (e2e)', () => {
     expect(agg.items.length).to.be.equal(0);
   });
 
-  it('testaggr-samereply', () => {
+  it('testaggr-samereply WithObjects', () => {
     let ar = new ReplyMerger();
     ar.appendHttpCode('node1', 200);
     ar.appendItem('node1', new Rec({
       "salt": "key1",
       "ts": "1111111111",
       "id": 100,
-      "name": "john1"
+      "name": "john1",
+      "colors" : ["red", "green"],
+      "details" : { count: 100, title: "john1" },
     }));
     ar.appendItem('node1', new Rec({
+      "name": "john2", // flipped order
       "salt": "key2",
       "ts": "1420157966.693000",
       "id": 200,
-      "name": "john2"
     }));
     ar.appendHttpCode('node2', 200);
     ar.appendItem('node2', new Rec({
@@ -118,22 +120,26 @@ describe('AppController (e2e)', () => {
       "salt": "key1",
       "ts": "1111111111",
       "id": 100,
-      "name": "john1"
+      "name": "john1",
+      "colors" : ["red", "green"],
+      "details" : { title: "john1" , count: 100}, // flipped field order
     }));
     console.dir(ar, {depth: null});
     {
       let r = ar.group(2);
       console.log(r);
-      expect(r.result.quorumResult).to.be.equal(QuorumResult.QUORUM_OK);
-      expect(r.result.keysWithoutQuorumCount).to.be.equal(0);
-      expect(r.result.keysWithoutQuorum.length).to.be.equal(0);
-      expect(r.result.itemCount).to.be.equal(2);
+      expect(r.summary.quorumResult).to.be.equal(QuorumResult.QUORUM_OK);
+      expect(r.summary.keysWithoutQuorumCount).to.be.equal(0);
+      expect(r.summary.keysWithoutQuorum.length).to.be.equal(0);
+      expect(r.summary.itemCount).to.be.equal(2);
       expect(r.items).to.be.deep.equal([
         {
           "salt": "key1",
           "ts": "1111111111",
           "id": 100,
-          "name": "john1"
+          "name": "john1",
+          "colors" : ["red", "green"],
+          "details" : { count: 100, title: "john1" },
         },
         {
           "salt": "key2",
@@ -145,15 +151,15 @@ describe('AppController (e2e)', () => {
     {
       let r = ar.group(3); // no quorum
       console.dir(r);
-      expect(r.result.quorumResult).to.be.equal(QuorumResult.QUORUM_FAILED_NODE_REPLIES);
-      expect(r.result.keysWithoutQuorumCount).to.be.equal(2);
-      expect(r.result.keysWithoutQuorum.length).to.be.equal(2);
-      expect(r.result.itemCount).to.be.equal(0);
+      expect(r.summary.quorumResult).to.be.equal(QuorumResult.QUORUM_FAILED_NODE_REPLIES);
+      expect(r.summary.keysWithoutQuorumCount).to.be.equal(2);
+      expect(r.summary.keysWithoutQuorum.length).to.be.equal(2);
+      expect(r.summary.itemCount).to.be.equal(0);
       expect(r.items.length).to.be.equal(0);
     }
   });
 
-  it('testaggr-diffreply', () => {
+  it('testaggr-diffreply-WithObjects', () => {
     let ar = new ReplyMerger();
     // for quorum = 3
     // key1 = quorum-ok, key2 = quorum-by-time-fail, key3 = quorum by not enough replies
@@ -208,11 +214,11 @@ describe('AppController (e2e)', () => {
     console.dir(ar, {depth: null});
     let r = ar.group(3);
     console.log(r);
-    expect(r.result.quorumResult).to.be.equal(QuorumResult.QUORUM_OK_PARTIAL);
-    expect(r.result.keysWithoutQuorumCount).to.be.equal(2);
-    expect(r.result.keysWithoutQuorum.length).to.be.equal(2);
-    expect(r.result.keysWithoutQuorum).to.be.deep.equal(['key2', 'key3']);
-    expect(r.result.itemCount).to.be.equal(1);
+    expect(r.summary.quorumResult).to.be.equal(QuorumResult.QUORUM_OK_PARTIAL);
+    expect(r.summary.keysWithoutQuorumCount).to.be.equal(2);
+    expect(r.summary.keysWithoutQuorum.length).to.be.equal(2);
+    expect(r.summary.keysWithoutQuorum).to.be.deep.equal(['key2', 'key3']);
+    expect(r.summary.itemCount).to.be.equal(1);
     expect(r.items).to.be.deep.equal([
       {
         "salt": "key1",
@@ -232,11 +238,11 @@ describe('AppController (e2e)', () => {
     console.dir(ar, {depth: null});
     let r = ar.group(3);
     console.log(r);
-    expect(r.result.quorumResult).to.be.equal(QuorumResult.QUORUM_OK);
-    expect(r.result.keysWithoutQuorumCount).to.be.equal(0);
-    expect(r.result.keysWithoutQuorum.length).to.be.equal(0);
-    expect(r.result.keysWithoutQuorum).to.be.deep.equal([]);
-    expect(r.result.itemCount).to.be.equal(0);
+    expect(r.summary.quorumResult).to.be.equal(QuorumResult.QUORUM_OK);
+    expect(r.summary.keysWithoutQuorumCount).to.be.equal(0);
+    expect(r.summary.keysWithoutQuorum.length).to.be.equal(0);
+    expect(r.summary.keysWithoutQuorum).to.be.deep.equal([]);
+    expect(r.summary.itemCount).to.be.equal(0);
     expect(r.items).to.be.deep.equal([]);
   });
 
@@ -250,11 +256,11 @@ describe('AppController (e2e)', () => {
     console.dir(ar, {depth: null});
     let r = ar.group(3);
     console.log(r);
-    expect(r.result.quorumResult).to.be.equal(QuorumResult.QUORUM_FAILED_NODE_REPLIES);
-    expect(r.result.keysWithoutQuorumCount).to.be.equal(0);
-    expect(r.result.keysWithoutQuorum.length).to.be.equal(0);
-    expect(r.result.keysWithoutQuorum).to.be.deep.equal([]);
-    expect(r.result.itemCount).to.be.equal(0);
+    expect(r.summary.quorumResult).to.be.equal(QuorumResult.QUORUM_FAILED_NODE_REPLIES);
+    expect(r.summary.keysWithoutQuorumCount).to.be.equal(0);
+    expect(r.summary.keysWithoutQuorum.length).to.be.equal(0);
+    expect(r.summary.keysWithoutQuorum).to.be.deep.equal([]);
+    expect(r.summary.itemCount).to.be.equal(0);
     expect(r.items).to.be.deep.equal([]);
   });
 
@@ -268,11 +274,11 @@ describe('AppController (e2e)', () => {
     console.dir(ar, {depth: null});
     let r = ar.group(3);
     console.log(r);
-    expect(r.result.quorumResult).to.be.equal(QuorumResult.QUORUM_FAILED_NODE_REPLIES);
-    expect(r.result.keysWithoutQuorumCount).to.be.equal(0);
-    expect(r.result.keysWithoutQuorum.length).to.be.equal(0);
-    expect(r.result.keysWithoutQuorum).to.be.deep.equal([]);
-    expect(r.result.itemCount).to.be.equal(0);
+    expect(r.summary.quorumResult).to.be.equal(QuorumResult.QUORUM_FAILED_NODE_REPLIES);
+    expect(r.summary.keysWithoutQuorumCount).to.be.equal(0);
+    expect(r.summary.keysWithoutQuorum.length).to.be.equal(0);
+    expect(r.summary.keysWithoutQuorum).to.be.deep.equal([]);
+    expect(r.summary.itemCount).to.be.equal(0);
     expect(r.items).to.be.deep.equal([]);
   });
 });
