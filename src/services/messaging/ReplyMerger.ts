@@ -4,6 +4,8 @@ import {WinstonUtil} from '../../utilz/winstonUtil'
 import {StringCounter} from '../../utilz/stringCounter'
 import {Check} from "../../utilz/check";
 import {Coll} from "../../utilz/coll";
+import {HashUtil} from "../../utilz/hashUtil";
+import {ObjectHasher} from "../../utilz/objectHasher";
 
 export enum NodeHttpStatus {
   REPLY_TIMEOUT = 0
@@ -134,12 +136,12 @@ export class ReplyMerger<T> {
   // alphabetical order for hashing (!)
   public static computeMd5Hash<T>(rec: Rec<T>): string {
     return crypto
-      .createHash('md5')
+      .createHash('sha256')
       .update(rec.skey)
-      .update(JSON.stringify(rec.payload))
+      .update(ObjectHasher.hashToSha256(rec.payload))
       .update(rec.ts + '')
       .digest()
-      .toString('hex')
+      .toString('hex');
   }
 }
 

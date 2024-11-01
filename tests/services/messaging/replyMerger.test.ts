@@ -92,20 +92,22 @@ describe('AppController (e2e)', () => {
     expect(agg.items.length).to.be.equal(0);
   });
 
-  it('testaggr-samereply', () => {
+  it('testaggr-samereply WithObjects', () => {
     let ar = new ReplyMerger();
     ar.appendHttpCode('node1', 200);
     ar.appendItem('node1', new Rec({
       "salt": "key1",
       "ts": "1111111111",
       "id": 100,
-      "name": "john1"
+      "name": "john1",
+      "colors" : ["red", "green"],
+      "details" : { count: 100, title: "john1" },
     }));
     ar.appendItem('node1', new Rec({
+      "name": "john2", // flipped order
       "salt": "key2",
       "ts": "1420157966.693000",
       "id": 200,
-      "name": "john2"
     }));
     ar.appendHttpCode('node2', 200);
     ar.appendItem('node2', new Rec({
@@ -118,7 +120,9 @@ describe('AppController (e2e)', () => {
       "salt": "key1",
       "ts": "1111111111",
       "id": 100,
-      "name": "john1"
+      "name": "john1",
+      "colors" : ["red", "green"],
+      "details" : { title: "john1" , count: 100}, // flipped field order
     }));
     console.dir(ar, {depth: null});
     {
@@ -133,7 +137,9 @@ describe('AppController (e2e)', () => {
           "salt": "key1",
           "ts": "1111111111",
           "id": 100,
-          "name": "john1"
+          "name": "john1",
+          "colors" : ["red", "green"],
+          "details" : { count: 100, title: "john1" },
         },
         {
           "salt": "key2",
@@ -153,7 +159,7 @@ describe('AppController (e2e)', () => {
     }
   });
 
-  it('testaggr-diffreply', () => {
+  it('testaggr-diffreply-WithObjects', () => {
     let ar = new ReplyMerger();
     // for quorum = 3
     // key1 = quorum-ok, key2 = quorum-by-time-fail, key3 = quorum by not enough replies
