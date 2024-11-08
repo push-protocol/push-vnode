@@ -375,40 +375,12 @@ export class ValidatorNode implements StorageContractListener {
         affectedNodes.add(node);
       }
     }
+    // todo: send batches of blocks to every node; if an optimized version is needed; api allows this;
+    const retryCount = EnvLoader.getPropertyAsNumber("SEND_BLOCK_RETRY_COUNT", 2);
+    const retryDelay = EnvLoader.getPropertyAsNumber("SEND_BLOCK_RETRY_DELAY", 5000);
     for (const nodeId of affectedNodes) {
-      const nodeInfo = this.valContractState.getStorageNodesMap().get(nodeId)
-      Check.notNull(nodeInfo, 'node info unknown for ' + nodeId);
-      if (!ValidatorContractState.isEnabled(nodeInfo)) {
-        continue;
-      }
-      const nodeBaseUrl = nodeInfo.url
-      if (StrUtil.isEmpty(nodeBaseUrl)) {
-        this.log.error(`node: ${nodeId} has no url in the database`)
-        continue
-      }
-      this.log.debug(`delivering block (hash=%s) to node %s baseUrl=%s`, blockHashHex, nodeId, nodeBaseUrl);
-      const client = new StorageClient(nodeBaseUrl);
-      let [reply1, err] = await client.push_putBlockHash([blockHashHex]);
-      if (err != null) {
-        this.log.error(`Error pushing block hash to node: ${nodeId}, error: ${err.toString()}`);
-        // we do not retry
-        continue;
-      }
-      for (const hashReply of reply1) {
-        if (hashReply !== "SEND") {
-          this.log.error('Ignoring block delivery (DO_NOT_SEND) to node: %s', nodeId);
-          continue;
-        }
-        const [reply2, err] = await client.push_putBlock([blockHex]);
-        if (err != null) {
-          this.log.error(`Error pushing block to node: ${nodeId}`);
-          continue;
-        }
-        this.log.debug('reply: %s', StrUtil.fmt(reply2));
-      }
+      await this.sendBlockToNodeWithRetries(nodeId, blockHashHex, blockHex, retryDelay, retryCount);
     }
-
-
     // todo remove when anode will get apis
     const queue = this.queueInitializer.getQueue(QueueManager.QUEUE_MBLOCK);
     let blockBytes = block.serializeBinary();
@@ -421,7 +393,52 @@ export class ValidatorNode implements StorageContractListener {
     this.log.debug(`published message block ${blockHashAsBase16} success: ${insertResult}`)
   }
 
-  // ------------------------------ ATTESTOR -----------------------------------------
+  // only 1st send in synchronous; retries are async
+  private async sendBlockToNodeWithRetries(nodeId: string, blockHashHex: string, blockHex: string, retryDelay: number, retriesLeft: number): Promise<void> {
+    const res = await this.sendBlockToNode(nodeId, blockHashHex, blockHex);
+    if (res === NodeSendResult.ERROR_CAN_RETRY && retriesLeft > 0) {
+      setTimeout(() => {
+        this.sendBlockToNodeWithRetries(nodeId, blockHashHex, blockHex, retryDelay, retriesLeft - 1);
+      }, retryDelay);
+    }
+  }
+
+  private async sendBlockToNode(nodeId: string, blockHashHex: string, blockHex: string): Promise<NodeSendResult> {
+    const nodeInfo = this.valContractState.getStorageNodesMap().get(nodeId)
+    Check.notNull(nodeInfo, 'node info unknown for ' + nodeId);
+    if (!ValidatorContractState.isEnabled(nodeInfo)) {
+      return NodeSendResult.DO_NOT_RETRY;
+    }
+    const nodeBaseUrl = nodeInfo.url;
+    if (StrUtil.isEmpty(nodeBaseUrl)) {
+      this.log.error(`node: ${nodeId} has no url in the database`)
+      return NodeSendResult.DO_NOT_RETRY;
+    }
+    this.log.debug(`delivering block (hash=%s) to node %s baseUrl=%s`, blockHashHex, nodeId, nodeBaseUrl);
+    const client = new StorageClient(nodeBaseUrl);
+    let [reply1, err] = await client.push_putBlockHash([blockHashHex]);
+    if (err != null) {
+      this.log.error(`Error pushing block hash to node: ${nodeId}, error: ${err.toString()}`);
+      return NodeSendResult.ERROR_CAN_RETRY;
+    }
+    if (reply1 == null || reply1.length == 0) {
+      return NodeSendResult.ERROR_CAN_RETRY;
+    }
+    const hashReply = reply1[0];
+    if (hashReply !== "SEND") {
+      this.log.error('Ignoring block delivery (DO_NOT_SEND) to node: %s', nodeId);
+      return NodeSendResult.DO_NOT_RETRY;
+    }
+    const [reply2, err2] = await client.push_putBlock([blockHex]);
+    if (err2 != null) {
+      this.log.error(`Error pushing block to node: ${nodeId}`);
+      return NodeSendResult.ERROR_CAN_RETRY;
+    }
+    this.log.debug('reply: %s', StrUtil.fmt(reply2));
+    return NodeSendResult.SENT;
+  }
+
+// ------------------------------ ATTESTOR -----------------------------------------
 
   /**
    * for every transaction: check v signaturee + check conversion results
@@ -435,6 +452,11 @@ export class ValidatorNode implements StorageContractListener {
       this.valContractState.getActiveValidators().map((ni) => ni.nodeId)
     )
     let blockSignedByV = BlockUtil.parseBlock(blockSignedByVBytes);
+    if (blockSignedByV.getTxobjList().length >= BlockUtil.MAX_TRANSACTIONS_PER_BLOCK) {
+      for (const b of blockSignedByV.getTxobjList()) {
+
+      }
+    }
     this.log.debug('attestBlock(): received blockSignedByVBytes: %s', BitUtil.bytesToBase16(blockSignedByVBytes));
     this.log.debug('attestBlock(): received blockSignedByV: %o', blockSignedByV.toObject());
     const check1 = await BlockUtil.checkBlockAsAttestor(blockSignedByV, activeValidators);
@@ -868,6 +890,12 @@ export class VoteDataV {
     const abi = ethers.utils.defaultAbiCoder
     return abi.encode(['uint8', 'uint128', 'address'], [1, vt.blockId, vt.targetNode])
   }
+}
+
+export enum NodeSendResult {
+  SENT,
+  ERROR_CAN_RETRY,
+  DO_NOT_RETRY
 }
 
 
