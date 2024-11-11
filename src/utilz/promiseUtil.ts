@@ -35,7 +35,26 @@ export class PromiseUtil {
         return deferred;
     }
 
+    public static setTimeoutEx(ms?: number, cb?: (...args: unknown[]) => unknown, ...args: unknown[]): PromiseWithAbort {
+        let timeout: NodeJS.Timeout;
 
+        // *** Add `abort` to the promise before assigning to `promise`
+        const promise = Object.assign(
+          new Promise((resolve, reject) => {
+              timeout = setTimeout(() => { // *** No need for `async`
+                  try {
+                      resolve(cb?.(...args)); // *** No need for `await`, just resolve the promise to `cb`'s promise
+                  } catch (error) {
+                      reject(error);
+                  }
+              }, ms);
+          }), {
+              abort: () => clearTimeout(timeout)
+          }
+        );
+
+        return promise;
+    }
 }
 
 export enum PromiseResultType {
@@ -88,5 +107,9 @@ export class DeferredPromise<T> {
     promise: Promise<T>;
     resolve: Function;
     reject: Function;
+}
+
+interface PromiseWithAbort extends Promise<unknown> {
+    abort: () => void
 }
 
