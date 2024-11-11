@@ -47,7 +47,8 @@ import {ChainUtil} from "../../utilz/chainUtil";
 export class ValidatorNode implements StorageContractListener {
   public log: Logger = WinstonUtil.newLog(ValidatorNode);
 
-  private readonly ADD_PAYLOAD_BLOCKING_TIMEOUT = 45000
+  private static readonly BLOCK_BUFFER_DELAY = EnvLoader.getPropertyAsNumber("BLOCK_BUFFER_DELAY", 200);
+  private readonly TX_BLOCKING_API_MAX_TIMEOUT = 45000
 
   // percentage of node to read (from the total active count of snodes)
   private readonly READ_QUORUM_PERC_INITDID = 0.51;
@@ -55,8 +56,6 @@ export class ValidatorNode implements StorageContractListener {
   private readonly READ_QUORUM_PERC = 0.6;
   // how many nodes to add for safety on top of READ_QUORUM_PERC
   private readonly READ_QUORUM_REDUNDANCY = 1;
-
-  private readonly BLOCK_SCHEDULE = EnvLoader.getPropertyOrDefault("BLOCK_SCHEDULE", '*/15 * * * * *');
 
   @Inject()
   private valContractState: ValidatorContractState
@@ -81,14 +80,13 @@ export class ValidatorNode implements StorageContractListener {
 
   // state
   // block (cleared on every cron event)
-  private currentBlock: Block;
+  private currentBlock: Block = null;
   // total serialized length of all transactions; used as a watermark (cleared on every cron event)
   private totalTransactionBytes: number;
+
+  private blockTimeout:NodeJS.Timeout = null;
   // objects used to wait on block
   private blockMonitors: Map<string, WaitNotify> = new Map<string, WaitNotify>()
-
-  // private readQuorum = 2
-  // private writeQuorum = 2
 
   constructor() {
   }
@@ -110,13 +108,6 @@ export class ValidatorNode implements StorageContractListener {
     this.log.debug(`done loading eth config, using wallet %s`, this.nodeId)
     this.validatorPing.postConstruct()
     this.random.postConstruct()
-    const cronJob = schedule.scheduleJob(this.BLOCK_SCHEDULE, async () => {
-      try {
-        await this.batchProcessBlock(true)
-      } catch (e) {
-        this.log.error('error %o', e);
-      }
-    })
   }
 
   // ------------------------------ VALIDATOR -----------------------------------------
@@ -181,20 +172,30 @@ export class ValidatorNode implements StorageContractListener {
     this.totalTransactionBytes += tx.serializeBinary().length;
     this.log.debug(`block contains %d transacitons, totalling as %d bytes`,
       this.currentBlock.getTxobjList().length, this.totalTransactionBytes);
-    this.scheduleTxProcessing();
+    this.tryScheduleBlock();
     return true
   }
 
   // todo: extend timer by +200ms if new tx comes,
   //  but no more than 500ms in total delay from the first tx registered and waiting
-  public scheduleTxProcessing() {
-    let timer: ReturnType<typeof setTimeout> = setTimeout(async () => {
+
+  public tryScheduleBlock() {
+    if (this.blockTimeout != null) {
+      // we have already scheduled the batch processing
+      // the timer is on
+      // no need to add one more
+      this.log.debug("BLOCK: a block is already scheduled")
+      return;
+    }
+    this.log.debug("BLOCK: scheduling new block in %s ms", ValidatorNode.BLOCK_BUFFER_DELAY)
+    this.blockTimeout = setTimeout(async () => {
       try {
+        this.log.debug("BLOCK: producing a block")
         let b = await this.batchProcessBlock(true);
       } catch (e) {
         this.log.error('error', e);
       }
-    }, 100);
+    }, ValidatorNode.BLOCK_BUFFER_DELAY);
   }
 
 
@@ -211,7 +212,7 @@ export class ValidatorNode implements StorageContractListener {
     if (!success) {
       return null;
     }
-    await monitor.wait(this.ADD_PAYLOAD_BLOCKING_TIMEOUT); // block until processBlock()
+    await monitor.wait(this.TX_BLOCKING_API_MAX_TIMEOUT); // block until processBlock()
     return txHash;
   }
 
@@ -248,6 +249,7 @@ export class ValidatorNode implements StorageContractListener {
     // replace it with a new empty block
     this.currentBlock = new Block();
     this.blockMonitors = new Map<string, WaitNotify>();
+    this.blockTimeout = null; // allow new timer to get registered
 
 
     // ** populate block
