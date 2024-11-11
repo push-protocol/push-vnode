@@ -23,6 +23,9 @@ import {QueueManager} from "./services/messaging/QueueManager";
 import v8 from "v8";
 
 import util from "util";
+import {ReflUtil} from "./utilz/reflUtil";
+import {StrUtil} from "./utilz/strUtil";
+import winston from "winston";
 
 let server: Server;
 let log = WinstonUtil.newLog("SERVER");
@@ -131,18 +134,34 @@ export function initRoutes(app: Application) {
   // app.use(notFoundMiddleware)
 }
 
+// todo think which methods should not be logged for security reasons
+// todo perf considerations (!) for logging ;
+// todo for logging = off, the gc overhead should be minimal (!)
+function createBeforeAndAfterLoggingController(log: winston.Logger, object): [object, object] {
+  const beforeController = {};
+  const afterController = {};
+  let methodNames = ReflUtil.getMethodNames(object);
+  for (const method of methodNames) {
+    beforeController[method] = function (params: any, _: any, raw: any) {
+      log.debug(`>>> Calling ${method}( `, StrUtil.fmt(params), `)`);
+    };
+    afterController[method] = [
+      function (params: any, result: any, raw: any) {
+        log.debug(`=== Reply ${'method'}() result: %o`, result);
+      }];
+  }
+  return [beforeController, afterController]
+}
+
 function initRpc(app: Router) {
   const validatorRpc = Container.get(ValidatorRpc);
+  const [before, after] = createBeforeAndAfterLoggingController(validatorRpc.log, validatorRpc);
 
-  //todo add single before/after method for every method from validatorRpc and log params
-  //this.log.debug(`>> Calling RPC POST ${url} (req${requestId}) with body %o`, req);
-  //const resp = await axios.post(url, req, {timeout: this.timeout});
-  //this.log.debug(`<< RPC Reply POST ${url} (req${requestId}) code: ${resp.status} with body: %o`, resp.data);
   app.use(`/api/v1/rpc`,
     jsonRouter({
       methods: validatorRpc,
-      beforeMethods: {},
-      afterMethods: {},
+      beforeMethods: before,
+      afterMethods: after,
       onError: (err, body) => {
         log.error('Error in JSON-RPC route: %o', err);
       }
