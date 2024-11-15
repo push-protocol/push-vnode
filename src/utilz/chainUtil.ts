@@ -1,6 +1,7 @@
 import {StrUtil} from './strUtil'
 import {Check} from "./check";
 import {BitUtil} from "./bitUtil";
+import { Tuple } from './tuple';
 
 export class ChainUtil {
 
