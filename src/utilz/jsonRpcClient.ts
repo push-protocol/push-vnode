@@ -1,6 +1,7 @@
 import axios, {AxiosError} from "axios";
 import {Logger} from "winston";
 import {WinstonUtil} from "./winstonUtil";
+import {Tuple} from "./tuple";
 
 
 export class JsonRpcClient {

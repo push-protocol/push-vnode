@@ -40,6 +40,7 @@ import {ArrayUtil} from "../../utilz/arrayUtil";
 import {RandomUtil} from "../../utilz/randomUtil";
 import {RpcError} from "../../utilz/jsonRpcClient";
 import {ChainUtil} from "../../utilz/chainUtil";
+import {Tuple} from "../../utilz/tuple";
 
 // todo move read/write qurum to smart contract constants
 // todo joi validate for getRecord
