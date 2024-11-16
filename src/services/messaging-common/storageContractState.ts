@@ -45,7 +45,7 @@ export class StorageContractState {
         EnvLoader.getPropertyOrFail('CONFIG_DIR'),
         EnvLoader.getPropertyOrFail('VALIDATOR_PRIVATE_KEY_FILE'),
         EnvLoader.getPropertyOrFail('VALIDATOR_PRIVATE_KEY_PASS'),
-        'StorageV1.json',
+        './abi/StorageV1.json',
         EnvLoader.getPropertyOrFail('STORAGE_CONTRACT_ADDRESS'),
         this.provider
       )
@@ -56,7 +56,7 @@ export class StorageContractState {
       this.storageCt = <StorageContract>(
         await EthersUtil.connectWithoutKey(
           EnvLoader.getPropertyOrFail('CONFIG_DIR'),
-          'StorageV1.json',
+          './abi/StorageV1.json',
           EnvLoader.getPropertyOrFail('STORAGE_CONTRACT_ADDRESS'),
           this.provider
         )

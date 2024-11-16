@@ -155,7 +155,10 @@ function createBeforeAndAfterLoggingController(log: winston.Logger, object): [ob
 
 function initRpc(app: Router) {
   const validatorRpc = Container.get(ValidatorRpc);
-  const [before, after] = createBeforeAndAfterLoggingController(validatorRpc.log, validatorRpc);
+  let before = null, after = null;
+  if (EnvLoader.getPropertyAsBool('VALIDATOR_HTTP_LOG')) {
+    [before, after] = createBeforeAndAfterLoggingController(validatorRpc.log, validatorRpc);
+  }
 
   app.use(`/api/v1/rpc`,
     jsonRouter({

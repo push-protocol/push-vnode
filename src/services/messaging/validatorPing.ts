@@ -41,7 +41,8 @@ export class ValidatorPing {
     const validators = this.contractState.getActiveValidatorsExceptSelf()
     const promiseList: Promise<PingReply>[] = []
     for (const v of validators) {
-      const vc = new ValidatorClient(v.url)
+      const vc = new ValidatorClient(v.url);
+      this.log.debug('pinging : %s', v.url);
       const promise = vc.ping()
       promiseList.push(promise)
     }
@@ -72,9 +73,13 @@ export class ValidatorPing {
         console.log(e)
       }
     })
+    // first 30s: ping every 5s
+    const intervalId = setInterval(() => {
+      cronJob.invoke();
+    }, 5000);
     setTimeout(() => {
-      cronJob.invoke()
-    }, 3000)
+      clearInterval(intervalId);
+    }, 30000);
   }
 }
 

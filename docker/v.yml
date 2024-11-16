@@ -11,19 +11,15 @@ services:
     environment:
       DB_NAME: vnode1
       PORT: 4001
-      CONFIG_DIR: /config
-      LOG_DIR: /log
-      DB_HOST: mysql.local
-      DB_USER: ${DB_USER}
-      DB_PASS: ${DB_PASS}
-      REDIS_URL: redis://redis.local:6379
-      VALIDATOR_RPC_ENDPOINT: ${VALIDATOR_RPC_ENDPOINT}
-      VALIDATOR_RPC_NETWORK: ${VALIDATOR_RPC_NETWORK}
+    env_file:
+    - common.env
+    - v.env
     ports:
       - "4001:4001"
     volumes:
       - ./v1:/config
       - ./v1/log:/log
+      - ./_abi/:/config/abi/
 
 
   vnode2:
@@ -36,19 +32,15 @@ services:
     environment:
       DB_NAME: vnode2
       PORT: 4002
-      CONFIG_DIR: /config
-      LOG_DIR: /log
-      DB_HOST: mysql.local
-      DB_USER: ${DB_USER}
-      DB_PASS: ${DB_PASS}
-      REDIS_URL: redis://redis.local:6379
-      VALIDATOR_RPC_ENDPOINT: ${VALIDATOR_RPC_ENDPOINT}
-      VALIDATOR_RPC_NETWORK: ${VALIDATOR_RPC_NETWORK}
+    env_file:
+      - common.env
+      - v.env
     ports:
       - "4002:4002"
     volumes:
       - ./v2:/config
       - ./v2/log:/log
+      - ./_abi/:/config/abi/
 
 
   vnode3:
@@ -61,19 +53,15 @@ services:
     environment:
       DB_NAME: vnode3
       PORT: 4003
-      CONFIG_DIR: /config
-      LOG_DIR: /log
-      DB_HOST: mysql.local
-      DB_USER: ${DB_USER}
-      DB_PASS: ${DB_PASS}
-      REDIS_URL: redis://redis.local:6379
-      VALIDATOR_RPC_ENDPOINT: ${VALIDATOR_RPC_ENDPOINT}
-      VALIDATOR_RPC_NETWORK: ${VALIDATOR_RPC_NETWORK}
+    env_file:
+      - common.env
+      - v.env
     ports:
       - "4003:4003"
     volumes:
       - ./v3:/config
       - ./v3/log:/log
+      - ./_abi/:/config/abi/
 
 
   vnode4:
@@ -86,19 +74,15 @@ services:
     environment:
       DB_NAME: vnode4
       PORT: 4004
-      CONFIG_DIR: /config
-      LOG_DIR: /log
-      DB_HOST: mysql.local
-      DB_USER: ${DB_USER}
-      DB_PASS: ${DB_PASS}
-      REDIS_URL: redis://redis.local:6379
-      VALIDATOR_RPC_ENDPOINT: ${VALIDATOR_RPC_ENDPOINT}
-      VALIDATOR_RPC_NETWORK: ${VALIDATOR_RPC_NETWORK}
+    env_file:
+      - common.env
+      - v.env
     ports:
       - "4004:4004"
     volumes:
       - ./v4:/config
       - ./v4/log:/log
+      - ./_abi/:/config/abi/
 
   vnode5:
     image: vnode-main
@@ -110,19 +94,16 @@ services:
     environment:
       DB_NAME: vnode5
       PORT: 4005
-      CONFIG_DIR: /config
-      LOG_DIR: /log
-      DB_HOST: mysql.local
-      DB_USER: ${DB_USER}
-      DB_PASS: ${DB_PASS}
-      REDIS_URL: redis://redis.local:6379
-      VALIDATOR_RPC_ENDPOINT: ${VALIDATOR_RPC_ENDPOINT}
-      VALIDATOR_RPC_NETWORK: ${VALIDATOR_RPC_NETWORK}
+    env_file:
+      - common.env
+      - v.env
     ports:
       - "4005:4005"
     volumes:
       - ./v5:/config
       - ./v5/log:/log
+      - ./_abi/:/config/abi/
+
 
 
 networks:

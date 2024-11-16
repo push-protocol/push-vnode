@@ -150,11 +150,11 @@ class ContractClientFactory {
       this.validatorRpcNetwork
     )
     this.configDir = EnvLoader.getPropertyOrFail('CONFIG_DIR')
-    this.abi = ContractClientFactory.loadValidatorContractAbi(this.configDir, 'ValidatorV1.json')
+    this.abi = ContractClientFactory.loadValidatorContractAbi(this.configDir, './abi/ValidatorV1.json')
   }
 
   private static loadValidatorContractAbi(configDir: string, fileNameInConfigDir: string): string {
-    const fileAbsolute = path.resolve(configDir, `./${fileNameInConfigDir}`)
+    const fileAbsolute = path.resolve(configDir, `${fileNameInConfigDir}`)
     const file = fs.readFileSync(fileAbsolute, 'utf8')
     const json = JSON.parse(file)
     const abi = json.abi
@@ -173,7 +173,8 @@ class ContractClientFactory {
     this.validatorPrivateKeyFile = EnvLoader.getPropertyOrFail('VALIDATOR_PRIVATE_KEY_FILE')
     this.validatorPrivateKeyPass = EnvLoader.getPropertyOrFail('VALIDATOR_PRIVATE_KEY_PASS')
 
-    const jsonFile = readFileSync(this.configDir + '/' + this.validatorPrivateKeyFile, 'utf-8')
+    const jsonFile = readFileSync(this.configDir + '/' + this.validatorPrivateKeyFile,
+      {encoding: 'utf8', flag: 'r'})
     this.nodeWallet = await Wallet.fromEncryptedJson(jsonFile, this.validatorPrivateKeyPass)
     this.nodeAddress = await this.nodeWallet.getAddress()
 
