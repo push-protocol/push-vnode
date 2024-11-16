@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 sql_file_path = 'mysql-init/grant-privileges.sql'
-databases = ['vnode1', 'vnode2', 'vnode3']
+databases = ['vnode1', 'vnode2', 'vnode3','vnode4','vnode5','vnode6','vnode7','vnode8','vnode9','vnode10']
 
 import os
 import sys
