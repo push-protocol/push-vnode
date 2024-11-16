@@ -104,6 +104,106 @@ services:
       - ./v5/log:/log
       - ./_abi/:/config/abi/
 
+  vnode6:
+    image: vnode-main
+    container_name: vnode6
+    networks:
+      push-shared-network:
+        aliases:
+          - vnode6.local
+    environment:
+      DB_NAME: vnode6
+      PORT: 4006
+    env_file:
+      - common.env
+      - v.env
+    ports:
+      - "4006:4006"
+    volumes:
+      - ./v6:/config
+      - ./v6/log:/log
+      - ./_abi/:/config/abi/
+
+  vnode7:
+    image: vnode-main
+    container_name: vnode7
+    networks:
+      push-shared-network:
+        aliases:
+          - vnode7.local
+    environment:
+      DB_NAME: vnode7
+      PORT: 4007
+    env_file:
+      - common.env
+      - v.env
+    ports:
+      - "4007:4007"
+    volumes:
+      - ./v7:/config
+      - ./v7/log:/log
+      - ./_abi/:/config/abi/
+
+  vnode8:
+    image: vnode-main
+    container_name: vnode8
+    networks:
+      push-shared-network:
+        aliases:
+          - vnode8.local
+    environment:
+      DB_NAME: vnode8
+      PORT: 4008
+    env_file:
+      - common.env
+      - v.env
+    ports:
+      - "4008:4008"
+    volumes:
+      - ./v8:/config
+      - ./v8/log:/log
+      - ./_abi/:/config/abi/
+
+  vnode9:
+    image: vnode-main
+    container_name: vnode9
+    networks:
+      push-shared-network:
+        aliases:
+          - vnode9.local
+    environment:
+      DB_NAME: vnode9
+      PORT: 4009
+    env_file:
+      - common.env
+      - v.env
+    ports:
+      - "4009:4009"
+    volumes:
+      - ./v9:/config
+      - ./v9/log:/log
+      - ./_abi/:/config/abi/
+
+  vnode10:
+    image: vnode-main
+    container_name: vnode10
+    networks:
+      push-shared-network:
+        aliases:
+          - vnode10.local
+    environment:
+      DB_NAME: vnode10
+      PORT: 4010
+    env_file:
+      - common.env
+      - v.env
+    ports:
+      - "4010:4010"
+    volumes:
+      - ./v10:/config
+      - ./v10/log:/log
+      - ./_abi/:/config/abi/
+
 
 
 networks:
