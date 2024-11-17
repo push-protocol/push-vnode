@@ -378,12 +378,14 @@ export class ValidatorNode implements StorageContractListener {
         affectedNodes.add(node);
       }
     }
+    // RPC SEND
     // todo: send batches of blocks to every node; if an optimized version is needed; api allows this;
     const retryCount = EnvLoader.getPropertyAsNumber("SEND_BLOCK_RETRY_COUNT", 2);
     const retryDelay = EnvLoader.getPropertyAsNumber("SEND_BLOCK_RETRY_DELAY", 5000);
     for (const nodeId of affectedNodes) {
       await this.sendBlockToNodeWithRetries(nodeId, blockHashHex, blockHex, retryDelay, retryCount);
     }
+    // QUEUE PUBLISH (for polling)
     // todo remove when anode will get apis
     const queue = this.queueInitializer.getQueue(QueueManager.QUEUE_MBLOCK);
     let blockBytes = block.serializeBinary();
@@ -475,9 +477,6 @@ export class ValidatorNode implements StorageContractListener {
       }
     }
     // ** check validator signature,
-    // todo MOVE IT TO BlockUtil.attestBlockFully
-
-    // todo add additional check that this was a valid attestor from the array of attestors
 
     // ** cache this block for next calls
     let hash1 = await this.cacheBlock(blockSignedByVBytes);
@@ -614,8 +613,18 @@ export class ValidatorNode implements StorageContractListener {
       throw new BlockError('block hash does not match the expected hash');
     }
 
-    // ** deliver
-    await this.publishFinalizedBlock(blockSignedByVA);
+    // ** delayed deliver
+    const min = EnvLoader.getPropertyAsNumber("SEND_BLOCK_AS_ATTESTOR_MIN_DELAY", 5000);
+    const max = EnvLoader.getPropertyAsNumber("SEND_BLOCK_AS_ATTESTOR_MAX_DELAY", 30000);
+    let rndDelay = RandomUtil.getRandomInt(min, max);
+    setTimeout(async () => {
+      try {
+        this.log.debug("delivering a block as attestor with random delay of %s ms", rndDelay)
+        let b = await this.publishFinalizedBlock(blockSignedByVA);
+      } catch (e) {
+        this.log.error('error', e);
+      }
+    }, rndDelay);
 
     // todo merge new slashing
     let response = new AttestSignaturesResponse();
