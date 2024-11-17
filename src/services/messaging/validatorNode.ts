@@ -4,32 +4,30 @@ import {Logger} from 'winston'
 import {EthUtil} from '../../utilz/ethUtil'
 import {ValidatorClient} from './validatorClient'
 import {WaitNotify} from '../../utilz/waitNotify'
-import {NodeInfo, ValidatorContractState} from '../messaging-common/validatorContractState'
+import {NodeInfo, NodeType, ValidatorContractState} from '../messaging-common/validatorContractState'
 import {ValidatorRandom} from './validatorRandom'
 import {ValidatorPing} from './validatorPing'
 import {StrUtil} from '../../utilz/strUtil'
-import {FeedItem, FeedItemSig, MessageBlockUtil} from '../messaging-common/messageBlock'
+import {FeedItem, FeedItemSig} from '../messaging-common/messageBlock'
 import {WinstonUtil} from '../../utilz/winstonUtil'
 import {RedisClient} from '../messaging-common/redisClient'
-import {Coll} from '../../utilz/coll'
 import {DateUtil} from '../../utilz/dateUtil'
 import {QueueManager} from './QueueManager'
 import {Check} from '../../utilz/check'
-import schedule from 'node-schedule'
 import {StorageContractListener, StorageContractState} from '../messaging-common/storageContractState'
 import {PromiseUtil} from '../../utilz/promiseUtil'
 import StorageClient, {KeyInfo, TxInfo} from './storageClient'
-import {ReplyMerger, NodeHttpStatus, Rec} from './ReplyMerger'
+import {NodeHttpStatus, Rec, ReplyMerger} from './ReplyMerger'
 import {EnvLoader} from "../../utilz/envLoader";
 import {
-  AttestBlockResult, AttestorReport,
+  AttestBlockResult,
+  AttestorReport,
   AttestSignaturesRequest,
   AttestSignaturesResponse,
   Block,
   Signer,
   TransactionObj,
   TxAttestorData,
-  TxValidatorData,
   Vote
 } from "../../generated/push/block_pb";
 import {BlockUtil} from "../messaging-common/blockUtil";
@@ -41,6 +39,7 @@ import {RandomUtil} from "../../utilz/randomUtil";
 import {RpcError} from "../../utilz/jsonRpcClient";
 import {ChainUtil} from "../../utilz/chainUtil";
 import {Tuple} from "../../utilz/tuple";
+import ArchivalClient from "./archivalClient";
 
 // todo move read/write qurum to smart contract constants
 // todo joi validate for getRecord
@@ -85,7 +84,7 @@ export class ValidatorNode implements StorageContractListener {
   // total serialized length of all transactions; used as a watermark (cleared on every cron event)
   private totalTransactionBytes: number;
 
-  private blockTimeout:NodeJS.Timeout = null;
+  private blockTimeout: NodeJS.Timeout = null;
   // objects used to wait on block
   private blockMonitors: Map<string, WaitNotify> = new Map<string, WaitNotify>()
 
@@ -280,7 +279,7 @@ export class ValidatorNode implements StorageContractListener {
 
     const attestersWhichSignedBlock: string[] = [];
     const patches: AttestBlockResult[] = [];
-    let prList:Promise<Tuple<AttestBlockResult, RpcError>>[] = [];
+    let prList: Promise<Tuple<AttestBlockResult, RpcError>>[] = [];
     for (let j = 0; j < attestVector.length; j++) {
       // ** A0 attests the block
       const attesterNodeId = attestVector[j];
@@ -328,7 +327,7 @@ export class ValidatorNode implements StorageContractListener {
     this.log.debug('sending patches %o', asr.toObject());
     this.log.debug('Initialblockhash %s', BitUtil.bytesToBase16(asr.getInitialblockhash_asU8()));
     this.log.debug('Finalblockhash %s', BitUtil.bytesToBase16(asr.getFinalblockhash_asU8()));
-    let prList2:Promise<Tuple<AttestSignaturesResponse, RpcError>>[] = [];
+    let prList2: Promise<Tuple<AttestSignaturesResponse, RpcError>>[] = [];
     for (let j = 0; j < attestVector.length; j++) {
       // ** A0 attests the block
       const attestorNodeId = attestVector[j];
@@ -395,13 +394,16 @@ export class ValidatorNode implements StorageContractListener {
     const blockHashHex = BlockUtil.hashBlockAsHex(blockRaw);
     const blockHex = BitUtil.bytesToBase16(blockRaw);
     const affectedShards = BlockUtil.calculateAffectedShards(block, this.storageContractState.shardCount);
-    const affectedNodes = new Set<string>();
+    const affectedSNodes = new Set<string>();
     for (const shardId of affectedShards) {
       const nodes = this.storageContractState.getStorageNodesForShard(shardId);
       for (const node of nodes) {
-        affectedNodes.add(node);
+        affectedSNodes.add(node);
       }
     }
+    this.log.debug("affectedSNodes: %s", StrUtil.fmt(affectedSNodes));
+    const affectedANodes = [...this.valContractState.getArchivalNodesMap().keys()];
+    this.log.debug("affectedANodes: %s", StrUtil.fmt(affectedANodes));
     /*
     RPC SEND (parallel)
     this part does not require 100% durability because if RPC is not successful
@@ -411,18 +413,30 @@ export class ValidatorNode implements StorageContractListener {
     */
     const retryCount = EnvLoader.getPropertyAsNumber("SEND_BLOCK_RETRY_COUNT", 2);
     const retryDelay = EnvLoader.getPropertyAsNumber("SEND_BLOCK_RETRY_DELAY", 30000);
-    let prList:Promise<void>[] = [];
+    let prList: Promise<void>[] = [];
 
-    for (const nodeId of affectedNodes) {
-      const p = this.sendBlockToNodeWithRetries(nodeId, blockHashHex, blockHex, retryDelay, retryCount)
+    for (const nodeId of affectedSNodes) {
+      const p = this.sendBlockToSNodeWithRetries(nodeId, blockHashHex, blockHex, retryDelay, retryCount)
         .then(value => {
-          this.log.debug("successfully executed putBlock to node %s", nodeId);
+          this.log.debug("successfully executed putBlock to snode %s", nodeId);
         })
         .catch(reason => {
-          this.log.error("error executing putBlock to node %s : %s", nodeId, reason);
+          this.log.error("error executing putBlock to snode %s : %s", nodeId, reason);
         });
       prList.push(p);
     }
+
+    for (const nodeId of affectedANodes) {
+      const p = this.sendBlockToANodeWithRetries(nodeId, blockHashHex, blockHex, 0, 0)
+        .then(value => {
+          this.log.debug("successfully executed putBlock to anode %s", nodeId);
+        })
+        .catch(reason => {
+          this.log.error("error executing putBlock to anode %s : %s", nodeId, reason, retryDelay, retryCount);
+        });
+      prList.push(p);
+    }
+
     // wait for all; to slow the api;
     // todo think about return criteria: i.e. write to N of M snodes right away = success , or some % of durable save
     const prResults = await PromiseUtil.allSettled(prList);
@@ -440,16 +454,16 @@ export class ValidatorNode implements StorageContractListener {
   }
 
   // only 1st send in synchronous; retries are async
-  private async sendBlockToNodeWithRetries(nodeId: string, blockHashHex: string, blockHex: string, retryDelay: number, retriesLeft: number): Promise<void> {
-    const res = await this.sendBlockToNode(nodeId, blockHashHex, blockHex);
+  private async sendBlockToSNodeWithRetries(nodeId: string, blockHashHex: string, blockHex: string, retryDelay: number, retriesLeft: number): Promise<void> {
+    const res = await this.sendBlockToSNode(nodeId, blockHashHex, blockHex);
     if (res === NodeSendResult.ERROR_CAN_RETRY && retriesLeft > 0) {
       setTimeout(() => {
-        this.sendBlockToNodeWithRetries(nodeId, blockHashHex, blockHex, retryDelay, retriesLeft - 1);
+        this.sendBlockToSNodeWithRetries(nodeId, blockHashHex, blockHex, retryDelay, retriesLeft - 1);
       }, retryDelay);
     }
   }
 
-  private async sendBlockToNode(nodeId: string, blockHashHex: string, blockHex: string): Promise<NodeSendResult> {
+  private async sendBlockToSNode(nodeId: string, blockHashHex: string, blockHex: string): Promise<NodeSendResult> {
     const nodeInfo = this.valContractState.getStorageNodesMap().get(nodeId)
     Check.notNull(nodeInfo, 'node info unknown for ' + nodeId);
     if (!ValidatorContractState.isEnabled(nodeInfo)) {
@@ -462,6 +476,57 @@ export class ValidatorNode implements StorageContractListener {
     }
     this.log.debug(`delivering block (hash=%s) to node %s baseUrl=%s`, blockHashHex, nodeId, nodeBaseUrl);
     const client = new StorageClient(nodeBaseUrl);
+    let [reply1, err] = await client.push_putBlockHash([blockHashHex]);
+    if (err != null) {
+      this.log.error(`Error pushing block hash to node: ${nodeId}, error: ${err.toString()}`);
+      return NodeSendResult.ERROR_CAN_RETRY;
+    }
+    if (reply1 == null || reply1.length == 0) {
+      return NodeSendResult.ERROR_CAN_RETRY;
+    }
+    const hashReply = reply1[0];
+    if (hashReply !== "SEND") {
+      this.log.error('Ignoring block delivery (DO_NOT_SEND) to node: %s', nodeId);
+      return NodeSendResult.DO_NOT_RETRY;
+    }
+    const [reply2, err2] = await client.push_putBlock([blockHex]);
+    if (err2 != null) {
+      this.log.error(`Error pushing block to node: ${nodeId}`);
+      return NodeSendResult.ERROR_CAN_RETRY;
+    }
+    this.log.debug('reply: %s', StrUtil.fmt(reply2));
+    return NodeSendResult.SENT;
+  }
+
+  // todo optimize ; fix anode api to be the same as snode api
+  private async sendBlockToANodeWithRetries(nodeId: string, blockHashHex: string, blockHex: string, retryDelay: number, retriesLeft: number): Promise<void> {
+    const res = await this.sendBlockToANode(nodeId, blockHashHex, blockHex);
+    if (res === NodeSendResult.ERROR_CAN_RETRY && retriesLeft > 0) {
+      setTimeout(() => {
+        this.sendBlockToSNodeWithRetries(nodeId, blockHashHex, blockHex, retryDelay, retriesLeft - 1);
+      }, retryDelay);
+    }
+  }
+
+  private async sendBlockToANode(nodeId: string, blockHashHex: string, blockHex: string, nodeUrlOverride?: string): Promise<NodeSendResult> {
+    let nodeBaseUrl;
+    if (!StrUtil.isEmpty(nodeUrlOverride)) {
+      nodeBaseUrl = nodeUrlOverride;
+    } else {
+      const nodeInfo = this.valContractState.getArchivalNodesMap().get(nodeId)
+      Check.notNull(nodeInfo, 'node info unknown for ' + nodeId);
+      if (!ValidatorContractState.isEnabled(nodeInfo)) {
+        return NodeSendResult.DO_NOT_RETRY;
+      }
+      nodeBaseUrl = nodeInfo.url;
+    }
+
+    if (StrUtil.isEmpty(nodeBaseUrl)) {
+      this.log.error(`node: ${nodeId} has no url in the database`)
+      return NodeSendResult.DO_NOT_RETRY;
+    }
+    this.log.debug(`delivering block (hash=%s) to node %s baseUrl=%s`, blockHashHex, nodeId, nodeBaseUrl);
+    const client = new ArchivalClient(nodeBaseUrl);
     let [reply1, err] = await client.push_putBlockHash([blockHashHex]);
     if (err != null) {
       this.log.error(`Error pushing block hash to node: ${nodeId}, error: ${err.toString()}`);
