@@ -12,8 +12,8 @@ services:
       DB_NAME: vnode1
       PORT: 4001
     env_file:
-    - common.env
-    - v.env
+      - common.env
+      - v-specific.env
     ports:
       - "4001:4001"
     volumes:
@@ -34,7 +34,7 @@ services:
       PORT: 4002
     env_file:
       - common.env
-      - v.env
+      - v-specific.env
     ports:
       - "4002:4002"
     volumes:
@@ -55,7 +55,7 @@ services:
       PORT: 4003
     env_file:
       - common.env
-      - v.env
+      - v-specific.env
     ports:
       - "4003:4003"
     volumes:
@@ -76,7 +76,7 @@ services:
       PORT: 4004
     env_file:
       - common.env
-      - v.env
+      - v-specific.env
     ports:
       - "4004:4004"
     volumes:
@@ -96,7 +96,7 @@ services:
       PORT: 4005
     env_file:
       - common.env
-      - v.env
+      - v-specific.env
     ports:
       - "4005:4005"
     volumes:
@@ -116,7 +116,7 @@ services:
       PORT: 4006
     env_file:
       - common.env
-      - v.env
+      - v-specific.env
     ports:
       - "4006:4006"
     volumes:
@@ -136,7 +136,7 @@ services:
       PORT: 4007
     env_file:
       - common.env
-      - v.env
+      - v-specific.env
     ports:
       - "4007:4007"
     volumes:
@@ -156,7 +156,7 @@ services:
       PORT: 4008
     env_file:
       - common.env
-      - v.env
+      - v-specific.env
     ports:
       - "4008:4008"
     volumes:
@@ -176,7 +176,7 @@ services:
       PORT: 4009
     env_file:
       - common.env
-      - v.env
+      - v-specific.env
     ports:
       - "4009:4009"
     volumes:
@@ -196,7 +196,7 @@ services:
       PORT: 4010
     env_file:
       - common.env
-      - v.env
+      - v-specific.env
     ports:
       - "4010:4010"
     volumes:

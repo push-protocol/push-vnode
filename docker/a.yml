@@ -1,26 +1,28 @@
+# todo DATABASE_URL - remove after k8s nodes -> docker-compose
 version: '3'
 services:
 
   anode1:
     image: anode-main
     container_name: anode1
-    ports:
-      - "2001:2001"
     networks:
       push-shared-network:
         aliases:
           - anode1.local
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres.local:5432/anode1
-      CONFIG_DIR: /config
-      LOG_DIR: /log
-      VALIDATOR_CONTRACT_ADDRESS: ${VALIDATOR_CONTRACT_ADDRESS}
-      VALIDATOR_RPC_ENDPOINT: ${VALIDATOR_RPC_ENDPOINT}
-      VALIDATOR_RPC_NETWORK: ${VALIDATOR_RPC_NETWORK}
-      ANODE_PORT: 2001
+      DB_NAME: anode1
+      PORT: 5001
+    env_file:
+      - common.env
+      - a-specific.env
+    ports:
+      - "5001:5001"
+    entrypoint: ['sh', '/entrypoint.sh']
     volumes:
       - ./a1:/config
       - ./a1/log:/log
+      - ./_abi/:/config/abi/
+
 
 networks:
   push-shared-network:
