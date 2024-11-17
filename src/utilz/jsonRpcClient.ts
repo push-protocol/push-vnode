@@ -31,7 +31,7 @@ export class JsonRpcClient {
       const errorCode = resp?.error?.code;
       const errorMessage = resp?.error?.message;
       JsonRpcClient.log.debug(`<< RPC Reply POST ${url} (req${requestId}) code: ${axiosResp.status} with body: %o`, resp);
-      if (axiosResp.status !== 200) {
+      if (!(axiosResp.status >= 200 && axiosResp.status <= 299)) {
         return [null, new RpcError(errorCode ?? axiosResp.status, errorMessage ?? 'Call error')];
       }
       if (resp?.error != null) {
