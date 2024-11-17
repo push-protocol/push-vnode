@@ -257,8 +257,9 @@ export class ValidatorNode implements StorageContractListener {
     block.setTs(DateUtil.currentTimeMillis());
     const tokenObj = this.random.createAttestToken();
     this.log.debug('random token: %o', tokenObj);
-    Check.isTrue(tokenObj.attestVector?.length > 0, 'attest vector is empty');
-    Check.isTrue(tokenObj.attestVector[0] != null, 'attest vector is empty');
+    const attestVector = tokenObj.attestVector;
+    Check.isTrue(attestVector?.length > 0, 'attest vector is empty');
+    Check.isTrue(attestVector[0] != null, 'attest vector is empty');
     block.setAttesttoken(BitUtil.stringToBytesUtf(tokenObj.attestToken));
 
     // ** V signs block
@@ -275,20 +276,32 @@ export class ValidatorNode implements StorageContractListener {
       Check.isTrue(txObj.getAttestordataList().length == 0, 'no att data is required');
     }
 
-    // ** A1-AN get patches (network attestations)
+    // ** A1-AN get patches (network attestations) (parallel, but reply processing is sequential)
+
     const attestersWhichSignedBlock: string[] = [];
     const patches: AttestBlockResult[] = [];
-    for (let j = 0; j < tokenObj.attestVector.length; j++) {
+    let prList:Promise<Tuple<AttestBlockResult, RpcError>>[] = [];
+    for (let j = 0; j < attestVector.length; j++) {
       // ** A0 attests the block
-      const attesterNodeId = tokenObj.attestVector[j];
-      this.log.debug('requesting attestor: %s [%d / %d]', attesterNodeId, j + 1, tokenObj.attestVector.length);
+      const attesterNodeId = attestVector[j];
+      this.log.debug('requesting attestor: %s [%d / %d]', attesterNodeId, j + 1, attestVector.length);
       const vi = this.valContractState.getValidatorNodesMap().get(attesterNodeId);
       Check.notNull(vi, `Validator url is empty for node: ${attesterNodeId}`);
       const apiClient = new ValidatorClient(vi.url);
-      const [patch, attestorErr] = await apiClient.v_attestBlock(blockSignedByVBytes); // todo make parallel
+      prList.push(apiClient.v_attestBlock(blockSignedByVBytes));
+    }
+    const prResults = await PromiseUtil.allSettled(prList);
+    for (let j = 0; j < prResults.length; j++) {
+      const prResult = prResults[j];
+      const attesterNodeId = attestVector[j];
+      if (!prResult.isSuccess()) {
+        this.log.error('attestor %s failed to attest the block, reason: %s', attesterNodeId, prResult.err || "network err");
+        throw new Error('failed to attest by validator ' + attesterNodeId); // todo remove; add 'extra' validators
+      }
+      const [patch, attestorErr] = prResult.val;
       if (attestorErr != null) {
         this.log.error('attestor %s failed to attest the block, reason: %s', attesterNodeId, attestorErr);
-        throw new Error('failed to sign'); // todo remove
+        throw new Error('failed to attest by validator ' + attesterNodeId); // todo remove;  add 'extra' validators
       }
       attestersWhichSignedBlock.push(attesterNodeId);
       this.log.debug('attestor %s successfully signed the block, %o',
@@ -306,7 +319,7 @@ export class ValidatorNode implements StorageContractListener {
     this.log.debug('finalized block: %o', blockSignedByVA.toObject());
     this.log.debug('finalized block hash: %s', blockSignedByVAHash);
 
-    // ** A1-AN send all patches
+    // ** A1-AN send all patches (parallel)
 
     let asr = new AttestSignaturesRequest();
     asr.setInitialblockhash(BitUtil.base16ToBytes(blockSignedByVHash));
@@ -315,21 +328,32 @@ export class ValidatorNode implements StorageContractListener {
     this.log.debug('sending patches %o', asr.toObject());
     this.log.debug('Initialblockhash %s', BitUtil.bytesToBase16(asr.getInitialblockhash_asU8()));
     this.log.debug('Finalblockhash %s', BitUtil.bytesToBase16(asr.getFinalblockhash_asU8()));
-    for (let j = 0; j < tokenObj.attestVector.length; j++) {
+    let prList2:Promise<Tuple<AttestSignaturesResponse, RpcError>>[] = [];
+    for (let j = 0; j < attestVector.length; j++) {
       // ** A0 attests the block
-      const attestorNodeId = tokenObj.attestVector[j];
-      this.log.debug('requesting attestor: %s [%d / %d]', attestorNodeId, j + 1, tokenObj.attestVector.length);
+      const attestorNodeId = attestVector[j];
+      this.log.debug('requesting attestor: %s [%d / %d]', attestorNodeId, j + 1, attestVector.length);
       const vi = this.valContractState.getValidatorNodesMap().get(attestorNodeId);
       Check.notNull(vi, `Validator url is empty for node: ${attestorNodeId}`);
       const apiClient = new ValidatorClient(vi.url);
-      apiClient.v_attestSignatures(asr).then(value => {
-        const [resp, attestorErr] = value;
-        if (attestorErr != null) {
-          this.log.error('attestor %s failed to attest signatures, reason: %s resp: %s', attestorNodeId, attestorErr, resp);
-          throw new Error('failed to attest signatures'); // todo remove
-        }
-      });
+      prList2.push(apiClient.v_attestSignatures(asr));
     }
+    const prResults2 = await PromiseUtil.allSettled(prList2);
+    for (let j = 0; j < prResults2.length; j++) {
+      const prResult = prResults2[j];
+      const attestorNodeId = attestVector[j];
+      if (!prResult.isSuccess()) {
+        this.log.error('attestor %s failed to accept sigs for the block, reason: %s', attestorNodeId, prResult.err || "network err");
+        throw new Error('failed to attest sigs by validator ' + attestorNodeId); // todo remove; add 'extra' validators
+      }
+      const [resp, attestorErr] = prResult.val;
+      if (attestorErr != null) {
+        this.log.error('attestor %s failed to attest signatures, reason: %s resp: %s', attestorNodeId, attestorErr, resp);
+        throw new Error('failed to attest signatures'); // todo remove
+      }
+    }
+
+
     // ** report
     // todo if(isValid(resp) && numReports > contract.threshold) { report to validator.sol }
 
@@ -381,7 +405,7 @@ export class ValidatorNode implements StorageContractListener {
     // RPC SEND
     // todo: send batches of blocks to every node; if an optimized version is needed; api allows this;
     const retryCount = EnvLoader.getPropertyAsNumber("SEND_BLOCK_RETRY_COUNT", 2);
-    const retryDelay = EnvLoader.getPropertyAsNumber("SEND_BLOCK_RETRY_DELAY", 5000);
+    const retryDelay = EnvLoader.getPropertyAsNumber("SEND_BLOCK_RETRY_DELAY", 15000);
     for (const nodeId of affectedNodes) {
       await this.sendBlockToNodeWithRetries(nodeId, blockHashHex, blockHex, retryDelay, retryCount);
     }
