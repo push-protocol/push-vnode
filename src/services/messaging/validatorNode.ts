@@ -402,13 +402,30 @@ export class ValidatorNode implements StorageContractListener {
         affectedNodes.add(node);
       }
     }
-    // RPC SEND
-    // todo: send batches of blocks to every node; if an optimized version is needed; api allows this;
+    /*
+    RPC SEND (parallel)
+    this part does not require 100% durability because if RPC is not successful
+    1) we can retry
+    2) snodes can poll vnodes later, unless the data has already expired
+    todo: send batches of blocks to every node; if an optimized version is needed; api allows this;
+    */
     const retryCount = EnvLoader.getPropertyAsNumber("SEND_BLOCK_RETRY_COUNT", 2);
-    const retryDelay = EnvLoader.getPropertyAsNumber("SEND_BLOCK_RETRY_DELAY", 15000);
+    const retryDelay = EnvLoader.getPropertyAsNumber("SEND_BLOCK_RETRY_DELAY", 30000);
+    let prList:Promise<void>[] = [];
+
     for (const nodeId of affectedNodes) {
-      await this.sendBlockToNodeWithRetries(nodeId, blockHashHex, blockHex, retryDelay, retryCount);
+      const p = this.sendBlockToNodeWithRetries(nodeId, blockHashHex, blockHex, retryDelay, retryCount)
+        .then(value => {
+          this.log.debug("successfully executed putBlock to node %s", nodeId);
+        })
+        .catch(reason => {
+          this.log.error("error executing putBlock to node %s : %s", nodeId, reason);
+        });
+      prList.push(p);
     }
+    // wait for all; to slow the api;
+    // todo think about return criteria: i.e. write to N of M snodes right away = success , or some % of durable save
+    const prResults = await PromiseUtil.allSettled(prList);
     // QUEUE PUBLISH (for polling)
     // todo remove when anode will get apis
     const queue = this.queueInitializer.getQueue(QueueManager.QUEUE_MBLOCK);
