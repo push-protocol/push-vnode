@@ -1,1 +1,1 @@
-type Tuple<A, B> = [A, undefined?] | [undefined, B];
+export type Tuple<A, B> = [A, undefined?] | [undefined, B];

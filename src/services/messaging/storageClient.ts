@@ -5,6 +5,7 @@ import {JsonRpcClient, RpcError} from "../../utilz/jsonRpcClient";
 import {UrlUtil} from "../../utilz/urlUtil";
 import {EnvLoader} from "../../utilz/envLoader";
 import {TypeUtil} from "../../utilz/typeUtil";
+import {Tuple} from "../../utilz/tuple";
 
 export default class StorageClient {
   public log: Logger = WinstonUtil.newLog(StorageClient)

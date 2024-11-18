@@ -1,6 +1,7 @@
 version: '3'
 services:
 
+
   snode1:
     image: snode-main
     container_name: snode1
@@ -9,28 +10,18 @@ services:
         aliases:
           - snode1.local
     environment:
-      PG_NAME: snode1
-      PG_USER: ${POSTGRES_USER}
-      PG_PASS: ${POSTGRES_PASSWORD}
-      PG_HOST: postgres.local
       DB_NAME: snode1
-      DB_HOST: mysql.local
-      DB_USER: ${DB_USER}
-      DB_PASS: ${DB_PASS}
       PORT: 3001
-      CONFIG_DIR: /config
-      LOG_DIR: /log
-      REDIS_URL: redis://redis.local:6379
-      VALIDATOR_RPC_ENDPOINT: ${VALIDATOR_RPC_ENDPOINT}
-      VALIDATOR_RPC_NETWORK: ${VALIDATOR_RPC_NETWORK}
-      VALIDATOR_PUSH_TOKEN_ADDRESS: ${VALIDATOR_PUSH_TOKEN_ADDRESS}
-      VALIDATOR_CONTRACT_ADDRESS: ${VALIDATOR_CONTRACT_ADDRESS}
-      STORAGE_CONTRACT_ADDRESS: ${STORAGE_CONTRACT_ADDRESS}
+    env_file:
+      - common.env
+      - s-specific.env
     ports:
       - "3001:3001"
     volumes:
       - ./s1:/config
       - ./s1/log:/log
+      - ./_abi/:/config/abi/
+
 
   snode2:
     image: snode-main
@@ -40,28 +31,144 @@ services:
         aliases:
           - snode2.local
     environment:
-      PG_NAME: snode2
-      PG_USER: ${POSTGRES_USER}
-      PG_PASS: ${POSTGRES_PASSWORD}
-      PG_HOST: postgres.local
       DB_NAME: snode2
-      DB_HOST: mysql.local
-      DB_USER: ${DB_USER}
-      DB_PASS: ${DB_PASS}
       PORT: 3002
-      CONFIG_DIR: /config
-      LOG_DIR: /log
-      REDIS_URL: redis://redis.local:6379
-      VALIDATOR_RPC_ENDPOINT: ${VALIDATOR_RPC_ENDPOINT}
-      VALIDATOR_RPC_NETWORK: ${VALIDATOR_RPC_NETWORK}
-      VALIDATOR_PUSH_TOKEN_ADDRESS: ${VALIDATOR_PUSH_TOKEN_ADDRESS}
-      VALIDATOR_CONTRACT_ADDRESS: ${VALIDATOR_CONTRACT_ADDRESS}
-      STORAGE_CONTRACT_ADDRESS: ${STORAGE_CONTRACT_ADDRESS}
+    env_file:
+      - common.env
+      - s-specific.env
     ports:
       - "3002:3002"
     volumes:
       - ./s2:/config
       - ./s2/log:/log
+      - ./_abi/:/config/abi/
+
+
+  snode3:
+    image: snode-main
+    container_name: snode3
+    networks:
+      push-shared-network:
+        aliases:
+          - snode3.local
+    environment:
+      DB_NAME: snode3
+      PORT: 3003
+    env_file:
+      - common.env
+      - s-specific.env
+    ports:
+      - "3003:3003"
+    volumes:
+      - ./s3:/config
+      - ./s3/log:/log
+      - ./_abi/:/config/abi/
+
+
+  snode4:
+    image: snode-main
+    container_name: snode4
+    networks:
+      push-shared-network:
+        aliases:
+          - snode4.local
+    environment:
+      DB_NAME: snode4
+      PORT: 3004
+    env_file:
+      - common.env
+      - s-specific.env
+    ports:
+      - "3004:3004"
+    volumes:
+      - ./s4:/config
+      - ./s4/log:/log
+      - ./_abi/:/config/abi/
+
+
+  snode5:
+    image: snode-main
+    container_name: snode5
+    networks:
+      push-shared-network:
+        aliases:
+          - snode5.local
+    environment:
+      DB_NAME: snode5
+      PORT: 3005
+    env_file:
+      - common.env
+      - s-specific.env
+    ports:
+      - "3005:3005"
+    volumes:
+      - ./s5:/config
+      - ./s5/log:/log
+      - ./_abi/:/config/abi/
+
+
+  snode6:
+    image: snode-main
+    container_name: snode6
+    networks:
+      push-shared-network:
+        aliases:
+          - snode6.local
+    environment:
+      DB_NAME: snode6
+      PORT: 3006
+    env_file:
+      - common.env
+      - s-specific.env
+    ports:
+      - "3006:3006"
+    volumes:
+      - ./s6:/config
+      - ./s6/log:/log
+      - ./_abi/:/config/abi/
+
+
+  snode7:
+    image: snode-main
+    container_name: snode7
+    networks:
+      push-shared-network:
+        aliases:
+          - snode7.local
+    environment:
+      DB_NAME: snode7
+      PORT: 3007
+    env_file:
+      - common.env
+      - s-specific.env
+    ports:
+      - "3007:3007"
+    volumes:
+      - ./s7:/config
+      - ./s7/log:/log
+      - ./_abi/:/config/abi/
+
+
+  snode8:
+    image: snode-main
+    container_name: snode8
+    networks:
+      push-shared-network:
+        aliases:
+          - snode8.local
+    environment:
+      DB_NAME: snode8
+      PORT: 3008
+    env_file:
+      - common.env
+      - s-specific.env
+    ports:
+      - "3008:3008"
+    volumes:
+      - ./s8:/config
+      - ./s8/log:/log
+      - ./_abi/:/config/abi/
+
 
 networks:
   push-shared-network:

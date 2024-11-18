@@ -7,6 +7,7 @@ import {BitUtil} from "../../utilz/bitUtil";
 import {UrlUtil} from "../../utilz/urlUtil";
 import {AttestBlockResult, AttestSignaturesRequest, AttestSignaturesResponse} from "../../generated/push/block_pb";
 import {JsonRpcClient, RpcError} from "../../utilz/jsonRpcClient";
+import {Tuple} from "../../utilz/tuple";
 
 /*
 External validator/attester api.
