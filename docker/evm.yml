@@ -5,7 +5,7 @@ services:
     image: hardhat-main
     container_name: hardhat
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - hardhat.local
     ports:
@@ -16,5 +16,5 @@ services:
       SEPOLIA_PRIVATE_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 
 networks:
-  push-shared-network:
+  push-dev-network:
     external: true

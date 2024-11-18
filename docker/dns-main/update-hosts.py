@@ -1,4 +1,4 @@
-# for every docker container from "push-shared-network"
+# for every docker container from "push-dev-network"
 # adds a row
 # 127.0.0.1 container.local
 # to /etc/hosts
@@ -55,8 +55,8 @@ def update_hosts():
         if line:
             name, network = line.split()
 
-            # Only process containers in push-shared-network
-            if network == "push-shared-network":
+            # Only process containers in push-dev-network
+            if network == "push-dev-network":
                 # Check if the host entry already exists
                 if not host_entry_exists(name):
                     print(f"Adding 127.0.0.1 {name}.localh to /etc/hosts")

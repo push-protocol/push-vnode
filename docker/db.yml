@@ -6,7 +6,7 @@ services:
     container_name: redis
     restart: always
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - redis.local
     ports:
@@ -28,7 +28,7 @@ services:
     ports:
       - 8183:80
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - phpmyadmin.local
 
@@ -49,7 +49,7 @@ services:
       - ./external/mysql:/var/lib/mysql/
       - ./mysql-init:/docker-entrypoint-initdb.d/
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - mysql.local
 
@@ -60,18 +60,18 @@ services:
     restart: always
     environment:
       - POSTGRES_DB=snode1
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_USER=${PG_USER}
+      - POSTGRES_PASSWORD=${PG_PASS}
     ports:
       - '5432:5432'
     volumes:
       - ./external/postgresql:/var/lib/postgresql/data
       - ./pg-init:/docker-entrypoint-initdb.d/
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - postgres.local
 
 networks:
-  push-shared-network:
+  push-dev-network:
     external: true

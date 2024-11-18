@@ -5,7 +5,7 @@ services:
     image: vnode-main
     container_name: vnode1
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - vnode1.local
     environment:
@@ -26,7 +26,7 @@ services:
     image: vnode-main
     container_name: vnode2
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - vnode2.local
     environment:
@@ -47,7 +47,7 @@ services:
     image: vnode-main
     container_name: vnode3
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - vnode3.local
     environment:
@@ -68,7 +68,7 @@ services:
     image: vnode-main
     container_name: vnode4
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - vnode4.local
     environment:
@@ -88,7 +88,7 @@ services:
     image: vnode-main
     container_name: vnode5
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - vnode5.local
     environment:
@@ -108,7 +108,7 @@ services:
     image: vnode-main
     container_name: vnode6
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - vnode6.local
     environment:
@@ -128,7 +128,7 @@ services:
     image: vnode-main
     container_name: vnode7
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - vnode7.local
     environment:
@@ -148,7 +148,7 @@ services:
     image: vnode-main
     container_name: vnode8
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - vnode8.local
     environment:
@@ -168,7 +168,7 @@ services:
     image: vnode-main
     container_name: vnode9
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - vnode9.local
     environment:
@@ -188,7 +188,7 @@ services:
     image: vnode-main
     container_name: vnode10
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - vnode10.local
     environment:
@@ -207,5 +207,5 @@ services:
 
 
 networks:
-  push-shared-network:
+  push-dev-network:
     external: true

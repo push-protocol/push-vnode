@@ -6,7 +6,7 @@ services:
     image: anode-main
     container_name: anode1
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - anode1.local
     environment:
@@ -27,7 +27,7 @@ services:
     image: anode-main
     container_name: anode2
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - anode2.local
     environment:
@@ -49,7 +49,7 @@ services:
     image: anode-main
     container_name: anode3
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - anode3.local
     environment:
@@ -72,7 +72,7 @@ services:
     image: anode-main
     container_name: anode4
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - anode4.local
     environment:
@@ -94,7 +94,7 @@ services:
     image: anode-main
     container_name: anode5
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - anode5.local
     environment:
@@ -114,5 +114,5 @@ services:
 
 
 networks:
-  push-shared-network:
+  push-dev-network:
     external: true

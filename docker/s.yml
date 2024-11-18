@@ -6,7 +6,7 @@ services:
     image: snode-main
     container_name: snode1
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - snode1.local
     environment:
@@ -27,7 +27,7 @@ services:
     image: snode-main
     container_name: snode2
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - snode2.local
     environment:
@@ -48,7 +48,7 @@ services:
     image: snode-main
     container_name: snode3
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - snode3.local
     environment:
@@ -69,7 +69,7 @@ services:
     image: snode-main
     container_name: snode4
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - snode4.local
     environment:
@@ -90,7 +90,7 @@ services:
     image: snode-main
     container_name: snode5
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - snode5.local
     environment:
@@ -111,7 +111,7 @@ services:
     image: snode-main
     container_name: snode6
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - snode6.local
     environment:
@@ -132,7 +132,7 @@ services:
     image: snode-main
     container_name: snode7
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - snode7.local
     environment:
@@ -153,7 +153,7 @@ services:
     image: snode-main
     container_name: snode8
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - snode8.local
     environment:
@@ -171,5 +171,5 @@ services:
 
 
 networks:
-  push-shared-network:
+  push-dev-network:
     external: true

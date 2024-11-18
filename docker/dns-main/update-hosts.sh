@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# for every docker container from "push-shared-network"
+# for every docker container from "push-dev-network"
 # adds a row
 # 127.0.0.1 container.local
 # to /etc/hosts
@@ -22,8 +22,8 @@ while read -r line; do
   name=$(echo "$line" | awk '{print $1}') # Extract the container name
   network=$(echo "$line" | awk '{print $2}') # Extract the network name
 
-  # Only add lines for containers in push-shared-network
-  if [[ "$network" == "push-shared-network" ]]; then
+  # Only add lines for containers in push-dev-network
+  if [[ "$network" == "push-dev-network" ]]; then
     # Check if /etc/hosts already contains the 127.0.0.1 mapping for this name
     if ! grep -q "127.0.0.1 $name.local" /etc/hosts; then
       echo "Adding 127.0.0.1 $name.local to /etc/hosts"
