@@ -27,9 +27,12 @@ export class EnvLoader {
   }
 
   // for undefined: defaults to false
-  public static getPropertyAsBool(propName: string): boolean {
-    const val = process.env[propName]
-    return val != null && val.toLowerCase() === 'true'
+  public static getPropertyAsBool(propName: string, defaultValue: boolean = true): boolean {
+    const val = process.env[propName];
+    if (StrUtil.isEmpty(val)) {
+      return defaultValue;
+    }
+    return val.toLowerCase() === 'true'
   }
 
   public static getPropertyOrDefault(propName: string, def:string): string {

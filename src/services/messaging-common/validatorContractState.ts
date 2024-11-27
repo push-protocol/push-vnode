@@ -307,8 +307,7 @@ export class ValidatorCtClient {
     }
     this.log.info('storage nodes loaded %o', this.snodes)
 
-    // turned off unless we will refresh the contract
-    if (EnvLoader.getPropertyAsBool('ARCHIVAL_NODES_ON')) {
+    if (EnvLoader.getPropertyAsBool('ARCHIVAL_NODES_ON', true)) {
       const aNodes = await this.contract.getANodes()
       for (const nodeAddr of aNodes) {
         const niFromCt = await this.contract.getNodeInfo(nodeAddr)
