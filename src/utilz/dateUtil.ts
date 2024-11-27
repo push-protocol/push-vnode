@@ -61,4 +61,12 @@ export class DateUtil {
   public static millisToUnixSeconds(timestamp: number): number {
     return Math.round(timestamp / 1000)
   }
+
+  public static millisToUnixFloat(millis: number): number {
+    return Math.round(millis) / 1000.0;
+  }
+
+  public static unixFloatToMillis(unixSeconds: number): number {
+    return Math.round(unixSeconds * 1000)
+  }
 }

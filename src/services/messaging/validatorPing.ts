@@ -6,6 +6,7 @@ import { ValidatorClient } from './validatorClient'
 import schedule from 'node-schedule'
 import { PromiseUtil } from '../../utilz/promiseUtil'
 import { WinstonUtil } from '../../utilz/winstonUtil'
+import {EnvLoader} from "../../utilz/envLoader";
 
 /**
  * Pings other validators, known from a smart contract
@@ -18,7 +19,7 @@ export class ValidatorPing {
   private contractState: ValidatorContractState
 
   // PING: schedule
-  private readonly PING_SCHEDULE = '*/30 * * * * *'
+  private readonly PING_SCHEDULE = EnvLoader.getPropertyOrDefault('VALIDATOR_PING_SCHEDULE', '*/30 * * * * *')
 
   // PING: peer online status
   private pingResult: Map<string, PingReply> = new Map<string, PingReply>()
