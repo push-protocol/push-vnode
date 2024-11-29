@@ -131,16 +131,13 @@ Run
 
 
 ```bash
-cd /Users/w/chain/push-vnode/docker
-
-## edit .env if needed;  
+cd /Users/w/chain/push-vnode/docker 
 
 ## run evm (hardhat test vm)
 docker compose -f evm.yml up -d
 
 ## run mysql + postgres + redis + phpmyadmin 
-# generates db users/permissions applied ONLY once at startup
-python3 db-prepare.py
+
 # run dbs
 docker compose -f db.yml up -d
 ## hints:

@@ -142,6 +142,5 @@ package-lock.json
 
 # devtools secrets
 package-lock.json
-/docker/mysql-init
 /docker/external
 /log
