@@ -12,21 +12,21 @@ esac
 echo "starting cleanup"
 
 echo "removing s nodes"
-docker-compose -f s.yml down
+docker compose -f s.yml down
 
 
 echo "removing v nodes"
-docker-compose -f v.yml down
+docker compose -f v.yml down
 
 echo "removing a nodes"
-docker-compose -f a.yml down
+docker compose -f a.yml down
 
 
 echo "removing evm"
-docker-compose -f evm.yml down
+docker compose -f evm.yml down
 
 echo "removing db nodes"
-docker-compose -f db.yml down
+docker compose -f db.yml down
 
 
 echo "removing logs"
