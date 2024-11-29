@@ -31,9 +31,9 @@ docker-compose -f db.yml down
 
 echo "removing logs"
 for i in {1..10}; do
-    rm -f "v${i}/log/error.log" "v${i}/log/debug.log"
-    rm -f "s${i}/log/error.log" "s${i}/log/debug.log"
-    rm -f "a${i}/log/error.log" "a${i}/log/debug.log"
+    rm -rf "v${i}/log/*"
+    rm -rf "s${i}/log/*"
+    rm -rf "a${i}/log/*"
 done
 sleep 3
 

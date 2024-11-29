@@ -102,6 +102,7 @@ async function initDb() {
   const dbpool = mysql.createPool({
     connectionLimit: 10,
     host: EnvLoader.getPropertyOrDefault("DB_HOST", "localhost"),
+    port: EnvLoader.getPropertyAsNumber("DB_PORT", 3306),
     user: EnvLoader.getPropertyOrDefault("DB_USER", "mysql"),
     database: EnvLoader.getPropertyOrDefault("DB_NAME", "vnode1"),
     password: EnvLoader.getPropertyOrDefault("DB_PASS", "mysql"),

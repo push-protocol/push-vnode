@@ -3,40 +3,40 @@ services:
 
   redis:
     image: 'redis:latest'
-    container_name: redis
+    container_name: redis1
     restart: always
     networks:
       push-dev-network:
         aliases:
           - redis.local
     ports:
-      - 6379:6379
+      - ${EXTERNAL_REDIS_PORT}:6379
     volumes:
       - ./external/redis:/data
 
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin
-    container_name: phpmyadmin
-    depends_on:
-      - mysql
-    environment:
-      PMA_HOST: mysql
-      PMA_PORT: 3306
-      PMA_ARBITRARY: 1
-      UPLOAD_LIMIT: 3000M
-    restart: always
-    ports:
-      - 8183:80
-    networks:
-      push-dev-network:
-        aliases:
-          - phpmyadmin.local
+#  phpmyadmin:
+#    image: phpmyadmin/phpmyadmin
+#    container_name: phpmyadmin1
+#    depends_on:
+#      - mysql
+#    environment:
+#      PMA_HOST: mysql
+#      PMA_PORT: 3306
+#      PMA_ARBITRARY: 1
+#      UPLOAD_LIMIT: 3000M
+#    restart: always
+#    ports:
+#      - 8183:80
+#    networks:
+#      push-shared-network:
+#        aliases:
+#          - phpmyadmin.local
 
 
   # for V nodes we use mysql
   mysql:
     image: mysql:8.0
-    container_name: mysql
+    container_name: mysql1
     command: --default-authentication-plugin=mysql_native_password
     restart: always
     environment:
@@ -44,7 +44,7 @@ services:
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASS}
     ports:
-      - 3306:3306
+      - '${EXTERNAL_DB_PORT}:3306'
     volumes:
       - ./external/mysql:/var/lib/mysql/
       - ./mysql-init:/docker-entrypoint-initdb.d/
@@ -56,14 +56,14 @@ services:
   # for snodes and a nodes we use postgres
   postgres:
     image: postgres:15.1
-    container_name: postgres
+    container_name: postgres1
     restart: always
     environment:
       - POSTGRES_DB=snode1
       - POSTGRES_USER=${PG_USER}
       - POSTGRES_PASSWORD=${PG_PASS}
     ports:
-      - '5432:5432'
+      - '${EXTERNAL_PG_PORT}:5432'
     volumes:
       - ./external/postgresql:/var/lib/postgresql/data
       - ./pg-init:/docker-entrypoint-initdb.d/
