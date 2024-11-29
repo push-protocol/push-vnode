@@ -11,19 +11,19 @@ cd "${CHAIN_DIR}/push-snode" || exit 1
 cd "${CHAIN_DIR}/push-anode" || exit 1
 
 
+echo "Each container shows logs after startup. Hit Ctrl-C to stop reading logs!"
+
 cd "${DOCKER_DIR}" || exit 1
-echo 
+echo
 echo "STARTING DB"
-echo "-> Running DB and showing logs; Press ENTER."
-read -p "(Ctrl+C in ~30sec to stop reading logs) "
+read -p "-> Press ENTER."
 echo
 cd "${DOCKER_DIR}" || exit 1
 docker compose -f db.yml down && docker compose -f db.yml up -d && docker compose -f db.yml logs -f
 
 echo
 echo "---- STARTING EVM"
-echo "-> Running EVM and showing logs; Press ENTER."
-read -p "(Ctrl+C in ~60sec to stop reading logs) "
+read -p "-> Press ENTER."
 echo
 cd "${CHAIN_DIR}/push-node-smart-contracts" || exit 1
 docker build . -t hardhat-main
@@ -34,8 +34,7 @@ docker compose -f evm.yml down && docker compose -f evm.yml up -d && docker comp
 
 echo
 echo "---- STARTING VNODE"
-echo "-> Running and showing logs; Press ENTER."
-read -p "(Ctrl+C in ~60sec to stop reading logs) "
+read -p "-> Press ENTER."
 echo
 cd "${CHAIN_DIR}/push-vnode" || exit 1
 docker build . -t vnode-main
@@ -44,8 +43,7 @@ docker compose -f v.yml down && docker compose -f v.yml up -d && docker compose 
 
 echo
 echo "---- STARTING SNODE"
-echo "-> Running and showing logs; Press ENTER."
-read -p "(Ctrl+C in ~60sec to stop reading logs) "
+read -p "-> Press ENTER."
 echo
 cd "${CHAIN_DIR}/push-snode" || exit 1
 docker build . -t snode-main
@@ -55,8 +53,7 @@ docker compose -f s.yml down && docker compose -f s.yml up -d && docker compose 
 
 echo
 echo "---- STARTING ANODE"
-echo "-> Running and showing logs; Press ENTER."
-read -p "(Ctrl+C in ~60sec to stop reading logs) "
+read -p "-> Press ENTER."
 echo
 cd "${CHAIN_DIR}/push-anode" || exit 1
 docker build -t anode-main -f Dockerfile.light .
