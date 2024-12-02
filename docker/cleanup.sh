@@ -28,6 +28,10 @@ docker compose -f evm.yml down
 echo "removing db nodes"
 docker compose -f db.yml down
 
+# allows silent rm -rf only for ZSH
+if [ -n "$ZSH_VERSION" ]; then
+  setopt rm_star_silent
+fi
 
 echo "removing logs"
 for i in {1..10}; do
