@@ -99,13 +99,20 @@ function printMemoryUsage() {
 }
 
 async function initDb() {
+  const DB_HOST = EnvLoader.getPropertyOrDefault("DB_HOST", "localhost");
+  const DB_PORT = EnvLoader.getPropertyAsNumber("DB_PORT", 3306);
+  const DB_USER = EnvLoader.getPropertyOrDefault("DB_USER", "mysql");
+  const DB_NAME = EnvLoader.getPropertyOrDefault("DB_NAME", "vnode1");
+  const DB_PASS = EnvLoader.getPropertyOrDefault("DB_PASS", "mysql");
+
+  log.debug("MYSQL: DB_HOST=%s DB_PORT=%s DB_USER=%s, DB_NAME=%s", DB_HOST, DB_PORT, DB_USER, DB_NAME);
   const dbpool = mysql.createPool({
     connectionLimit: 10,
-    host: EnvLoader.getPropertyOrDefault("DB_HOST", "localhost"),
-    port: EnvLoader.getPropertyAsNumber("DB_PORT", 3306),
-    user: EnvLoader.getPropertyOrDefault("DB_USER", "mysql"),
-    database: EnvLoader.getPropertyOrDefault("DB_NAME", "vnode1"),
-    password: EnvLoader.getPropertyOrDefault("DB_PASS", "mysql"),
+    host: DB_HOST,
+    port: DB_PORT,
+    user: DB_USER,
+    database: DB_NAME,
+    password: DB_PASS,
   });
 
   MySqlUtil.init(dbpool)
