@@ -4,17 +4,21 @@ import {NumUtil} from "./numUtil";
 
 export class EnvLoader {
 
-  public static loadEnvOrFail() {
+  public static loadEnvOrFail(fail: boolean = false) {
     // loads all .env variables into process.env.* variables
     // Optional support for CONFIG_DIR variable
     console.log(`config dir is ${process.env.CONFIG_DIR}`)
     let options = {}
     if (process.env.CONFIG_DIR) {
-      options = { path: `${process.env.CONFIG_DIR}/.env` }
+      options = {path: `${process.env.CONFIG_DIR}/.env`}
     }
-    const envFound = dotenv.config(options)
+    const envFound = dotenv.config(options);
     if (envFound.error) {
-      throw new Error("⚠️  Couldn't find .env file  ⚠️")
+      if (fail) {
+        throw new Error("⚠️  Couldn't find .env file  ⚠️")
+      } else {
+        console.log("[WARN] no .env file; if you wanted to load a specific .env please specify CONFIG_DIR env variable ");
+      }
     }
   }
 
