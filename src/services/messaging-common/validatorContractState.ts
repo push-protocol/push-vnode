@@ -27,6 +27,7 @@ export class ValidatorContractState {
 
   public async postConstruct() {
     this.log.info('ValidatorContractState.postConstruct()')
+    this.log.info('LOCALH=', EnvLoader.getPropertyAsBool("LOCALH"));
     this.contractFactory = new ContractClientFactory()
     this.contractCli = await this.contractFactory.buildRWClient(this.log)
     await this.contractCli.connect()
