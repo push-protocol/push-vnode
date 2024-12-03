@@ -858,6 +858,7 @@ export class ValidatorNode implements StorageContractListener {
     // all the logic would end in O(1) because all queries are parallel
     const quorumNodeCount = Math.round(this.READ_QUORUM_PERC_INITDID * sNodes.length);
     const query1Size = Math.min(quorumNodeCount + this.READ_QUORUM_REDUNDANCY, sNodes.length);
+    this.log.debug('sNodesCount: %d, query1Size: %d', sNodes.length, query1Size);
     const query1Nodes = RandomUtil.getRandomSubArray(sNodes, query1Size);
     this.log.debug('sNodeCount: %d quorumNodeCount: %d query1Size: %d query1Nodes: %s', sNodes.length, quorumNodeCount, query1Size, query1Nodes);
 
@@ -970,11 +971,14 @@ export class ValidatorNode implements StorageContractListener {
       sNodesActive.push(nodeId);
     }
     // # of nodes required
-    let nodesRequiredToPoll = Math.ceil(this.READ_QUORUM_PERC * (aNodesToQuery.length + sNodesActive.length));
+    const totalNodeCnt = aNodesToQuery.length + sNodesActive.length;
+    let nodesRequiredToPoll = Math.ceil(this.READ_QUORUM_PERC * totalNodeCnt);
     // # of nodes we will really poll
-    let nodesToPoll = nodesRequiredToPoll + this.READ_QUORUM_REDUNDANCY;
+    let nodesToPoll = Math.min(nodesRequiredToPoll + this.READ_QUORUM_REDUNDANCY, totalNodeCnt);
     const sNodesToQueryCnt = nodesToPoll - aNodes.length;
-    Check.isTrue(sNodesToQueryCnt <= sNodesToQueryCnt, 'invalid sNodesToQueryCnt');
+    this.log.debug('nodesToPoll %d (nodesRequiredToPoll %d): %dxA ', nodesToPoll, nodesRequiredToPoll, aNodesToQuery.length);
+    Check.isTrue(sNodesToQueryCnt <= sNodesActive.length, 'invalid sNodesToQueryCnt');
+
     let sNodesToQuery = RandomUtil.getRandomSubArray(sNodesActive, sNodesToQueryCnt);
     this.log.debug('affected snodes [%d]: %s', sNodesToQuery.length, StrUtil.fmt(sNodesToQuery));
     this.log.debug('nodesToPoll %d (nodesRequiredToPoll %d): %dxA , %dxS ', nodesToPoll, this.READ_QUORUM_PERC, aNodesToQuery.length, sNodesToQuery.length);

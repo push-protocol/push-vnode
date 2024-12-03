@@ -111,7 +111,7 @@ export class ValidatorContractState {
         if (!isLocalDocker && urlObj.protocol === "http:") {
           urlObj.protocol = "https:";
         }
-        const replaceLocalDomain = EnvLoader.getPropertyAsBool("LOCALH");
+        const replaceLocalDomain = EnvLoader.getPropertyAsBool("LOCALH", false);
         if (replaceLocalDomain) {
           if (urlObj.hostname.endsWith('.local')) {
             urlObj.hostname = 'localhost';
@@ -123,6 +123,7 @@ export class ValidatorContractState {
       if (fixedUrl.endsWith('/')) {
         fixedUrl = fixedUrl.slice(0, -1);
       }
+      this.log.debug('replaced %s => %s', nodeUrl, fixedUrl);
       return fixedUrl;
     } catch (e) {
       ValidatorContractState.log.error(e);
