@@ -155,11 +155,14 @@ function createBeforeAndAfterLoggingController(log: winston.Logger, object): [ob
   let methodNames = ReflUtil.getMethodNames(object);
   for (const method of methodNames) {
     beforeController[method] = function (params: any, _: any, raw: any) {
-      log.debug(`>>> Calling ${method}( `, StrUtil.fmt(params), `)`);
+      const reqId = "req" + raw?.req?.body?.id;
+      log.debug(`>>> Calling /%s(%s) [%s]`, method, reqId, StrUtil.fmt(params));
+      // log.debug("%o", raw)
     };
     afterController[method] = [
       function (params: any, result: any, raw: any) {
-        log.debug(`=== Reply ${'method'}() result: %o`, result);
+        const reqId = "req" + raw?.req?.body?.id;
+        log.debug(`=== Reply /%s(%s) result: %o`, method, reqId, StrUtil.fmt(result));
       }];
   }
   return [beforeController, afterController]
