@@ -1,9 +1,9 @@
 version: '3'
 services:
 
-  phardhat:
+  hardhat1:
     image: hardhat-main
-    container_name: hardhat
+    container_name: hardhat1
     networks:
       push-dev-network:
         aliases:
@@ -14,6 +14,9 @@ services:
     environment:
       SEPOLIA_RPC_URL: 11
       SEPOLIA_PRIVATE_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+      VNODE_COUNT: 3
+      SNODE_COUNT: 1
+      ANODE_COUNT: 1
 
 networks:
   push-dev-network:
