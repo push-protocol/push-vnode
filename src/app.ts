@@ -5,11 +5,9 @@ EnvLoader.loadEnvOrFail();
 import express, {Application, Express, Router} from "express";
 import 'reflect-metadata'
 import {createServer, Server} from 'http'
-import {createNewValidatorTables} from './services/messaging/validatorLoader'
 import cors from 'cors'
 import {WinstonUtil} from "./utilz/winstonUtil";
 import * as http from "http";
-import {MySqlUtil} from "./utilz/mySqlUtil";
 import {Container} from "typedi";
 import {ValidatorNode} from "./services/messaging/validatorNode";
 import {ValidatorRpc} from "./api/routes/validatorRpc";
@@ -26,6 +24,9 @@ import util from "util";
 import {ReflUtil} from "./utilz/reflUtil";
 import {StrUtil} from "./utilz/strUtil";
 import winston from "winston";
+import pgPromise from 'pg-promise'
+import { IClient } from 'pg-promise/typescript/pg-subset'
+import {DbLoader} from "./services/messaging/dbLoader";
 
 let server: Server;
 let log = WinstonUtil.newLog("SERVER");
@@ -98,29 +99,14 @@ function printMemoryUsage() {
   console.log(`Heap stats %o`, v8.getHeapStatistics());
 }
 
-async function initDb() {
-  const DB_HOST = EnvLoader.getPropertyOrDefault("DB_HOST", "localhost");
-  const DB_PORT = EnvLoader.getPropertyAsNumber("DB_PORT", 3306);
-  const DB_USER = EnvLoader.getPropertyOrDefault("DB_USER", "mysql");
-  const DB_NAME = EnvLoader.getPropertyOrDefault("DB_NAME", "vnode1");
-  const DB_PASS = EnvLoader.getPropertyOrDefault("DB_PASS", "mysql");
 
-  log.debug("MYSQL: DB_HOST=%s DB_PORT=%s DB_USER=%s, DB_NAME=%s", DB_HOST, DB_PORT, DB_USER, DB_NAME);
-  const dbpool = mysql.createPool({
-    connectionLimit: 10,
-    host: DB_HOST,
-    port: DB_PORT,
-    user: DB_USER,
-    database: DB_NAME,
-    password: DB_PASS,
-  });
-
-  MySqlUtil.init(dbpool)
-  await createNewValidatorTables();
+async function initPg() {
+  await DbLoader.initPostgres();
+  await DbLoader.initTables();
 }
 
 export async function initValidator() {
-  await initDb();
+  await initPg();
 
   const qm = Container.get(QueueManager);
   await qm.postConstruct();

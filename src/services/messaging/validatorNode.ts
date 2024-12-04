@@ -1037,6 +1037,10 @@ export class ValidatorNode implements StorageContractListener {
     this.log.debug('result %o', ar);
     return ar
   }
+
+  async getTransactionStatus() {
+
+  }
 }
 
 export class NodeReportSig {

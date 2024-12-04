@@ -162,6 +162,16 @@ export class ValidatorRpc {
     }
   }
 
+  public async push_getTransactionStatus() {
+    try {
+      let result = await this.validatorNode.getTransactionStatus();
+      return result;
+    } catch (e) {
+      this.log.error('error %o', e);
+      throw new BlockError(e.message);
+    }
+  }
+
   // todo push_getTransactions
   // todo push_getBlockTransactionCountByHash (1)
   // todo push_getBlockByHash

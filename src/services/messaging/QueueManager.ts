@@ -1,9 +1,9 @@
 import { Inject, Service } from 'typedi'
-import { MySqlUtil } from '../../utilz/mySqlUtil'
 import { Logger } from 'winston'
 import { ValidatorContractState } from '../messaging-common/validatorContractState'
 import { WinstonUtil } from '../../utilz/winstonUtil'
 import { QueueServer } from '../messaging-dset/queueServer'
+import {PgUtil} from "../../utilz/pgUtil";
 
 
 
@@ -64,7 +64,7 @@ export class QueueManager {
   }
 
   public async expectValidQueueName(queueName: string): Promise<void> {
-    const obj = await MySqlUtil.queryOneRow<{ dset_name }>(
+    const obj = await PgUtil.queryOneRow<{ dset_name }>(
       'select queue_name from dset_server ' + 'where queue_name=?',
       queueName
     )
