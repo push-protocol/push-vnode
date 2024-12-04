@@ -40,7 +40,8 @@ export class ValidatorPing {
   // PING: ping all known peers
   public async updatePingState() {
     const validators = this.contractState.getActiveValidatorsExceptSelf()
-    const promiseList: Promise<PingReply>[] = []
+    const promiseList: Promise<PingReply>[] = [];
+    const startTime = DateUtil.currentTimeMillis();
     for (const v of validators) {
       const vc = new ValidatorClient(v.url);
       this.log.debug('pinging : %s', v.url);
@@ -62,7 +63,13 @@ export class ValidatorPing {
         this.pingResult.delete(v.nodeId)
       }
     }
-    this.log.debug('pingResult: %o', this.pingResult)
+    this.log.debug('pingResult: ');
+    for (const [key, val] of this.pingResult) {
+      const deltaInSec = Math.round((val.tsMillis - startTime) / 1000);
+      const deltaAsStr = deltaInSec >= 0 ? "+" + deltaInSec : "" + deltaInSec;
+      this.log.debug('pingResult: v: %s lag: %s s', key, deltaAsStr)
+    }
+
   }
 
   public postConstruct() {
