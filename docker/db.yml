@@ -33,25 +33,24 @@ services:
 #          - phpmyadmin.local
 
 
-  # for V nodes we use mysql
-  mysql:
-    image: mysql:8.0
-    container_name: mysql1
-    command: --default-authentication-plugin=mysql_native_password
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: 'pass'
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASS}
-    ports:
-      - '${EXTERNAL_DB_PORT}:3306'
-    volumes:
-      - ./external/mysql:/var/lib/mysql/
-      - ./mysql-init:/docker-entrypoint-initdb.d/
-    networks:
-      push-dev-network:
-        aliases:
-          - mysql.local
+#  mysql:
+#    image: mysql:8.0
+#    container_name: mysql1
+#    command: --default-authentication-plugin=mysql_native_password
+#    restart: always
+#    environment:
+#      MYSQL_ROOT_PASSWORD: 'pass'
+#      MYSQL_USER: ${DB_USER}
+#      MYSQL_PASSWORD: ${DB_PASS}
+#    ports:
+#      - '${EXTERNAL_DB_PORT}:3306'
+#    volumes:
+#      - ./external/mysql:/var/lib/mysql/
+#      - ./mysql-init:/docker-entrypoint-initdb.d/
+#    networks:
+#      push-dev-network:
+#        aliases:
+#          - mysql.local
 
   # for snodes and a nodes we use postgres
   postgres:
@@ -59,7 +58,7 @@ services:
     container_name: postgres1
     restart: always
     environment:
-      - POSTGRES_DB=snode1
+      - POSTGRES_DB=dummy
       - POSTGRES_USER=${PG_USER}
       - POSTGRES_PASSWORD=${PG_PASS}
     ports:
