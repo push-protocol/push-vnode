@@ -43,7 +43,7 @@ export class ValidatorRpc {
   public async push_sendTransaction([transactionDataBase16]) {
     try {
       let txRaw = BitUtil.base16ToBytes(transactionDataBase16);
-      let txHash = await this.validatorNode.sendTransactionBlocking(txRaw);
+      let txHash = await this.validatorNode.sendTransaction(txRaw, true);
       return txHash;
     } catch (e) {
       this.log.error('error %o', e);

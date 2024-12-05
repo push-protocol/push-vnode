@@ -62,6 +62,7 @@ export class QueueServer implements Consumer<QItem> {
    * @param cmdHash
    */
   public async appendWithHashChecks(cmd: DCmd, cmdHash: string): Promise<boolean> {
+    // todo remove json, so that it won't be "AAAA" in double quotes
     const cmdStr = JSON.stringify(cmd)
     /*
      note: IGNORE consumes all type of errors, so it is a very error prone keyword
@@ -69,7 +70,7 @@ export class QueueServer implements Consumer<QItem> {
      another option is to remove IGNORE and catch the exception
     */
     const res = await PgUtil.insert(
-      `INSERT IGNORE INTO dset_queue_${this.queueName}(object, object_hash)
+      `INSERT INTO dset_queue_${this.queueName}(object, object_hash)
        VALUES (?, ?) ON CONFLICT (object_hash) DO NOTHING`,
       cmdStr,
       cmdHash

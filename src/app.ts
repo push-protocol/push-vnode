@@ -120,8 +120,10 @@ export async function initValidator() {
 }
 
 export function initRoutes(app: Application) {
-  app.use(express.json());
-  app.use(cors())
+  // app.use(express.json());
+  const MAX_HTTP_PAYLOAD = EnvLoader.getPropertyOrDefault('MAX_HTTP_PAYLOAD', '20mb');
+  app.use(express.json({limit: MAX_HTTP_PAYLOAD}));
+  app.use(cors());
   initMessaging(app);
   initRpc(app);
 
@@ -157,7 +159,7 @@ function createBeforeAndAfterLoggingController(log: winston.Logger, object): [ob
 function initRpc(app: Router) {
   const validatorRpc = Container.get(ValidatorRpc);
   let before = null, after = null;
-  if (EnvLoader.getPropertyAsBool('VALIDATOR_HTTP_LOG')) {
+  if (EnvLoader.getPropertyAsBool('VALIDATOR_HTTP_LOG', false)) {
     [before, after] = createBeforeAndAfterLoggingController(validatorRpc.log, validatorRpc);
   }
 

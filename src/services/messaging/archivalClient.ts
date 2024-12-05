@@ -12,7 +12,7 @@ import {StrUtil} from "../../utilz/strUtil";
 
 export default class ArchivalClient {
   public log: Logger = WinstonUtil.newLog(ArchivalClient)
-  public timeout: number = EnvLoader.getPropertyAsNumber("ARCHIVAL_CLIENT_TIMEOUT", 5000);
+  public timeout: number = EnvLoader.getPropertyAsNumber("ARCHIVAL_CLIENT_TIMEOUT", 60000);
   private rpc: JsonRpcClient;
 
   constructor(baseUri: string) {

@@ -11,7 +11,7 @@ import {Check} from "../../utilz/check";
 
 export default class StorageClient {
   public log: Logger = WinstonUtil.newLog(StorageClient)
-  public timeout: number = EnvLoader.getPropertyAsNumber("STORAGE_CLIENT_TIMEOUT", 5000);
+  public timeout: number = EnvLoader.getPropertyAsNumber("STORAGE_CLIENT_TIMEOUT", 60000);
   private rpc: JsonRpcClient;
 
   constructor(baseUri: string) {

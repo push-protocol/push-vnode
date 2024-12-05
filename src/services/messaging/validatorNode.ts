@@ -47,7 +47,7 @@ import ArchivalClient from "./archivalClient";
 export class ValidatorNode implements StorageContractListener {
   public log: Logger = WinstonUtil.newLog(ValidatorNode);
 
-  private static readonly BLOCK_BUFFER_DELAY = EnvLoader.getPropertyAsNumber("BLOCK_BUFFER_DELAY", 200);
+  private static readonly BLOCK_BUFFER_DELAY = EnvLoader.getPropertyAsNumber("BLOCK_BUFFER_DELAY", 30000);
   private readonly TX_BLOCKING_API_MAX_TIMEOUT = 45000
 
   // percentage of node to read (from the total active count of snodes)
@@ -119,7 +119,7 @@ export class ValidatorNode implements StorageContractListener {
     return this.valContractState.getAllNodesMap()
   }
 
-  public async sendTransaction(txRaw: Uint8Array, validatorTokenRequired: boolean): Promise<boolean> {
+  public async sendTransaction(txRaw: Uint8Array, validatorTokenRequired: boolean): Promise<string> {
     if (this.currentBlock == null) {
       this.currentBlock = new Block();
       this.totalTransactionBytes = 0;
@@ -130,7 +130,8 @@ export class ValidatorNode implements StorageContractListener {
       // it's the sender's responsibility to retry in a while
       this.log.info('block is full; tx count: %d ; limit: %d ',
         this.currentBlock.getTxobjList().length, BlockUtil.MAX_TRANSACTIONS_PER_BLOCK);
-      return false;
+      throw new Error('block is full, tx count: ' + this.currentBlock.getTxobjList().length
+        + '. Please retry.');
     }
     if (this.totalTransactionBytes >= BlockUtil.MAX_TOTAL_TRANSACTION_SIZE_BYTES) {
       // todo improve
@@ -138,7 +139,8 @@ export class ValidatorNode implements StorageContractListener {
       // it's the sender's responsibility to retry in a while
       this.log.info('block is full; totalTransactionBytes: %d ; limit: %d ',
         this.totalTransactionBytes, BlockUtil.MAX_TOTAL_TRANSACTION_SIZE_BYTES);
-      return false;
+      throw new Error('block is full, tx count: ' + this.currentBlock.getTxobjList().length
+        + '. Please retry.');
     }
     // check
     const tx = BlockUtil.parseTx(txRaw);
@@ -166,6 +168,7 @@ export class ValidatorNode implements StorageContractListener {
     if (!txCheck.success) {
       throw new BlockError(txCheck.err);
     }
+    let txHash = BlockUtil.hashTxAsHex(txRaw);
     // append transaction
     let txObj = new TransactionObj();
     txObj.setTx(tx);
@@ -175,7 +178,7 @@ export class ValidatorNode implements StorageContractListener {
     this.log.debug(`block contains %d transacitons, totalling as %d bytes`,
       this.currentBlock.getTxobjList().length, this.totalTransactionBytes);
     this.tryScheduleBlock();
-    return true
+    return txHash
   }
 
   // todo: extend timer by +200ms if new tx comes,
@@ -196,6 +199,9 @@ export class ValidatorNode implements StorageContractListener {
         let b = await this.batchProcessBlock(true);
       } catch (e) {
         this.log.error('error', e);
+      } finally {
+        // allow new timer to get registered
+        this.blockTimeout = null;
       }
     }, ValidatorNode.BLOCK_BUFFER_DELAY);
   }
@@ -204,16 +210,15 @@ export class ValidatorNode implements StorageContractListener {
   /**
    * This method blocks for a long amount of time,
    * until processBlock() gets executed
+   *
+   * USE ONLY FOR INTERNAL DEV TASKS; THIS DOES NOT SCALE WELL FOR SOME NODEJS REASONS
    */
   public async sendTransactionBlocking(txRaw: Uint8Array): Promise<string> {
     const monitor = new WaitNotify();
     let txHash = BlockUtil.hashTxAsHex(txRaw);
     this.blockMonitors.set(txHash, monitor)
     this.log.debug('adding monitor for transaction hash: %s', txHash)
-    const success = await this.sendTransaction(txRaw, true);
-    if (!success) {
-      return null;
-    }
+    txHash = await this.sendTransaction(txRaw, true);
     await monitor.wait(this.TX_BLOCKING_API_MAX_TIMEOUT); // block until processBlock()
     return txHash;
   }
@@ -251,7 +256,6 @@ export class ValidatorNode implements StorageContractListener {
     // replace it with a new empty block
     this.currentBlock = new Block();
     this.blockMonitors = new Map<string, WaitNotify>();
-    this.blockTimeout = null; // allow new timer to get registered
 
 
     // ** populate block
@@ -420,7 +424,11 @@ export class ValidatorNode implements StorageContractListener {
     for (const nodeId of affectedSNodes) {
       const p = this.sendBlockToSNodeWithRetries(nodeId, blockHashHex, blockHex, retryDelay, retryCount)
         .then(value => {
-          this.log.debug("successfully executed putBlock to snode %s", nodeId);
+          if (value == NodeSendResult.ERROR_CAN_RETRY) {
+            this.log.error("error executing putBlock to snode %s; Will retry later %d times", nodeId, retryDelay);
+          } else {
+            this.log.debug("successfully executed putBlock to snode %s", nodeId);
+          }
         })
         .catch(reason => {
           this.log.error("error executing putBlock to snode %s : %s", nodeId, reason);
@@ -456,13 +464,14 @@ export class ValidatorNode implements StorageContractListener {
   }
 
   // only 1st send in synchronous; retries are async
-  private async sendBlockToSNodeWithRetries(nodeId: string, blockHashHex: string, blockHex: string, retryDelay: number, retriesLeft: number): Promise<void> {
+  private async sendBlockToSNodeWithRetries(nodeId: string, blockHashHex: string, blockHex: string, retryDelay: number, retriesLeft: number): Promise<NodeSendResult> {
     const res = await this.sendBlockToSNode(nodeId, blockHashHex, blockHex);
     if (res === NodeSendResult.ERROR_CAN_RETRY && retriesLeft > 0) {
       setTimeout(() => {
         this.sendBlockToSNodeWithRetries(nodeId, blockHashHex, blockHex, retryDelay, retriesLeft - 1);
       }, retryDelay);
     }
+    return res;
   }
 
   private async sendBlockToSNode(nodeId: string, blockHashHex: string, blockHex: string): Promise<NodeSendResult> {
@@ -487,6 +496,7 @@ export class ValidatorNode implements StorageContractListener {
       return NodeSendResult.ERROR_CAN_RETRY;
     }
     const hashReply = reply1[0];
+    // todo add if for: hashReply == "DO_NOT_SEND"
     if (hashReply !== "SEND") {
       this.log.error('Ignoring block delivery (DO_NOT_SEND) to node: %s', nodeId);
       return NodeSendResult.DO_NOT_RETRY;
