@@ -23,51 +23,51 @@ services:
       - ./s1/log:/log
       - ./_abi/:/config/abi/
 
-#
-#  snode2:
-#    image: snode-main
-#    container_name: snode2
-#    networks:
-#      push-dev-network:
-#        aliases:
-#          - snode2.local
-#    environment:
-#      DB_NAME: snode2
-#      PORT: 3002
-#    env_file:
-#      - .env
-#      - common.env
-#      - s-specific.env
-#    ports:
-#      - "3002:3002"
-#    volumes:
-#      - ./s2:/config
-#      - ./s2/log:/log
-#      - ./_abi/:/config/abi/
-#
-#
-#  snode3:
-#    image: snode-main
-#    container_name: snode3
-#    networks:
-#      push-dev-network:
-#        aliases:
-#          - snode3.local
-#    environment:
-#      DB_NAME: snode3
-#      PORT: 3003
-#    env_file:
-#      - .env
-#      - common.env
-#      - s-specific.env
-#    ports:
-#      - "3003:3003"
-#    volumes:
-#      - ./s3:/config
-#      - ./s3/log:/log
-#      - ./_abi/:/config/abi/
-#
-#
+
+  snode2:
+    image: snode-main
+    container_name: snode2
+    networks:
+      push-dev-network:
+        aliases:
+          - snode2.local
+    environment:
+      DB_NAME: snode2
+      PORT: 3002
+    env_file:
+      - .env
+      - common.env
+      - s-specific.env
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./s2:/config
+      - ./s2/log:/log
+      - ./_abi/:/config/abi/
+
+
+  snode3:
+    image: snode-main
+    container_name: snode3
+    networks:
+      push-dev-network:
+        aliases:
+          - snode3.local
+    environment:
+      DB_NAME: snode3
+      PORT: 3003
+    env_file:
+      - .env
+      - common.env
+      - s-specific.env
+    ports:
+      - "3003:3003"
+    volumes:
+      - ./s3:/config
+      - ./s3/log:/log
+      - ./_abi/:/config/abi/
+
+
 #  snode4:
 #    image: snode-main
 #    container_name: snode4
