@@ -47,7 +47,7 @@ import ArchivalClient from "./archivalClient";
 export class ValidatorNode implements StorageContractListener {
   public log: Logger = WinstonUtil.newLog(ValidatorNode);
 
-  private static readonly BLOCK_BUFFER_TIMEOUT = EnvLoader.getPropertyAsNumber("BLOCK_BUFFER_TIMEOUT", 200);
+  private static readonly BLOCK_BUFFER_TIMEOUT = EnvLoader.getPropertyAsNumber("BLOCK_BUFFER_TIMEOUT", 300);
   private readonly TX_BLOCKING_API_MAX_TIMEOUT = 45000
 
   // percentage of node to read (from the total active count of snodes)
@@ -108,6 +108,7 @@ export class ValidatorNode implements StorageContractListener {
     this.log.debug(`done loading eth config, using wallet %s`, this.nodeId)
     this.validatorPing.postConstruct()
     this.random.postConstruct()
+    this.tryScheduleBlock();
   }
 
   // ------------------------------ VALIDATOR -----------------------------------------
@@ -174,7 +175,6 @@ export class ValidatorNode implements StorageContractListener {
     this.totalTransactionBytes += tx.serializeBinary().length;
     this.log.debug(`block contains %d transactions, totalling as %d bytes`,
       this.currentBlockTxs.length, this.totalTransactionBytes);
-    this.tryScheduleBlock();
     return txHash
   }
 
@@ -183,7 +183,7 @@ export class ValidatorNode implements StorageContractListener {
   // this method got simplified to avoid race conditions (which happen for some reason in nodejs)
   // so we will simply call batchProcessBlock even if we have nothing to process (!)
   public tryScheduleBlock() {
-    this.blockTimeout = setTimeout(async () => {
+    this.blockTimeout = setInterval(async () => {
       try {
         let b = await this.batchProcessBlock(true);
       } catch (e) {
