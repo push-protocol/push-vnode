@@ -82,13 +82,11 @@ export class ValidatorNode implements StorageContractListener {
 
   // state
   // block (cleared on every cron event)
-  private currentBlock: Block = null;
+  private currentBlockTxs: TransactionObj[] = [];
   // total serialized length of all transactions; used as a watermark (cleared on every cron event)
-  private totalTransactionBytes: number;
+  private totalTransactionBytes: number = 0;
 
   private blockTimeout: NodeJS.Timeout = null;
-  // objects used to wait on block
-  private blockMonitors: Map<string, WaitNotify> = new Map<string, WaitNotify>()
 
   constructor() {
   }
@@ -120,17 +118,13 @@ export class ValidatorNode implements StorageContractListener {
   }
 
   public async sendTransaction(txRaw: Uint8Array, validatorTokenRequired: boolean): Promise<string> {
-    if (this.currentBlock == null) {
-      this.currentBlock = new Block();
-      this.totalTransactionBytes = 0;
-    }
-    if (this.currentBlock.getTxobjList().length >= BlockUtil.MAX_TRANSACTIONS_PER_BLOCK) {
+    if (this.currentBlockTxs.length >= BlockUtil.MAX_TRANSACTIONS_PER_BLOCK) {
       // todo improve
       // as of now - we simply reject the transaction
       // it's the sender's responsibility to retry in a while
       this.log.info('block is full; tx count: %d ; limit: %d ',
-        this.currentBlock.getTxobjList().length, BlockUtil.MAX_TRANSACTIONS_PER_BLOCK);
-      throw new Error('block is full, tx count: ' + this.currentBlock.getTxobjList().length
+        this.currentBlockTxs.length, BlockUtil.MAX_TRANSACTIONS_PER_BLOCK);
+      throw new Error('block is full, tx count: ' + this.currentBlockTxs.length
         + '. Please retry.');
     }
     if (this.totalTransactionBytes >= BlockUtil.MAX_TOTAL_TRANSACTION_SIZE_BYTES) {
@@ -139,7 +133,7 @@ export class ValidatorNode implements StorageContractListener {
       // it's the sender's responsibility to retry in a while
       this.log.info('block is full; totalTransactionBytes: %d ; limit: %d ',
         this.totalTransactionBytes, BlockUtil.MAX_TOTAL_TRANSACTION_SIZE_BYTES);
-      throw new Error('block is full, tx count: ' + this.currentBlock.getTxobjList().length
+      throw new Error('block is full, tx count: ' + this.currentBlockTxs.length
         + '. Please retry.');
     }
     // check
@@ -175,56 +169,30 @@ export class ValidatorNode implements StorageContractListener {
     // append transaction
     let txObj = new TransactionObj();
     txObj.setTx(tx);
-    this.currentBlock.addTxobj(txObj);
+    this.currentBlockTxs.push(txObj);
     // note: were he serialize 1 transaction to increment the total size
     this.totalTransactionBytes += tx.serializeBinary().length;
-    this.log.debug(`block contains %d transacitons, totalling as %d bytes`,
-      this.currentBlock.getTxobjList().length, this.totalTransactionBytes);
+    this.log.debug(`block contains %d transactions, totalling as %d bytes`,
+      this.currentBlockTxs.length, this.totalTransactionBytes);
     this.tryScheduleBlock();
     return txHash
   }
 
   // todo: extend timer by +200ms if new tx comes,
   //  but no more than 500ms in total delay from the first tx registered and waiting
-
+  // this method got simplified to avoid race conditions (which happen for some reason in nodejs)
+  // so we will simply call batchProcessBlock even if we have nothing to process (!)
   public tryScheduleBlock() {
-    if (this.blockTimeout != null) {
-      // we have already scheduled the batch processing
-      // the timer is on
-      // no need to add one more
-      this.log.debug("BLOCK: a block is already scheduled")
-      return;
-    }
-    this.log.debug("BLOCK: scheduling new block in %s ms", ValidatorNode.BLOCK_BUFFER_TIMEOUT)
     this.blockTimeout = setTimeout(async () => {
       try {
-        this.log.debug("BLOCK: producing a block")
         let b = await this.batchProcessBlock(true);
       } catch (e) {
         this.log.error('error', e);
       } finally {
-        // allow new timer to get registered
-        this.blockTimeout = null;
       }
     }, ValidatorNode.BLOCK_BUFFER_TIMEOUT);
   }
 
-
-  /**
-   * This method blocks for a long amount of time,
-   * until processBlock() gets executed
-   *
-   * USE ONLY FOR INTERNAL DEV TASKS; THIS DOES NOT SCALE WELL FOR SOME NODEJS REASONS
-   */
-  public async sendTransactionBlocking(txRaw: Uint8Array): Promise<string> {
-    const monitor = new WaitNotify();
-    let txHash = BlockUtil.hashTxAsHex(txRaw);
-    this.blockMonitors.set(txHash, monitor)
-    this.log.debug('adding monitor for transaction hash: %s', txHash)
-    txHash = await this.sendTransaction(txRaw, true);
-    await monitor.wait(this.TX_BLOCKING_API_MAX_TIMEOUT); // block until processBlock()
-    return txHash;
-  }
 
   /**
    * Grabs all accumulated transactions (at the time of the cron job)
@@ -245,21 +213,18 @@ export class ValidatorNode implements StorageContractListener {
    * Pushes the block to the public queue
    */
   public async batchProcessBlock(cronJob: boolean): Promise<Block> {
-    this.log.info('batch started');
-    if (this.currentBlock == null
-      || this.currentBlock.getTxobjList() == null
-      || this.currentBlock.getTxobjList().length == 0) {
+    if (this.currentBlockTxs.length == 0) {
       if (!cronJob) {
         this.log.error('block is empty')
       }
       return null;
     }
-    const block = this.currentBlock;
-    const blockMonitors = this.blockMonitors;
-    // replace it with a new empty block
-    this.currentBlock = new Block();
-    this.blockMonitors = new Map<string, WaitNotify>();
-
+    this.log.debug("batchProcessBlock(): producing a block")
+    // cleanup cashe into tmp array
+    const cashedTxs = this.currentBlockTxs.splice(0);
+    this.totalTransactionBytes = 0;
+    let block = new Block();
+    block.getTxobjList().push(...cashedTxs);
 
     // ** populate block
     this.logBlockContents('validation for block', block);
@@ -383,19 +348,13 @@ export class ValidatorNode implements StorageContractListener {
     await this.publishFinalizedBlock(blockSignedByVA);
     this.logBlockContents('published block', blockSignedByVA);
 
-    // ** unblock addPayloadToMemPoolBlocking() requests
-    for (let txObj of blockSignedByVA.getTxobjList()) {
-      let tx = txObj.getTx();
-      let txHash = BlockUtil.hashTxAsHex(tx.serializeBinary());
-
-      const objMonitor = blockMonitors.get(txHash);
-      if (objMonitor) {
-        this.log.debug('unblocking monitor %s', objMonitor);
-        objMonitor.notifyAll();
-      } else {
-        this.log.debug('no monitor found for id %s', txHash);
-      }
-    }
+    // ** update tx statuses
+    // for (let txObj of blockSignedByVA.getTxobjList()) {
+    //   let tx = txObj.getTx();
+    //   let txHash = BlockUtil.hashTxAsHex(tx.serializeBinary());
+    //   // todo
+    // }
+    this.log.debug("batchProcessBlock(): finished")
     return blockSignedByVA;
   }
 
