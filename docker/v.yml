@@ -66,70 +66,70 @@ services:
       - ./v3/log:/log
       - ./_abi/:/config/abi/
 
-#
-#  vnode4:
-#    image: vnode-main
-#    container_name: vnode4
-#    networks:
-#      push-dev-network:
-#        aliases:
-#          - vnode4.local
-#    environment:
-#      DB_NAME: vnode4
-#      PORT: 4004
-#    env_file:
-#      - .env
-#      - common.env
-#      - v-specific.env
-#    ports:
-#      - "4004:4004"
-#    volumes:
-#      - ./v4:/config
-#      - ./v4/log:/log
-#      - ./_abi/:/config/abi/
-#
-#  vnode5:
-#    image: vnode-main
-#    container_name: vnode5
-#    networks:
-#      push-dev-network:
-#        aliases:
-#          - vnode5.local
-#    environment:
-#      DB_NAME: vnode5
-#      PORT: 4005
-#    env_file:
-#      - .env
-#      - common.env
-#      - v-specific.env
-#    ports:
-#      - "4005:4005"
-#    volumes:
-#      - ./v5:/config
-#      - ./v5/log:/log
-#      - ./_abi/:/config/abi/
-#
-#  vnode6:
-#    image: vnode-main
-#    container_name: vnode6
-#    networks:
-#      push-dev-network:
-#        aliases:
-#          - vnode6.local
-#    environment:
-#      DB_NAME: vnode6
-#      PORT: 4006
-#    env_file:
-#      - .env
-#      - common.env
-#      - v-specific.env
-#    ports:
-#      - "4006:4006"
-#    volumes:
-#      - ./v6:/config
-#      - ./v6/log:/log
-#      - ./_abi/:/config/abi/
-#
+
+  vnode4:
+    image: vnode-main
+    container_name: vnode4
+    networks:
+      push-dev-network:
+        aliases:
+          - vnode4.local
+    environment:
+      DB_NAME: vnode4
+      PORT: 4004
+    env_file:
+      - .env
+      - common.env
+      - v-specific.env
+    ports:
+      - "4004:4004"
+    volumes:
+      - ./v4:/config
+      - ./v4/log:/log
+      - ./_abi/:/config/abi/
+
+  vnode5:
+    image: vnode-main
+    container_name: vnode5
+    networks:
+      push-dev-network:
+        aliases:
+          - vnode5.local
+    environment:
+      DB_NAME: vnode5
+      PORT: 4005
+    env_file:
+      - .env
+      - common.env
+      - v-specific.env
+    ports:
+      - "4005:4005"
+    volumes:
+      - ./v5:/config
+      - ./v5/log:/log
+      - ./_abi/:/config/abi/
+
+  vnode6:
+    image: vnode-main
+    container_name: vnode6
+    networks:
+      push-dev-network:
+        aliases:
+          - vnode6.local
+    environment:
+      DB_NAME: vnode6
+      PORT: 4006
+    env_file:
+      - .env
+      - common.env
+      - v-specific.env
+    ports:
+      - "4006:4006"
+    volumes:
+      - ./v6:/config
+      - ./v6/log:/log
+      - ./_abi/:/config/abi/
+
 #  vnode7:
 #    image: vnode-main
 #    container_name: vnode7

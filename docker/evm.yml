@@ -14,9 +14,14 @@ services:
     environment:
       SEPOLIA_RPC_URL: 11
       SEPOLIA_PRIVATE_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-      VNODE_COUNT: 3
-      SNODE_COUNT: 1
-      ANODE_COUNT: 1
+      # if you edit these values for local env, the setup is the following:
+      # remove everything: ./cleanup.sh
+      # uncomment N number of records in v.yml ; s.yml; a.yml which matches the values above
+      # re-create everything: ./setup.sh
+      VNODE_COUNT: 6 # max 10
+      SNODE_COUNT: 3 # max 8
+      ANODE_COUNT: 3 # max 5
+
 
 networks:
   push-dev-network:
