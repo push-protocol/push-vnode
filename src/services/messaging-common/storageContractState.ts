@@ -46,9 +46,10 @@ export class StorageContractState {
     this.abiDir = EnvLoader.getPropertyOrDefault('ABI_DIR', this.configDir + "/abi");
     if (useSigner) {
       const connect = await EthersUtil.connectWithKey(
-        this.abiDir,
+        this.configDir,
         EnvLoader.getPropertyOrFail('VALIDATOR_PRIVATE_KEY_FILE'),
         EnvLoader.getPropertyOrFail('VALIDATOR_PRIVATE_KEY_PASS'),
+        this.abiDir,
         './StorageV1.json',
         EnvLoader.getPropertyOrFail('STORAGE_CONTRACT_ADDRESS'),
         this.provider

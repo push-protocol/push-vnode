@@ -27,6 +27,7 @@ export class ValidatorContractState {
 
   public async postConstruct() {
     this.log.info('ValidatorContractState.postConstruct()')
+    this.log.info('LOCALH=', EnvLoader.getPropertyAsBool("LOCALH"));
     this.contractFactory = new ContractClientFactory()
     this.contractCli = await this.contractFactory.buildRWClient(this.log)
     await this.contractCli.connect()
@@ -110,7 +111,7 @@ export class ValidatorContractState {
         if (!isLocalDocker && urlObj.protocol === "http:") {
           urlObj.protocol = "https:";
         }
-        const replaceLocalDomain = EnvLoader.getPropertyAsBool("LOCALH");
+        const replaceLocalDomain = EnvLoader.getPropertyAsBool("LOCALH", false);
         if (replaceLocalDomain) {
           if (urlObj.hostname.endsWith('.local')) {
             urlObj.hostname = 'localhost';
@@ -122,6 +123,7 @@ export class ValidatorContractState {
       if (fixedUrl.endsWith('/')) {
         fixedUrl = fixedUrl.slice(0, -1);
       }
+      this.log.debug('replaced %s => %s', nodeUrl, fixedUrl);
       return fixedUrl;
     } catch (e) {
       ValidatorContractState.log.error(e);
@@ -307,8 +309,7 @@ export class ValidatorCtClient {
     }
     this.log.info('storage nodes loaded %o', this.snodes)
 
-    // turned off unless we will refresh the contract
-    if (EnvLoader.getPropertyAsBool('ARCHIVAL_NODES_ON')) {
+    if (EnvLoader.getPropertyAsBool('ARCHIVAL_NODES_ON', true)) {
       const aNodes = await this.contract.getANodes()
       for (const nodeAddr of aNodes) {
         const niFromCt = await this.contract.getNodeInfo(nodeAddr)

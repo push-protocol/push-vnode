@@ -4,10 +4,10 @@
 // other nodes: read this from client
 import { Logger } from 'winston'
 import { WinstonUtil } from '../../utilz/winstonUtil'
-import { MySqlUtil } from '../../utilz/mySqlUtil'
 import { Consumer, DCmd, QItem } from './queueTypes'
 import {StrUtil} from '../../utilz/strUtil'
 import { ObjectHasher } from '../../utilz/objectHasher'
+import {PgUtil} from "../../utilz/pgUtil";
 
 export class QueueServer implements Consumer<QItem> {
   private log: Logger = WinstonUtil.newLog(QueueServer)
@@ -62,19 +62,20 @@ export class QueueServer implements Consumer<QItem> {
    * @param cmdHash
    */
   public async appendWithHashChecks(cmd: DCmd, cmdHash: string): Promise<boolean> {
+    // todo remove json, so that it won't be "AAAA" in double quotes
     const cmdStr = JSON.stringify(cmd)
     /*
      note: IGNORE consumes all type of errors, so it is a very error prone keyword
      we will return true only if there are affected rows
      another option is to remove IGNORE and catch the exception
     */
-    const res = await MySqlUtil.insert(
-      `INSERT IGNORE INTO dset_queue_${this.queueName}(object, object_hash)
-       VALUES (?, ?)`,
+    const res = await PgUtil.insert(
+      `INSERT INTO dset_queue_${this.queueName}(object, object_hash)
+       VALUES (?, ?) ON CONFLICT (object_hash) DO NOTHING`,
       cmdStr,
       cmdHash
     )
-    return res.affectedRows === 1
+    return res === 1
   }
 
   /*
@@ -83,17 +84,17 @@ export class QueueServer implements Consumer<QItem> {
   public async appendDirect(cmd: DCmd) {
     const object = JSON.stringify(cmd)
     const objectHash = ObjectHasher.hashToSha256(cmd)
-    const res = await MySqlUtil.insert(
+    const res = await PgUtil.insert(
       `INSERT INTO dset_queue_${this.queueName}(object, object_hash)
        VALUES (?,?)`,
       object,
       objectHash
     )
-    return res.affectedRows === 1
+    return res === 1
   }
 
   public async getFirstRowIdAfter(offset: number): Promise<number | null> {
-    return await MySqlUtil.queryOneValue(
+    return await PgUtil.queryOneValue(
       `select min(id) as id
        from dset_queue_${this.queueName}
        where id > ?`,
@@ -102,7 +103,7 @@ export class QueueServer implements Consumer<QItem> {
   }
 
   public async readItems(offset: number): Promise<QItem[]> {
-    const rows = await MySqlUtil.queryArr<{ id: number; object: string; object_hash: string }>(
+    const rows = await PgUtil.queryArr<{ id: number; object: string; object_hash: string }>(
       `select id, object, object_hash
        from dset_queue_${this.queueName}
        where id > ?
@@ -123,7 +124,7 @@ export class QueueServer implements Consumer<QItem> {
   }
 
   public async getLastOffset(): Promise<number> {
-    const max = await MySqlUtil.queryOneValue<number>(
+    const max = await PgUtil.queryOneValue<number>(
       `select max(id)  
        from dset_queue_${this.queueName}
        limit 1`

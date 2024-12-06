@@ -1,8 +1,8 @@
 import { Check } from '../../utilz/check'
 import { ValidatorContractState } from './validatorContractState'
-import { MySqlUtil } from '../../utilz/mySqlUtil'
 import { Logger } from 'winston'
 import { WinstonUtil } from '../../utilz/winstonUtil'
+import {PgUtil} from "../../utilz/pgUtil";
 
 export class QueueClientHelper {
   private static log: Logger = WinstonUtil.newLog(QueueClientHelper)
@@ -19,7 +19,7 @@ export class QueueClientHelper {
         const targetNodeId = nodeInfo.nodeId
         const targetNodeUrl = nodeInfo.url
         const targetState = ValidatorContractState.isEnabled(nodeInfo) ? 1 : 0
-        await MySqlUtil.insert(
+        await PgUtil.insert(
           `INSERT INTO dset_client (queue_name, target_node_id, target_node_url, target_offset, state)
            VALUES (?, ?, ?, 0, ?)
            ON DUPLICATE KEY UPDATE target_node_url=?,
@@ -31,7 +31,7 @@ export class QueueClientHelper {
           targetNodeUrl,
           targetState
         )
-        const targetOffset = await MySqlUtil.queryOneValue<number>(
+        const targetOffset = await PgUtil.queryOneValue<number>(
           `SELECT target_offset
            FROM dset_client
            where queue_name = ?

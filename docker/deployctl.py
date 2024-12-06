@@ -123,6 +123,33 @@ def deployStorage():
     sh('docker compose -f s.yml logs | tail -n 200', dir_yml)
 
 @command
+def deployArchival():
+    # cmdi('docker build . -t vnode-main', '/Users/w/chain/push-vnode')
+    print("deploying vnode code on DEV environment")
+    dir_vnode = '/home/chain/source/push-anode'
+    dir_yml = '/home/chain'
+
+    # cmdi('ls -la')
+    # exit(0) #
+
+    sh('git config credential.helper store', dir_vnode)
+    sh('git fetch', dir_vnode)
+    sh('git switch main', dir_vnode)
+    sh('git pull', dir_vnode)
+    sh('git status', dir_vnode)
+    sleep(10)
+
+    sh('docker build . -t anode-main', dir_vnode)
+    sleep(10)
+    sh('docker compose -f a.yml down', dir_yml)
+    sleep(10)
+    sh('docker compose -f a.yml up -d', dir_yml)
+    sleep(10)
+
+    print("Displaying the last 200 lines of Docker Compose logs...")
+    sh('docker compose -f a.yml logs | tail -n 200', dir_yml)
+
+@command
 def test(msg1, msg2):
     print(msg1, msg2)
 

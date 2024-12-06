@@ -8,6 +8,7 @@ import {UrlUtil} from "../../utilz/urlUtil";
 import {AttestBlockResult, AttestSignaturesRequest, AttestSignaturesResponse} from "../../generated/push/block_pb";
 import {JsonRpcClient, RpcError} from "../../utilz/jsonRpcClient";
 import {Tuple} from "../../utilz/tuple";
+import {EnvLoader} from "../../utilz/envLoader";
 
 /*
 External validator/attester api.
@@ -15,7 +16,7 @@ External validator/attester api.
 export class ValidatorClient {
   public log: Logger = WinstonUtil.newLog(ValidatorClient);
   baseUri: string;
-  timeout: number = 200000;
+  timeout: number = EnvLoader.getPropertyAsNumber("VALIDATOR_CLIENT_TIMEOUT", 60000);
   private rpc: JsonRpcClient;
 
   constructor(baseUri: string) {

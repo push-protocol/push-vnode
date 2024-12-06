@@ -6,13 +6,17 @@ import {UrlUtil} from "../../utilz/urlUtil";
 import {EnvLoader} from "../../utilz/envLoader";
 import {TypeUtil} from "../../utilz/typeUtil";
 import {Tuple} from "../../utilz/tuple";
+import {TxInfo, TxItem} from "./storageClient";
+import {Check} from "../../utilz/check";
+import {StrUtil} from "../../utilz/strUtil";
 
 export default class ArchivalClient {
   public log: Logger = WinstonUtil.newLog(ArchivalClient)
-  public timeout: number = EnvLoader.getPropertyAsNumber("ARCHIVAL_CLIENT_TIMEOUT", 5000);
+  public timeout: number = EnvLoader.getPropertyAsNumber("ARCHIVAL_CLIENT_TIMEOUT", 60000);
   private rpc: JsonRpcClient;
 
   constructor(baseUri: string) {
+    Check.isTrue(!StrUtil.isEmpty(baseUri), 'baseUri is empty');
     let baseRpcUri = UrlUtil.append(baseUri, '/rpc');
     this.rpc = new JsonRpcClient(this.timeout, baseRpcUri);
   }
@@ -43,6 +47,29 @@ export default class ArchivalClient {
           return [];
         }
         return result.map(value => <BlockReply>value);
+      });
+  }
+
+  public async push_getTransactions(accountInCaip: string, category: string, ts: string, sortOrder: string) {
+
+    return await this.rpc.call(
+      "RpcService.push_getTransactions",
+      [accountInCaip, category, ts, sortOrder],
+      function (result: any): TxInfo[] {
+        const items: TxItem[] = result.items;
+        if (!items) {
+          return [];
+        }
+        const txInfos: TxInfo[] = items.map(item => ({
+          hash: item.payload.hash,
+          type: item.payload.type,
+          category: item.payload.category,
+          sender: item.payload.sender,
+          recipientsList: item.payload.recipientsList,
+          data: item.payload.data,
+          ts: item.ts
+        }));
+        return txInfos;
       });
   }
 

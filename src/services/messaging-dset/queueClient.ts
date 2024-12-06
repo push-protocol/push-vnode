@@ -2,9 +2,9 @@
 // reads other node queue fully, appends everything to the local queue/storage
 import { Logger } from 'winston'
 import { WinstonUtil } from '../../utilz/winstonUtil'
-import { MySqlUtil } from '../../utilz/mySqlUtil'
 import axios from 'axios'
 import { Consumer, QItem } from './queueTypes'
+import {PgUtil} from "../../utilz/pgUtil";
 
 export class QueueClient {
   public log: Logger = WinstonUtil.newLog(QueueClient)
@@ -26,7 +26,7 @@ export class QueueClient {
    */
   public async pollRemoteQueue(maxRequests: number): Promise<any> {
     const result = []
-    const sameQueueEndpoints = await MySqlUtil.queryArr<{
+    const sameQueueEndpoints = await PgUtil.queryArr<{
       id: number
       queue_name: string
       target_node_id: string
@@ -76,7 +76,7 @@ export class QueueClient {
             endpointStats.newItems++
           }
         }
-        await MySqlUtil.update(
+        await PgUtil.update(
           'UPDATE dset_client SET target_offset=? WHERE id=?',
           reply.lastOffset,
           endpoint.id

@@ -6,6 +6,7 @@ import { ValidatorClient } from './validatorClient'
 import schedule from 'node-schedule'
 import { PromiseUtil } from '../../utilz/promiseUtil'
 import { WinstonUtil } from '../../utilz/winstonUtil'
+import {EnvLoader} from "../../utilz/envLoader";
 
 /**
  * Pings other validators, known from a smart contract
@@ -18,7 +19,7 @@ export class ValidatorPing {
   private contractState: ValidatorContractState
 
   // PING: schedule
-  private readonly PING_SCHEDULE = '*/30 * * * * *'
+  private readonly PING_SCHEDULE = EnvLoader.getPropertyOrDefault('VALIDATOR_PING_SCHEDULE', '*/30 * * * * *')
 
   // PING: peer online status
   private pingResult: Map<string, PingReply> = new Map<string, PingReply>()
@@ -38,11 +39,14 @@ export class ValidatorPing {
 
   // PING: ping all known peers
   public async updatePingState() {
+    this.log.debug('updatePingState()');
     const validators = this.contractState.getActiveValidatorsExceptSelf()
-    const promiseList: Promise<PingReply>[] = []
-    for (const v of validators) {
+    const promiseList: Promise<PingReply>[] = [];
+    const startTime = DateUtil.currentTimeMillis();
+    for (let i = 0; i < validators.length; i++){
+      const v = validators[i];
       const vc = new ValidatorClient(v.url);
-      this.log.debug('pinging : %s', v.url);
+      this.log.debug('pinging %i: %s', i, v.url);
       const promise = vc.ping()
       promiseList.push(promise)
     }
@@ -61,7 +65,14 @@ export class ValidatorPing {
         this.pingResult.delete(v.nodeId)
       }
     }
-    this.log.debug('pingResult: %o', this.pingResult)
+    let msg = "";
+    for (const [key, val] of this.pingResult) {
+      const deltaInSec = Math.round((val.tsMillis - startTime) / 1000);
+      const deltaAsStr = deltaInSec >= 0 ? "+" + deltaInSec : "" + deltaInSec;
+      msg += `pingResult: v: ${key} lag: ${deltaAsStr} s\n`;
+    }
+    this.log.debug('pingResult: \n%s', msg);
+
   }
 
   public postConstruct() {

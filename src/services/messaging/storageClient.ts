@@ -6,13 +6,16 @@ import {UrlUtil} from "../../utilz/urlUtil";
 import {EnvLoader} from "../../utilz/envLoader";
 import {TypeUtil} from "../../utilz/typeUtil";
 import {Tuple} from "../../utilz/tuple";
+import {StrUtil} from "../../utilz/strUtil";
+import {Check} from "../../utilz/check";
 
 export default class StorageClient {
   public log: Logger = WinstonUtil.newLog(StorageClient)
-  public timeout: number = EnvLoader.getPropertyAsNumber("STORAGE_CLIENT_TIMEOUT", 5000);
+  public timeout: number = EnvLoader.getPropertyAsNumber("STORAGE_CLIENT_TIMEOUT", 60000);
   private rpc: JsonRpcClient;
 
   constructor(baseUri: string) {
+    Check.isTrue(!StrUtil.isEmpty(baseUri), 'baseUri is empty');
     let baseRpcUri = UrlUtil.append(baseUri, '/api/v1/rpc');
     this.rpc = new JsonRpcClient(this.timeout, baseRpcUri);
   }
@@ -73,39 +76,23 @@ export default class StorageClient {
   }
 
   public async push_getTransactions(accountInCaip: string, category: string, ts: string, sortOrder: string) {
-    interface Item {
-      ns: string;
-      skey: string;
-      ts: string;
-      payload: {
-        fee: string;
-        data: string;
-        salt: string;
-        type: number;
-        sender: string;
-        apitoken: string;
-        category: string;
-        signature: string;
-        recipientsList: string[];
-      };
-    }
 
     return await this.rpc.call(
       "push_getTransactions",
       [accountInCaip, category, ts, sortOrder],
       function (result: any): TxInfo[] {
-        const items: Item[] = result.transactions?.items;
+        const items: TxItem[] = result.items;
         if (!items) {
           return [];
         }
         const txInfos: TxInfo[] = items.map(item => ({
+          hash: item.payload.hash,
           type: item.payload.type,
           category: item.payload.category,
           sender: item.payload.sender,
-          recipients: item.payload.recipientsList,
+          recipientsList: item.payload.recipientsList,
           data: item.payload.data,
-          ts: item.ts,
-          salt: item.payload.salt,
+          ts: item.ts
         }));
         return txInfos;
       });
@@ -158,13 +145,36 @@ export type KeyInfo = {
   attachedaccounts: any;
 }
 
-// removed technical fields: signature, apitoken, salt, fee
+// used in Validator replies
 export type TxInfo = {
   type: number;
   category: string;
   sender: string;
-  recipients: string[];
+  recipientsList: string[];
   data: string;
   ts: string;
-  salt: string;
+}
+
+// used in S,A replies
+export type TxPayload = {
+  data: string
+  hash: string
+  type: number
+  sender: string
+  category: string
+  recipientsList: string[]
+}
+
+// used in S,A replies
+export type TxItem = {
+  ns: string
+  skey: string
+  ts: string
+  payload: TxPayload
+}
+
+// used in S,A replies
+export type PushGetTxResult = {
+  items: TxItem[]
+  lastTs: string | null
 }

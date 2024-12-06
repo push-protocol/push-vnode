@@ -43,7 +43,7 @@ export class ValidatorRpc {
   public async push_sendTransaction([transactionDataBase16]) {
     try {
       let txRaw = BitUtil.base16ToBytes(transactionDataBase16);
-      let txHash = await this.validatorNode.sendTransactionBlocking(txRaw);
+      let txHash = await this.validatorNode.sendTransaction(txRaw, true);
       return txHash;
     } catch (e) {
       this.log.error('error %o', e);
@@ -155,6 +155,16 @@ export class ValidatorRpc {
         sortOrder = "DESC";
       }
       let result = await this.validatorNode.getTransactions(walletInCaip, category, ts, sortOrder);
+      return result;
+    } catch (e) {
+      this.log.error('error %o', e);
+      throw new BlockError(e.message);
+    }
+  }
+
+  public async push_getTransactionStatus() {
+    try {
+      let result = await this.validatorNode.getTransactionStatus();
       return result;
     } catch (e) {
       this.log.error('error %o', e);

@@ -5,11 +5,9 @@ EnvLoader.loadEnvOrFail();
 import express, {Application, Express, Router} from "express";
 import 'reflect-metadata'
 import {createServer, Server} from 'http'
-import {createNewValidatorTables} from './services/messaging/validatorLoader'
 import cors from 'cors'
 import {WinstonUtil} from "./utilz/winstonUtil";
 import * as http from "http";
-import {MySqlUtil} from "./utilz/mySqlUtil";
 import {Container} from "typedi";
 import {ValidatorNode} from "./services/messaging/validatorNode";
 import {ValidatorRpc} from "./api/routes/validatorRpc";
@@ -26,6 +24,9 @@ import util from "util";
 import {ReflUtil} from "./utilz/reflUtil";
 import {StrUtil} from "./utilz/strUtil";
 import winston from "winston";
+import pgPromise from 'pg-promise'
+import { IClient } from 'pg-promise/typescript/pg-subset'
+import {DbLoader} from "./services/messaging/dbLoader";
 
 let server: Server;
 let log = WinstonUtil.newLog("SERVER");
@@ -59,14 +60,18 @@ async function startServer(logLevel: string = null, testMode = false, padder = 0
       log.error("error %o", err);
     }
 
-    let artwork = `
-      ██████╗ ██╗   ██╗███████╗██╗  ██╗    ███╗   ██╗ ██████╗ ██████╗ ███████╗
-      ██╔══██╗██║   ██║██╔════╝██║  ██║    ████╗  ██║██╔═══██╗██╔══██╗██╔════╝
-      ██████╔╝██║   ██║███████╗███████║    ██╔██╗ ██║██║   ██║██║  ██║█████╗  
-      ██╔═══╝ ██║   ██║╚════██║██╔══██║    ██║╚██╗██║██║   ██║██║  ██║██╔══╝  
-      ██║     ╚██████╔╝███████║██║  ██║    ██║ ╚████║╚██████╔╝██████╔╝███████╗
-      ╚═╝      ╚═════╝ ╚══════╝╚═╝  ╚═╝    ╚═╝  ╚═══╝ ╚═════╝ ╚═════╝ ╚══════╝                                                                          
-    `;
+    let artwork =
+`    
+ ____            _      __     __    _ _     _       _             
+|  _ \\ _   _ ___| |__   \\ \\   / /_ _| (_) __| | __ _| |_ ___  _ __ 
+| |_) | | | / __| '_ \\   \\ \\ / / _\` | | |/ _\` |/ _\` | __/ _ \\| '__|
+|  __/| |_| \\__ \\ | | |   \\ V / (_| | | | (_| | (_| | || (_) | |   
+|_|  _ \\__,_|___/_| |_|    \\_/ \\__,_|_|_|\\__,_|\\__,_|\\__\\___/|_|   
+| \\ | | ___   __| | ___                                            
+|  \\| |/ _ \\ / _\` |/ _ \\                                           
+| |\\  | (_) | (_| |  __/                                           
+|_| \\_|\\___/ \\__,_|\\___|                                                
+`;
 
     log.info(`
       ################################################
@@ -94,22 +99,14 @@ function printMemoryUsage() {
   console.log(`Heap stats %o`, v8.getHeapStatistics());
 }
 
-async function initDb() {
-  const dbpool = mysql.createPool({
-    connectionLimit: 10,
-    host: EnvLoader.getPropertyOrDefault("DB_HOST", "localhost"),
-    port: EnvLoader.getPropertyAsNumber("DB_PORT", 3306),
-    user: EnvLoader.getPropertyOrDefault("DB_USER", "mysql"),
-    database: EnvLoader.getPropertyOrDefault("DB_NAME", "vnode1"),
-    password: EnvLoader.getPropertyOrDefault("DB_PASS", "mysql"),
-  });
 
-  MySqlUtil.init(dbpool)
-  await createNewValidatorTables();
+async function initPg() {
+  await DbLoader.initPostgres();
+  await DbLoader.initTables();
 }
 
 export async function initValidator() {
-  await initDb();
+  await initPg();
 
   const qm = Container.get(QueueManager);
   await qm.postConstruct();
@@ -123,8 +120,10 @@ export async function initValidator() {
 }
 
 export function initRoutes(app: Application) {
-  app.use(express.json());
-  app.use(cors())
+  // app.use(express.json());
+  const MAX_HTTP_PAYLOAD = EnvLoader.getPropertyOrDefault('MAX_HTTP_PAYLOAD', '20mb');
+  app.use(express.json({limit: MAX_HTTP_PAYLOAD}));
+  app.use(cors());
   initMessaging(app);
   initRpc(app);
 
@@ -144,11 +143,14 @@ function createBeforeAndAfterLoggingController(log: winston.Logger, object): [ob
   let methodNames = ReflUtil.getMethodNames(object);
   for (const method of methodNames) {
     beforeController[method] = function (params: any, _: any, raw: any) {
-      log.debug(`>>> Calling ${method}( `, StrUtil.fmt(params), `)`);
+      const reqId = "req" + raw?.req?.body?.id;
+      log.debug(`>>> Calling /%s(%s) [%s]`, method, reqId, StrUtil.fmt(params));
+      // log.debug("%o", raw)
     };
     afterController[method] = [
       function (params: any, result: any, raw: any) {
-        log.debug(`=== Reply ${'method'}() result: %o`, result);
+        const reqId = "req" + raw?.req?.body?.id;
+        log.debug(`=== Reply /%s(%s) result: %o`, method, reqId, StrUtil.fmt(result));
       }];
   }
   return [beforeController, afterController]
@@ -157,7 +159,7 @@ function createBeforeAndAfterLoggingController(log: winston.Logger, object): [ob
 function initRpc(app: Router) {
   const validatorRpc = Container.get(ValidatorRpc);
   let before = null, after = null;
-  if (EnvLoader.getPropertyAsBool('VALIDATOR_HTTP_LOG')) {
+  if (EnvLoader.getPropertyAsBool('VALIDATOR_HTTP_LOG', false)) {
     [before, after] = createBeforeAndAfterLoggingController(validatorRpc.log, validatorRpc);
   }
 

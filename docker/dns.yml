@@ -5,7 +5,7 @@ services:
     image: dns-main
     container_name: dns
     networks:
-      push-shared-network:
+      push-dev-network:
         aliases:
           - dns.local
     ports:
@@ -13,5 +13,5 @@ services:
     restart: unless-stopped
 
 networks:
-  push-shared-network:
+  push-dev-network:
     external: true
