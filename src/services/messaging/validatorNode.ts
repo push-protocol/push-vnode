@@ -850,7 +850,10 @@ export class ValidatorNode implements StorageContractListener {
     // query1 = we plan some amount of nodes + some buffer; if this is successfull or the failure rate is less than buffer
     // all the logic would end in O(1) because all queries are parallel
     const quorumNodeCount = Math.round(this.READ_QUORUM_PERC_INITDID * sNodes.length);
-    const query1Size = Math.min(quorumNodeCount + this.READ_QUORUM_REDUNDANCY, sNodes.length);
+    // todo ask all snodes
+    const query1Size = sNodes.length;
+    // todo: experiment, 8 nodes total, 2 have missing data - we should handle this correctly
+    // const query1Size = Math.min(quorumNodeCount + this.READ_QUORUM_REDUNDANCY, sNodes.length);
     this.log.debug('sNodesCount: %d, query1Size: %d', sNodes.length, query1Size);
     const query1Nodes = RandomUtil.getRandomSubArray(sNodes, query1Size);
     this.log.debug('sNodeCount: %d quorumNodeCount: %d query1Size: %d query1Nodes: %s', sNodes.length, quorumNodeCount, query1Size, query1Nodes);
