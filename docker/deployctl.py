@@ -139,7 +139,7 @@ def deployArchival():
     sh('git status', dir_vnode)
     sleep(10)
 
-    sh('docker build . -t anode-main', dir_vnode)
+    sh('docker build -t anode-main -f Dockerfile.light .', dir_vnode)
     sleep(10)
     sh('docker compose -f a.yml down', dir_yml)
     sleep(10)
