@@ -10,8 +10,12 @@ cd "${CHAIN_DIR}/push-vnode" || exit 1
 cd "${CHAIN_DIR}/push-snode" || exit 1
 cd "${CHAIN_DIR}/push-anode" || exit 1
 
+cp -n "${CHAIN_DIR}/push-node-smart-contracts/.env.example" "${CHAIN_DIR}/push-node-smart-contracts/.env"
 
 echo "Each container shows logs after startup. Hit Ctrl-C to stop reading logs!"
+
+echo "creating docker network (if needed)"
+docker network create push-dev-network
 
 cd "${DOCKER_DIR}" || exit 1
 echo
