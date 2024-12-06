@@ -30,6 +30,8 @@ export class ValidatorRandom {
   private static readonly RANDOM_SIZE_IN_BYTES = 20;
   public static readonly ATT_TOKEN_PREFIX = BlockUtil.ATT_TOKEN_PREFIX;
   public static readonly VAL_TOKEN_PREFIX =  BlockUtil.VAL_TOKEN_PREFIX;
+  private static readonly DISABLE_TOKEN_TIMEOUT = EnvLoader.getPropertyAsBool('VALIDATOR_DISABLE_TOKEN_TIMEOUT');
+
 
   // PING: schedule
   private static readonly RANDOM_SCHEDULE = '*/30 * * * * *'
@@ -184,6 +186,7 @@ export class ValidatorRandom {
     return false
   }
 
+
   /**
    * figure out which validators to use
    * based on: validatorsRequired,  networkRandom, allValidators
@@ -221,10 +224,9 @@ export class ValidatorRandom {
       Check.notEmpty(nodeRandom.nodeId) // todo
       // todo Are these checks safe ???
       let goodTimestamp = nodeRandom.tsMillis > DateUtil.currentTimeMillis() - 60 * 60 * 1000
-      if (EnvLoader.getPropertyAsBool('VALIDATOR_DISABLE_TOKEN_TIMEOUT')) {
-        goodTimestamp = true
+      if (this.DISABLE_TOKEN_TIMEOUT) {
+        goodTimestamp = true;
       }
-      ValidatorRandom.log.error('nodeRandom from %s is outdated by more than 1hr', nodeRandom.nodeId)
       const validNodeId = allValidators.has(nodeRandom.nodeId)
       // todo on review stage: double check that we check the 'real thing' here
       const validSignature = EthUtil.check(nodeRandom.signature, nodeRandom.nodeId, nodeRandom)

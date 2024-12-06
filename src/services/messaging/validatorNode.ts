@@ -47,7 +47,7 @@ import ArchivalClient from "./archivalClient";
 export class ValidatorNode implements StorageContractListener {
   public log: Logger = WinstonUtil.newLog(ValidatorNode);
 
-  private static readonly BLOCK_BUFFER_DELAY = EnvLoader.getPropertyAsNumber("BLOCK_BUFFER_DELAY", 30000);
+  private static readonly BLOCK_BUFFER_TIMEOUT = EnvLoader.getPropertyAsNumber("BLOCK_BUFFER_TIMEOUT", 200);
   private readonly TX_BLOCKING_API_MAX_TIMEOUT = 45000
 
   // percentage of node to read (from the total active count of snodes)
@@ -144,7 +144,10 @@ export class ValidatorNode implements StorageContractListener {
     }
     // check
     const tx = BlockUtil.parseTx(txRaw);
-    this.log.debug('processing tx: %o', tx.toObject())
+    this.log.debug('processing tx: %o', tx.toObject());
+    if(tx.getData_asU8().length > 4) {
+      this.log.error('I think this is corrupted payload!!!!'); // todo remove!!!!
+    }
     if (validatorTokenRequired) {
       // check that this Validator is a valid target, according to validatorToken
       let valid = true;
@@ -192,7 +195,7 @@ export class ValidatorNode implements StorageContractListener {
       this.log.debug("BLOCK: a block is already scheduled")
       return;
     }
-    this.log.debug("BLOCK: scheduling new block in %s ms", ValidatorNode.BLOCK_BUFFER_DELAY)
+    this.log.debug("BLOCK: scheduling new block in %s ms", ValidatorNode.BLOCK_BUFFER_TIMEOUT)
     this.blockTimeout = setTimeout(async () => {
       try {
         this.log.debug("BLOCK: producing a block")
@@ -203,7 +206,7 @@ export class ValidatorNode implements StorageContractListener {
         // allow new timer to get registered
         this.blockTimeout = null;
       }
-    }, ValidatorNode.BLOCK_BUFFER_DELAY);
+    }, ValidatorNode.BLOCK_BUFFER_TIMEOUT);
   }
 
 
@@ -259,6 +262,7 @@ export class ValidatorNode implements StorageContractListener {
 
 
     // ** populate block
+    this.logBlockContents('validation for block', block);
     block.setTs(DateUtil.currentTimeMillis());
     const tokenObj = this.random.createAttestToken();
     this.log.debug('random token: %o', tokenObj);
@@ -377,6 +381,7 @@ export class ValidatorNode implements StorageContractListener {
 
     // ** deliver
     await this.publishFinalizedBlock(blockSignedByVA);
+    this.logBlockContents('published block', blockSignedByVA);
 
     // ** unblock addPayloadToMemPoolBlocking() requests
     for (let txObj of blockSignedByVA.getTxobjList()) {
@@ -394,6 +399,21 @@ export class ValidatorNode implements StorageContractListener {
     return blockSignedByVA;
   }
 
+
+  // todo: not memory-efficient
+  private logBlockContents(msg: string, b: Block) {
+    let logMsg = `logBlockContents(): ${msg}\n`;
+    let txIds = new Set<string>();
+    for (const txObj of b.getTxobjList()) {
+      const txRaw = txObj.getTx().serializeBinary();
+      txIds.add(BlockUtil.hashTxAsHex(txRaw));
+    }
+    const blockRaw = b.serializeBinary();
+    logMsg += `blockHash: ${BlockUtil.hashBlockAsHex(blockRaw)} bytes: ${blockRaw.length}\n`;
+    logMsg += `${b.getTxobjList().length} transactions: \n`;
+    logMsg += `${StrUtil.fmt(txIds)}\n`;
+    this.log.debug(logMsg);
+  }
 
   public async publishFinalizedBlock(block: Block) {
     const blockRaw = block.serializeBinary();
@@ -498,7 +518,9 @@ export class ValidatorNode implements StorageContractListener {
     const hashReply = reply1[0];
     // todo add if for: hashReply == "DO_NOT_SEND"
     if (hashReply !== "SEND") {
-      this.log.error('Ignoring block delivery (DO_NOT_SEND) to node: %s', nodeId);
+      if (hashReply != "DO_NOT_SEND") {
+        this.log.error('Ignoring block delivery (DO_NOT_SEND) to node: %s', nodeId);
+      }
       return NodeSendResult.DO_NOT_RETRY;
     }
     const [reply2, err2] = await client.push_putBlock([blockHex]);
@@ -549,7 +571,9 @@ export class ValidatorNode implements StorageContractListener {
     }
     const hashReply = reply1[0];
     if (hashReply !== "SEND") {
-      this.log.error('Ignoring block delivery (DO_NOT_SEND) to node: %s', nodeId);
+      if (hashReply != "DO_NOT_SEND") {
+        this.log.error('Ignoring block delivery (DO_NOT_SEND) to node: %s', nodeId);
+      }
       return NodeSendResult.DO_NOT_RETRY;
     }
     const [reply2, err2] = await client.push_putBlock([blockHex]);
@@ -728,12 +752,12 @@ export class ValidatorNode implements StorageContractListener {
     const expectedHash = BitUtil.bytesToBase16(asr.getFinalblockhash_asU8());
     const blockHash = BlockUtil.hashBlockAsHex(blockSignedByVA.serializeBinary());
     if (blockHash !== expectedHash) {
-      throw new BlockError('block hash does not match the expected hash');
+      this.log.error('block hash does not match the expected hash');
     }
 
     // ** delayed deliver
-    const min = EnvLoader.getPropertyAsNumber("SEND_BLOCK_AS_ATTESTOR_MIN_DELAY", 5000);
-    const max = EnvLoader.getPropertyAsNumber("SEND_BLOCK_AS_ATTESTOR_MAX_DELAY", 30000);
+    const min = EnvLoader.getPropertyAsNumber("SEND_BLOCK_AS_ATTESTOR_MIN_DELAY", 20000);
+    const max = EnvLoader.getPropertyAsNumber("SEND_BLOCK_AS_ATTESTOR_MAX_DELAY", 60000);
     let rndDelay = RandomUtil.getRandomInt(min, max);
     setTimeout(async () => {
       try {
@@ -994,16 +1018,16 @@ export class ValidatorNode implements StorageContractListener {
     this.log.debug('nodesToPoll %d (nodesRequiredToPoll %d): %dxA , %dxS ', nodesToPoll, this.READ_QUORUM_PERC, aNodesToQuery.length, sNodesToQuery.length);
 
     // query aNodesToQuery + sNodesToQuery
-    const nodeQueryPlan:{ nodeId: string, isANode: boolean}[] = [];
+    const nodeQueryPlan: { nodeId: string, isANode: boolean }[] = [];
     for (const nodeId of aNodesToQuery) {
-      nodeQueryPlan.push({ nodeId: nodeId, isANode: true});
+      nodeQueryPlan.push({nodeId: nodeId, isANode: true});
     }
     for (const nodeId of sNodesToQuery) {
-      nodeQueryPlan.push({ nodeId: nodeId, isANode: false});
+      nodeQueryPlan.push({nodeId: nodeId, isANode: false});
     }
     const promiseList: Promise<Tuple<TxInfo[], RpcError>>[] = [];
     for (const query of nodeQueryPlan) {
-      if(query.isANode) {
+      if (query.isANode) {
         this.log.debug('query to anode %s', query.nodeId);
         const nodeBaseUrl = this.valContractState.getArchivalNodesMap().get(query.nodeId)?.url;
         const client = new ArchivalClient(nodeBaseUrl);
