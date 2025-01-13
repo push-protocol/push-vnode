@@ -140,9 +140,6 @@ export class ValidatorNode implements StorageContractListener {
     // check
     const tx = BlockUtil.parseTx(txRaw);
     this.log.debug('processing tx: %o', tx.toObject());
-    if(tx.getData_asU8().length > 4) {
-      this.log.error('I think this is corrupted payload!!!!'); // todo remove!!!!
-    }
     if (validatorTokenRequired) {
       // check that this Validator is a valid target, according to validatorToken
       let valid = true;

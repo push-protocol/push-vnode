@@ -1,6 +1,16 @@
 version: '3'
 services:
 
+  mon1:
+    image: docker:cli
+    network_mode: none
+    cap_drop:
+      - ALL
+    volumes: [ "/var/run/docker.sock:/var/run/docker.sock" ]
+    command: [ "/bin/sh", "-c", "while true; do sleep 60; docker ps -q -f health=unhealthy | xargs --no-run-if-empty docker restart; done" ]
+    restart: unless-stopped
+
+
   vnode1:
     image: vnode-main
     container_name: vnode1
@@ -21,6 +31,13 @@ services:
       - ./v1:/config
       - ./v1/log:/log
       - ./_abi/:/config/abi/
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:4001/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: always
 
 
   vnode2:
@@ -43,7 +60,13 @@ services:
       - ./v2:/config
       - ./v2/log:/log
       - ./_abi/:/config/abi/
-
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:4002/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: always
 
   vnode3:
     image: vnode-main
@@ -65,7 +88,13 @@ services:
       - ./v3:/config
       - ./v3/log:/log
       - ./_abi/:/config/abi/
-
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:4003/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: always
 
   vnode4:
     image: vnode-main
@@ -87,6 +116,13 @@ services:
       - ./v4:/config
       - ./v4/log:/log
       - ./_abi/:/config/abi/
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:4004/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: always
 
   vnode5:
     image: vnode-main
@@ -108,6 +144,13 @@ services:
       - ./v5:/config
       - ./v5/log:/log
       - ./_abi/:/config/abi/
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:4005/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: always
 
   vnode6:
     image: vnode-main
@@ -129,6 +172,13 @@ services:
       - ./v6:/config
       - ./v6/log:/log
       - ./_abi/:/config/abi/
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:4006/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: always
 
 #  vnode7:
 #    image: vnode-main

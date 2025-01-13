@@ -18,6 +18,14 @@ const log = WinstonUtil.newLog('SERVER');
 
 export function initMessaging (app: Application) {
   const route = Router()
+
+  app.get('/health', async (req: Request, res: Response, next: NextFunction) => {
+    return oneEx(req, res, next, false, async () => {
+      const statusObj = { status: "OK" };
+      return statusObj;
+    })
+  })
+
   app.use(`/api/v1/messaging`, route)
   app.use(errors())
 
