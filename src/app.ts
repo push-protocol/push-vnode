@@ -27,6 +27,8 @@ import winston from "winston";
 import pgPromise from 'pg-promise'
 import { IClient } from 'pg-promise/typescript/pg-subset'
 import {DbLoader} from "./services/messaging/dbLoader";
+import { WebSocketManager } from "./services/WebSockets/WebSocketManager";
+import { ValidatorContractState } from "./services/messaging-common/validatorContractState";
 
 let server: Server;
 let log = WinstonUtil.newLog("SERVER");
@@ -113,6 +115,21 @@ export async function initValidator() {
 
   const validatorNode = Container.get(ValidatorNode);
   await validatorNode.postConstruct();
+
+  const validatorContractState = Container.get(ValidatorContractState);
+  await validatorContractState.postConstruct();
+  const archivalNodes = validatorContractState.getArchivalNodesMap();
+
+  // Initialize WebSocket Manager with error handling
+  try {
+    const wsManager = Container.get(WebSocketManager);
+    await wsManager.postConstruct(validatorNode.nodeId, validatorContractState.wallet, archivalNodes);
+    log.info('WebSocket Manager initialized successfully');
+  } catch (error) {
+    log.error('Failed to initialize WebSocket Manager:', error);
+    log.warn('Continuing with HTTP server initialization despite WebSocket failure');
+  }
+
 
   const validatorRpc = Container.get(ValidatorRpc);
 

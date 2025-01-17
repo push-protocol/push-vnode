@@ -5,7 +5,7 @@
   "compilerOptions": {
     "target": "es2017",
     "lib": ["es2017", "esnext.asynciterable"],
-    "typeRoots": ["./node_modules/@types", "./src/types", "./src/generated"],
+    "typeRoots": ["./node_modules/@types", "src/services/WebSockets/types", "./src/generated"],
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
