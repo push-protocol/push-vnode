@@ -28,17 +28,17 @@ export class BlockStatusManager {
         }
 
         confirmation.nodes.add(nodeId);
-        this.log.debug(`Block ${blockHash} confirmed by ${nodeId}. Total confirmations: ${confirmation.nodes.size}`);
+        this.log.debug(`Block ${blockHash} confirmed by ANode: ${nodeId}. Total confirmations: ${confirmation.nodes.size}`);
 
         if (confirmation.nodes.size >= this.REQUIRED_CONFIRMATIONS) {
-            await this.handleBlockConfirmed(blockData);
+            await this.handleBlockConfirmed(blockHash, blockData);
         }
     }
 
-    private async handleBlockConfirmed(blockData: BlockData) {
-        this.log.info(`Block ${blockData.hash} reached required confirmations`);
+    private async handleBlockConfirmed(blockHash: string, blockData: BlockData) {
+        this.log.info(`Block ${blockHash} reached required confirmations`);
         this.wsServer.broadcastBlockUpdate(blockData);
-        this.confirmations.delete(blockData.hash);
+        this.confirmations.delete(blockHash);
     }
 
     private cleanupOldConfirmations() {

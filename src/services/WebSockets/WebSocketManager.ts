@@ -7,6 +7,7 @@ import { DiscoveryService } from './DiscoverService';
 import { BlockStatusManager } from './BlockStatusManager';
 import { NodeInfo } from '../messaging-common/validatorContractState';
 import { Wallet } from 'ethers'
+import { Server } from 'http';
 
 @Service()
 export class WebSocketManager {
@@ -20,14 +21,14 @@ export class WebSocketManager {
         private readonly discoveryService: DiscoveryService
     ) {}
     
-    async postConstruct(vNodeId: string, wallet: Wallet, archivalNodes: Map<string, NodeInfo>) {
+    async postConstruct(vNodeId: string, wallet: Wallet, archivalNodes: Map<string, NodeInfo>, server: Server) {
         try {  
             if (!archivalNodes) {
                 throw new Error('archivalNodes is undefined');
             }
             
             await this.discoveryService.initialize(vNodeId, archivalNodes);
-            await this.wsServer.postConstruct();
+            await this.wsServer.postConstruct(server);
             await this.wsClient.postConstruct(vNodeId, wallet);
 
             // Store interval reference

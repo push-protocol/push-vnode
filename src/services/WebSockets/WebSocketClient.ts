@@ -54,7 +54,6 @@ export class WebSocketClient {
 
     async postConstruct(vNodeId: string, wallet: Wallet) {
         try {
-            this.log.info('WebSocket client postConstruct started');
             this.vNodeId = vNodeId;
             this.wallet = wallet;
             await this.initializeConnections();
@@ -186,12 +185,13 @@ export class WebSocketClient {
     }
 
     private handleArchiveMessage(nodeId: string, message: WSMessage) {
-        console.log(`Received message from ${nodeId}:`, message);
-        this.log.debug(`Received message from ${nodeId}:`, message);
+        console.log('****** handleArchiveMessag ****************************************************************************************************************************************************************', nodeId);
+        console.log(`Received message from ANode: ${nodeId}:`, message);
+        this.log.debug(`Received message from ANode: ${nodeId}:`, message);
         
         if (message.type === 'BLOCK_STORED' && message.data) {
             this.blockManager.handleBlockConfirmation(
-                message.data.hash,
+                message.data.block_hash,
                 nodeId,
                 message.data
             );

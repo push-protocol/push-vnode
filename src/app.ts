@@ -50,6 +50,12 @@ async function startServer(logLevel: string = null, testMode = false, padder = 0
 
   await initValidator();
 
+  const validatorContractState = Container.get(ValidatorContractState);
+  await validatorContractState.postConstruct();
+  const validatorNode = Container.get(ValidatorNode);
+  const archivalNodes = validatorContractState.getArchivalNodesMap();
+
+
   const app: Express = express();
   server = http.createServer(app);
 
@@ -84,11 +90,21 @@ async function startServer(logLevel: string = null, testMode = false, padder = 0
 
 
 
-      🛡️  Server listening on port: ${PORT} 🛡️
+      🛡️  HTTP Server listening on port: ${PORT} 🛡️
 
       ################################################
     `);
   });
+
+  
+  // Initialize WebSocket Manager with error handling
+  try {
+    const wsManager = Container.get(WebSocketManager);
+    await wsManager.postConstruct(validatorNode.nodeId, validatorContractState.wallet, archivalNodes, server);
+  } catch (error) {
+    log.error('Failed to initialize WebSocket Manager:', error);
+    log.warn('Continuing with HTTP server initialization despite WebSocket failure');
+  }
 }
 
 function printMemoryUsage() {
@@ -115,21 +131,6 @@ export async function initValidator() {
 
   const validatorNode = Container.get(ValidatorNode);
   await validatorNode.postConstruct();
-
-  const validatorContractState = Container.get(ValidatorContractState);
-  await validatorContractState.postConstruct();
-  const archivalNodes = validatorContractState.getArchivalNodesMap();
-
-  // Initialize WebSocket Manager with error handling
-  try {
-    const wsManager = Container.get(WebSocketManager);
-    await wsManager.postConstruct(validatorNode.nodeId, validatorContractState.wallet, archivalNodes);
-    log.info('WebSocket Manager initialized successfully');
-  } catch (error) {
-    log.error('Failed to initialize WebSocket Manager:', error);
-    log.warn('Continuing with HTTP server initialization despite WebSocket failure');
-  }
-
 
   const validatorRpc = Container.get(ValidatorRpc);
 
