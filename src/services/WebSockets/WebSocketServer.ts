@@ -1,18 +1,9 @@
-// src/services/WebSockets/WebSocketServer.ts
 import { Service } from 'typedi';
 import WebSocket from 'ws';
 import { WinstonUtil } from "../../utilz/winstonUtil";
 import { EnvLoader } from "../../utilz/envLoader";
-import { ClientInfo, BlockData, WSMessage } from './types';
+import { ClientInfo, BlockData, WSMessage, WSClientConnection, SubscriptionFilter, Subscription, SubscribeMessage } from './types';
 import { Server } from 'http';
-
-interface WSClientConnection {
-    ws: WebSocket;
-    subscriptions: Set<string>;
-    connectedAt: number;
-    clientInfo?: ClientInfo;
-    reconnectAttempts?: number;
-}
 
 @Service()
 export class WebSocketServer {
@@ -37,7 +28,7 @@ export class WebSocketServer {
             verifyClient: (info, cb) => {
                 const origin = info.origin || info.req.headers.origin;
                 // Allow Postman and localhost for testing
-                const allowedOrigins = ['http://localhost:3000', 'https://yourdomain.com'];
+                // const allowedOrigins = ['http://localhost:*'];
                 
                 // During testing, accept all connections
                 cb(true);
@@ -81,7 +72,7 @@ export class WebSocketServer {
         // Initialize client connection
         const client: WSClientConnection = {
             ws,
-            subscriptions: new Set(),
+            subscriptions: new Map(),
             connectedAt: Date.now(),
             reconnectAttempts: 0
         };
@@ -93,12 +84,12 @@ export class WebSocketServer {
                 this.log.warn(`Client ${clientId} failed to complete handshake within timeout`);
                 ws.close(1008, 'Handshake timeout');
             }
-        }, 5000);
+        }, 3000000);
 
         ws.on('message', (data: string) => {
             try {
                 const message = JSON.parse(data) as WSMessage;
-                this.log.debug(`Received message from ${clientId}:`, message);
+                this.log.debug(`Received ${message.type} from ${clientId}`);
                 this.handleClientMessage(clientId, message);
             } catch (error) {
                 this.log.error(`Failed to parse message from client ${clientId}:`, error);
@@ -106,9 +97,6 @@ export class WebSocketServer {
                     type: 'ERROR',
                     data: { message: 'Invalid message format' },
                     timestamp: Date.now(),
-                    nodeId: '',
-                    nodeType: '',
-                    events: []
                 });
             }
         });
@@ -128,7 +116,7 @@ export class WebSocketServer {
             if (ws.readyState === WebSocket.OPEN) {
                 ws.ping();
             }
-        }, 30000);
+        }, 3000000);
 
         ws.on('close', () => clearInterval(pingInterval));
 
@@ -137,9 +125,6 @@ export class WebSocketServer {
             type: 'WELCOME',
             data: { clientId },
             timestamp: Date.now(),
-            nodeId: '',
-            nodeType: '',
-            events: []
         });
     }
 
@@ -153,33 +138,99 @@ export class WebSocketServer {
         switch (message.type) {
             case 'HANDSHAKE':
                 if (typeof message.data === 'object') {
-                    client.clientInfo = message.data as ClientInfo;
+                    const handshakeData = message.data as ClientInfo & { clientId?: string };
+                    
+                    // Strict validation of clientId
+                    if (!handshakeData.clientId || handshakeData.clientId !== clientId) {
+                        this.log.warn(`Client sent invalid clientId in handshake. Expected: ${clientId}, Received: ${handshakeData.clientId}`);
+                        this.sendToClient(clientId, {
+                            type: 'HANDSHAKE_ACK',
+                            data: { 
+                                success: false, 
+                                error: 'Invalid clientId',
+                                expectedClientId: clientId,
+                                receivedClientId: handshakeData.clientId 
+                            },
+                            timestamp: Date.now(),
+                        });
+                        client.ws.close(1008, 'Invalid handshake clientId');
+                        return;
+                    }
+
+                    // Only proceed if clientId matches
+                    client.clientInfo = handshakeData;
                     client.reconnectAttempts = 0;
-                    this.log.info(`Client ${clientId} handshake completed:`, client.clientInfo);
+                    this.log.info(`Client ${clientId} handshake completed successfully`);
                     
                     this.sendToClient(clientId, {
                         type: 'HANDSHAKE_ACK',
                         data: { success: true, clientId },
                         timestamp: Date.now(),
-                        nodeId: '',
-                        nodeType: '',
-                        events: []
                     });
                 }
                 break;
 
             case 'SUBSCRIBE':
-                if (typeof message.data === 'string') {
-                    client.subscriptions.add(message.data);
-                    this.log.debug(`Client ${clientId} subscribed to ${message.data}`);
+                if (typeof message.data === 'object') {
+                    const subscribeMsg = message.data as SubscribeMessage;
+                    
+                    // Check for existing similar subscriptions
+                    const hasSimilarSubscription = Array.from(client.subscriptions.values()).some(
+                        existing => this.areFiltersEqual(existing.filters, subscribeMsg.filters)
+                    );
+
+                    if (hasSimilarSubscription) {
+                        this.sendToClient(clientId, {
+                            type: 'SUBSCRIBE_ERROR',
+                            data: { message: 'Similar subscription already exists' },
+                            timestamp: Date.now(),
+                        });
+                        return;
+                    }
+
+                    // Rate limiting: Check last subscription time
+                    const now = Date.now();
+                    if (!client.lastSubscribeTime) {
+                        client.lastSubscribeTime = now;
+                    } else if (now - client.lastSubscribeTime < 1000) { // 1 second minimum between subscriptions
+                        this.sendToClient(clientId, {
+                            type: 'SUBSCRIBE_ERROR',
+                            data: { message: 'Please wait before creating another subscription' },
+                            timestamp: now,
+                        });
+                        return;
+                    }
+                    client.lastSubscribeTime = now;
+
+                    // Validate subscription filters
+                    if (!this.areValidFilters(subscribeMsg.filters)) {
+                        this.sendToClient(clientId, {
+                            type: 'SUBSCRIBE_ERROR',
+                            data: { message: 'Invalid subscription filters' },
+                            timestamp: Date.now(),
+                        });
+                        return;
+                    }
+
+                    const subscriptionId = this.generateSubscriptionId();
+                    const subscription: Subscription = {
+                        id: subscriptionId,
+                        filters: subscribeMsg.filters
+                    };
+
+                    client.subscriptions.set(subscriptionId, subscription);
+                    
+                    this.log.debug(`Client ${clientId} created subscription ${subscriptionId} with filters:`, 
+                        JSON.stringify(subscribeMsg.filters));
                     
                     this.sendToClient(clientId, {
                         type: 'SUBSCRIBE_ACK',
-                        data: { topic: message.data, success: true },
+                        data: { 
+                            subscriptionId,
+                            filters: subscribeMsg.filters,
+                            success: true 
+                        },
                         timestamp: Date.now(),
-                        nodeId: '',
-                        nodeType: '',
-                        events: []
                     });
                 }
                 break;
@@ -193,9 +244,6 @@ export class WebSocketServer {
                         type: 'UNSUBSCRIBE_ACK',
                         data: { topic: message.data, success: true },
                         timestamp: Date.now(),
-                        nodeId: '',
-                        nodeType: '',
-                        events: []
                     });
                 }
                 break;
@@ -204,15 +252,36 @@ export class WebSocketServer {
                 this.sendToClient(clientId, {
                     type: 'PONG',
                     timestamp: Date.now(),
-                    nodeId: '',
-                    nodeType: '',
-                    events: []
                 });
                 break;
 
             default:
                 this.log.warn(`Unknown message type received from client ${clientId}: ${message.type}`);
         }
+    }
+
+    private areValidFilters(filters: SubscriptionFilter[]): boolean {
+        if (!Array.isArray(filters) || filters.length === 0) return false;
+        
+        return filters.every(filter => {
+            switch (filter.type) {
+                case 'NEW_BLOCK':
+                    return true;
+                case 'CATEGORY':
+                    return typeof filter.value === 'string' && filter.value.length > 0;
+                case 'SELF':
+                    return true;
+                case 'SENDERS':
+                case 'RECEIVERS':
+                    return typeof filter.value === 'string' || Array.isArray(filter.value);
+                default:
+                    return false;
+            }
+        });
+    }
+
+    private generateSubscriptionId(): string {
+        return `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     }
 
     private handleClientDisconnection(clientId: string, code: number, reason: string) {
@@ -239,33 +308,123 @@ export class WebSocketServer {
 
         try {
             client.ws.send(JSON.stringify(message));
-            this.log.debug(`Sent message to client ${clientId}:`, message);
+            this.log.debug(`Sent ${message.type} to client ${clientId}`);
         } catch (error) {
-            this.log.error(`Failed to send message to client ${clientId}:`, error);
+            this.log.error(`Failed to send ${message.type} to client ${clientId}:`, error);
         }
     }
 
     public broadcastBlockUpdate(blockData: BlockData) {
-        const message: WSMessage = {
-            type: 'BLOCK_STORED',
-            data: blockData,
-            timestamp: Date.now(),
-            nodeId: blockData.nodeId,
-            nodeType: blockData.nodeType,
-            events: []
-        };
-
         this.clients.forEach((client, clientId) => {
-            if (client.ws.readyState === WebSocket.OPEN && 
-                client.subscriptions.has('BLOCK_STORED')) {
-                try {
-                    client.ws.send(JSON.stringify(message));
-                    this.log.debug(`Sent block update to client ${clientId}`);
-                } catch (error) {
-                    this.log.error(`Failed to send to client ${clientId}:`, error);
-                }
-            }
+            if (client.ws.readyState !== WebSocket.OPEN) return;
+            // Check each subscription
+            client.subscriptions.forEach((subscription, subId) => {
+                // Send notification for each filter, including match status
+                subscription.filters.forEach(filter => {
+                    try {
+                        // Check if filter matches
+                        let matches = false;
+                        if (filter.type === 'NEW_BLOCK') {
+                            matches = true;
+                        } else if (filter.type === 'CATEGORY' && this.matchesCategory(blockData, filter)) {
+                            matches = true;
+                        } else if (filter.type === 'SELF' && this.matchesSelf(blockData, filter, clientId)) {
+                            matches = true;
+                        } else if (filter.type === 'SENDERS' && this.matchesSenderAddress(blockData, filter)) {
+                            matches = true;
+                        } else if (filter.type === 'RECEIVERS' && this.matchesReceiversAddress(blockData, filter)) {
+                            matches = true;
+                        }
+
+                        if (matches) {
+                            const updateMessage: WSMessage = {
+                                type: filter.type,
+                                data: {
+                                    block: blockData,
+                                    subscriptionId: subId,
+                                    matchedFilter: filter,
+                                    matches
+                                },
+                                timestamp: Date.now(),
+                            };
+
+                            client.ws.send(JSON.stringify(updateMessage));
+                            this.log.debug(`Sent ${filter.type} update to client ${clientId} (subscription: ${subId}, matches: ${matches})`);
+                        }
+                    } catch (error) {
+                        this.log.error(`Failed to process ${filter.type} for client ${clientId}:`, error);
+                    }
+                });
+            });
         });
+    }
+
+    private matchesCategory(blockData: any, filter: SubscriptionFilter): boolean {
+        // Check if blockData and required fields exist
+        if (!blockData?.data_as_json?.txobjList?.[0]?.tx?.category) {
+            return false;
+        }
+
+        // Get the category from the first transaction
+        const txCategory = blockData.data_as_json.txobjList[0].tx.category;
+        
+        // Compare with filter value
+        return txCategory === filter.value;
+    }
+
+    private matchesSelf(blockData: any, filter: SubscriptionFilter, clientId: string): boolean {
+        const client = this.clients.get(clientId);
+        if (!client?.clientInfo?.producerAddress) return false;
+        
+        const address = client.clientInfo.producerAddress.toLowerCase();
+
+        // For debugging, only log relevant info
+        this.log.debug('Matching self for client:', {
+            clientId,
+            producerAddress: address
+        });
+
+        // Get sender and recipients from the first transaction
+        const tx = blockData?.data_as_json?.txobjList?.[0]?.tx;
+        if (!tx) return false;
+
+        const sender = tx.sender?.toLowerCase();
+        const recipients = tx.recipientsList?.map((r: string) => r.toLowerCase()) || [];
+
+        // Check if address matches sender or is in recipients list
+        return sender === address || recipients.includes(address);
+    }
+
+    private matchesSenderAddress(blockData: any, filter: SubscriptionFilter): boolean {
+        if (!filter.value) return false;
+        const addresses = (Array.isArray(filter.value) ? filter.value : [filter.value])
+            .map(addr => addr.toLowerCase());
+        
+        // Get sender from the first transaction
+        const sender = blockData?.data_as_json?.txobjList?.[0]?.tx?.sender?.toLowerCase();
+        if (!sender) return false;
+
+        // Check if sender matches any of the filter addresses
+        return addresses.includes(sender);
+    }
+
+    private matchesReceiversAddress(blockData: any, filter: SubscriptionFilter): boolean {
+        if (!filter.value) return false;
+        const addresses = (Array.isArray(filter.value) ? filter.value : [filter.value])
+            .map(addr => addr.toLowerCase());
+        
+        // Get recipients list from the first transaction
+        const recipients = blockData?.data_as_json?.txobjList?.[0]?.tx?.recipientsList?.map(
+            (r: string) => r.toLowerCase()
+        ) || [];
+
+        // Check if any recipient matches any of the filter addresses
+        return addresses.some(address => recipients.includes(address));
+    }
+
+    private matchWildcard(str: string, pattern: string): boolean {
+        const regexPattern = pattern.replace(/\*/g, '.*');
+        return new RegExp(`^${regexPattern}$`).test(str);
     }
 
     private generateClientId(): string {
@@ -281,5 +440,15 @@ export class WebSocketServer {
         if (this.wss) {
             await new Promise<void>((resolve) => this.wss.close(() => resolve()));
         }
+    }
+
+    private areFiltersEqual(filters1: SubscriptionFilter[], filters2: SubscriptionFilter[]): boolean {
+        if (filters1.length !== filters2.length) return false;
+        
+        return filters1.every((filter1, index) => {
+            const filter2 = filters2[index];
+            return filter1.type === filter2.type && 
+                   JSON.stringify(filter1.value) === JSON.stringify(filter2.value);
+        });
     }
 }

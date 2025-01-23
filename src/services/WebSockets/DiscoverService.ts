@@ -1,6 +1,6 @@
 // src/services/DiscoveryService.ts
 import WebSocket from 'ws';
-import { ArchiveNodeInfo, DiscoveryConfig } from './types';
+import { DiscoveryConfig } from './types';
 import { EnvLoader } from "../../utilz/envLoader";
 import { NodeInfo } from '../messaging-common/validatorContractState';
 import { WinstonUtil } from '../../utilz/winstonUtil';
@@ -126,7 +126,7 @@ export class DiscoveryService {
                 ws.on('message', (data: Buffer) => {
                     try {
                         const message = JSON.parse(data.toString());
-                        this.log.debug(`Received message from ANode at ${wsUrl}:`, message);
+                        this.log.info(`Received ${message.type} from ANode at ${wsUrl}:`, JSON.stringify(message, null, 2));
 
                         if (message.type === 'AUTH_CHALLENGE' && message.nonce) {
                             const healthCheck = {
@@ -222,7 +222,6 @@ export class DiscoveryService {
         }
     }
 
-    // Cleanup
     async destroy() {
         if (this.refreshInterval) {
             clearInterval(this.refreshInterval);

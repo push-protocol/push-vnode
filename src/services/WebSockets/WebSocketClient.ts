@@ -1,29 +1,13 @@
 import { Service } from 'typedi';
 import WebSocket from 'ws';
 import { WinstonUtil } from "../../utilz/winstonUtil";
-import { ArchiveNodeInfo, WSMessage } from './types';
+import { WSMessage, AuthResponse } from './types';
 import { DiscoveryService } from './DiscoverService';
 import { BlockStatusManager } from './BlockStatusManager';
-import crypto from 'crypto';
 import { NodeInfo } from '../messaging-common/validatorContractState';
 import { BitUtil } from '../../utilz/bitUtil';
 import { EthUtil } from '../../utilz/ethUtil';
 import { Wallet } from 'ethers';
-interface AuthChallenge {
-    type: 'AUTH_CHALLENGE';
-    nonce: string;
-}
-
-interface AuthResponse {
-    type: 'AUTH_RESPONSE';
-    nonce: string;
-    signature: string;
-    validatorAddress: string;
-}
-
-interface AuthSuccess {
-    type: 'AUTH_SUCCESS';
-}
 
 @Service()
 export class WebSocketClient {
@@ -167,10 +151,9 @@ export class WebSocketClient {
     }
 
     private subscribeToEvents(ws: WebSocket, nodeId: string) {
-        const subscribeMessage: WSMessage = {
+        const subscribeMessage = {
             type: 'SUBSCRIBE',
-            nodeId: this.vNodeId,  // Use validator's address
-            sourceNodeId: nodeId,
+            nodeId: this.vNodeId,
             nodeType: 'VALIDATOR',
             events: ['BLOCK_STORED']
         };
@@ -185,9 +168,7 @@ export class WebSocketClient {
     }
 
     private handleArchiveMessage(nodeId: string, message: WSMessage) {
-        console.log('****** handleArchiveMessag ****************************************************************************************************************************************************************', nodeId);
-        console.log(`Received message from ANode: ${nodeId}:`, message);
-        this.log.debug(`Received message from ANode: ${nodeId}:`, message);
+        this.log.debug(`Received ${message.type} from ANode: ${nodeId}:`, JSON.stringify(message, null, 2));
         
         if (message.type === 'BLOCK_STORED' && message.data) {
             this.blockManager.handleBlockConfirmation(

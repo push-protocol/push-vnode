@@ -1,21 +1,18 @@
 import { Service } from 'typedi';
 import { WinstonUtil } from "../../utilz/winstonUtil";
-import { BlockData } from './types';
+import { BlockData, BlockConfirmation } from './types';
 import { WebSocketServer } from './WebSocketServer';
-
-interface BlockConfirmation {
-    timestamp: number;
-    nodes: Set<string>;
-}
 
 @Service()
 export class BlockStatusManager {
     private confirmations = new Map<string, BlockConfirmation>();
-    private readonly REQUIRED_CONFIRMATIONS = 2;
-    private readonly CONFIRMATION_EXPIRY_TIME = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    private readonly REQUIRED_CONFIRMATIONS = 1;
+    private readonly CONFIRMATION_EXPIRY_TIME = 3 * 60 * 60 * 1000; // 3 hours in milliseconds
     private readonly log = WinstonUtil.newLog("BlockStatusManager");
 
-    constructor(private readonly wsServer: WebSocketServer) {}
+    constructor(
+        private readonly wsServer: WebSocketServer
+    ) {}
 
     async handleBlockConfirmation(blockHash: string, nodeId: string, blockData: BlockData) {
         let confirmation = this.confirmations.get(blockHash);
