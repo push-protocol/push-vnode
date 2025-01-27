@@ -38,6 +38,8 @@ services:
       retries: 3
       start_period: 60s
     restart: always
+    logging:
+      driver: none
 
 
   vnode2:
@@ -67,6 +69,8 @@ services:
       retries: 3
       start_period: 60s
     restart: always
+    logging:
+      driver: none
 
   vnode3:
     image: vnode-main
@@ -95,6 +99,8 @@ services:
       retries: 3
       start_period: 60s
     restart: always
+    logging:
+      driver: none
 
   vnode4:
     image: vnode-main
@@ -123,6 +129,8 @@ services:
       retries: 3
       start_period: 60s
     restart: always
+    logging:
+      driver: none
 
   vnode5:
     image: vnode-main
@@ -151,6 +159,8 @@ services:
       retries: 3
       start_period: 60s
     restart: always
+    logging:
+      driver: none
 
   vnode6:
     image: vnode-main
@@ -179,90 +189,128 @@ services:
       retries: 3
       start_period: 60s
     restart: always
+    logging:
+      driver: none
 
-#  vnode7:
-#    image: vnode-main
-#    container_name: vnode7
-#    networks:
-#      push-dev-network:
-#        aliases:
-#          - vnode7.local
-#    environment:
-#      DB_NAME: vnode7
-#      PORT: 4007
-#    env_file:
-#      - .env
-#      - common.env
-#      - v-specific.env
-#    ports:
-#      - "4007:4007"
-#    volumes:
-#      - ./v7:/config
-#      - ./v7/log:/log
-#      - ./_abi/:/config/abi/
-#
-#  vnode8:
-#    image: vnode-main
-#    container_name: vnode8
-#    networks:
-#      push-dev-network:
-#        aliases:
-#          - vnode8.local
-#    environment:
-#      DB_NAME: vnode8
-#      PORT: 4008
-#    env_file:
-#      - .env
-#      - common.env
-#      - v-specific.env
-#    ports:
-#      - "4008:4008"
-#    volumes:
-#      - ./v8:/config
-#      - ./v8/log:/log
-#      - ./_abi/:/config/abi/
-#
-#  vnode9:
-#    image: vnode-main
-#    container_name: vnode9
-#    networks:
-#      push-dev-network:
-#        aliases:
-#          - vnode9.local
-#    environment:
-#      DB_NAME: vnode9
-#      PORT: 4009
-#    env_file:
-#      - .env
-#      - common.env
-#      - v-specific.env
-#    ports:
-#      - "4009:4009"
-#    volumes:
-#      - ./v9:/config
-#      - ./v9/log:/log
-#      - ./_abi/:/config/abi/
-#
-#  vnode10:
-#    image: vnode-main
-#    container_name: vnode10
-#    networks:
-#      push-dev-network:
-#        aliases:
-#          - vnode10.local
-#    environment:
-#      DB_NAME: vnode10
-#      PORT: 4010
-#    env_file:
-#      - .env
-#      - common.env
-#      - v-specific.env
-#    ports:
-#      - "4010:4010"
-#    volumes:
-#      - ./v10:/config
-#      - ./v10/log:/log
-#      - ./_abi/:/config/abi/
+  vnode7:
+    image: vnode-main
+    container_name: vnode7
+    networks:
+      push-dev-network:
+        aliases:
+          - vnode7.local
+    environment:
+      DB_NAME: vnode7
+      PORT: 4007
+    env_file:
+      - .env
+      - common.env
+      - v-specific.env
+    ports:
+      - "4007:4007"
+    volumes:
+      - ./v7:/config
+      - ./v7/log:/log
+      - ./_abi/:/config/abi/
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:4007/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: always
+    logging:
+      driver: none
+
+  vnode8:
+    image: vnode-main
+    container_name: vnode8
+    networks:
+      push-dev-network:
+        aliases:
+          - vnode8.local
+    environment:
+      DB_NAME: vnode8
+      PORT: 4008
+    env_file:
+      - .env
+      - common.env
+      - v-specific.env
+    ports:
+      - "4008:4008"
+    volumes:
+      - ./v8:/config
+      - ./v8/log:/log
+      - ./_abi/:/config/abi/
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:4008/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: always
+    logging:
+      driver: none
+
+  vnode9:
+    image: vnode-main
+    container_name: vnode9
+    networks:
+      push-dev-network:
+        aliases:
+          - vnode9.local
+    environment:
+      DB_NAME: vnode9
+      PORT: 4009
+    env_file:
+      - .env
+      - common.env
+      - v-specific.env
+    ports:
+      - "4009:4009"
+    volumes:
+      - ./v9:/config
+      - ./v9/log:/log
+      - ./_abi/:/config/abi/
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:4009/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: always
+    logging:
+      driver: none
+
+  vnode10:
+    image: vnode-main
+    container_name: vnode10
+    networks:
+      push-dev-network:
+        aliases:
+          - vnode10.local
+    environment:
+      DB_NAME: vnode10
+      PORT: 4010
+    env_file:
+      - .env
+      - common.env
+      - v-specific.env
+    ports:
+      - "4010:4010"
+    volumes:
+      - ./v10:/config
+      - ./v10/log:/log
+      - ./_abi/:/config/abi/
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:4010/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: always
+    logging:
+      driver: none
 
 
 

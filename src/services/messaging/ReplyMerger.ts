@@ -97,7 +97,7 @@ export class ReplyMerger<T> {
         }
       })
     }
-    log.debug(`non200Replies=${goodReplies}`)
+    log.debug(`2XXReplies=${goodReplies}`)
     const r = reply.summary
     if (goodReplies < minQuorumThreshold) {
       // not enough nodes replies => we can't do anything
