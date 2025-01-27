@@ -115,7 +115,7 @@ Setup docker images for smart-contracts & vnodes
 
 ```bash
 ## create docker network
-docker network create push-shared-network
+docker network create push-dev-network
 ## prepare image for hardhat
 cd /Users/w/chain/push-node-smart-contracts
 docker build . -t hardhat-main
