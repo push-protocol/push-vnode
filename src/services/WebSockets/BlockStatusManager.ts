@@ -1,6 +1,6 @@
 import { Service } from 'typedi';
 import { WinstonUtil } from "../../utilz/winstonUtil";
-import { BlockData, BlockConfirmation } from './types';
+import { FilterBlockResponse, BlockConfirmation } from './types';
 import { WebSocketServer } from './WebSocketServer';
 
 @Service()
@@ -14,7 +14,7 @@ export class BlockStatusManager {
         private readonly wsServer: WebSocketServer
     ) {}
 
-    async handleBlockConfirmation(blockHash: string, nodeId: string, blockData: BlockData) {
+    async handleBlockConfirmation(blockHash: string, nodeId: string, blockData: FilterBlockResponse) {
         let confirmation = this.confirmations.get(blockHash);
         if (!confirmation) {
             confirmation = {
@@ -32,7 +32,7 @@ export class BlockStatusManager {
         }
     }
 
-    private async handleBlockConfirmed(blockHash: string, blockData: BlockData) {
+    private async handleBlockConfirmed(blockHash: string, blockData: FilterBlockResponse) {
         this.log.info(`Block ${blockHash} reached required confirmations`);
         this.wsServer.broadcastBlockUpdate(blockData);
         this.confirmations.delete(blockHash);

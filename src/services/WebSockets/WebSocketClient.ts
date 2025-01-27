@@ -1,7 +1,7 @@
 import { Service } from 'typedi';
 import WebSocket from 'ws';
 import { WinstonUtil } from "../../utilz/winstonUtil";
-import { WSMessage, AuthResponse } from './types';
+import { WSMessage, AuthResponse, BlockReceivedMessage } from './types';
 import { DiscoveryService } from './DiscoverService';
 import { BlockStatusManager } from './BlockStatusManager';
 import { NodeInfo } from '../messaging-common/validatorContractState';
@@ -155,7 +155,7 @@ export class WebSocketClient {
             type: 'SUBSCRIBE',
             nodeId: this.vNodeId,
             nodeType: 'VALIDATOR',
-            events: ['BLOCK_STORED']
+            events: ['BLOCK']
         };
         
         try {
@@ -168,14 +168,22 @@ export class WebSocketClient {
     }
 
     private handleArchiveMessage(nodeId: string, message: WSMessage) {
-        this.log.debug(`Received ${message.type} from ANode: ${nodeId}:`, JSON.stringify(message, null, 2));
-        
-        if (message.type === 'BLOCK_STORED' && message.data) {
+        if (message.type === 'BLOCK') {
+            const blockData = (message as BlockReceivedMessage).data;
+            
+            if (!blockData?.blockHash ) {
+                this.log.warn(`Received invalid BLOCK message structure from ${nodeId}:`, message);
+                return;
+            }
+
+            // blockData is already a FilterBlockResponse type with {blockHash, txs}
             this.blockManager.handleBlockConfirmation(
-                message.data.block_hash,
+                blockData.blockHash,
                 nodeId,
-                message.data
+                blockData
             );
+        } else {
+            this.log.warn(`Received unexpected message type from ${nodeId}:`, message);
         }
     }
 
