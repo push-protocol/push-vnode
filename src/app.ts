@@ -102,7 +102,7 @@ async function startServer(logLevel: string = null, testMode = false, padder = 0
     const wsManager = Container.get(WebSocketManager);
     await wsManager.postConstruct(validatorNode.nodeId, validatorContractState.wallet, archivalNodes, server);
   } catch (error) {
-    log.error('Failed to initialize WebSocket Manager:', error);
+    log.error('Failed to initialize WebSocket Manager: %o', error);
     log.warn('Continuing with HTTP server initialization despite WebSocket failure');
   }
 }

@@ -9,6 +9,11 @@ import { BitUtil } from '../../utilz/bitUtil';
 import { EthUtil } from '../../utilz/ethUtil';
 import { Wallet } from 'ethers';
 
+/**
+ * Manages WebSocket connections to Archive Nodes, handling authentication, 
+ * reconnection logic, and message processing.
+ * Maintains connection state and ensures minimum required connections are available.
+ */
 @Service()
 export class WebSocketClient {
     private readonly MIN_ARCHIVE_CONNECTIONS = 1;
@@ -36,6 +41,14 @@ export class WebSocketClient {
         private readonly blockManager: BlockStatusManager,
     ) {}
 
+    /**
+     * Initializes the WebSocket client with validator ID and wallet.
+     * Establishes initial connections and starts monitoring.
+     * 
+     * @param vNodeId - Validator node identifier
+     * @param wallet - Ethereum wallet for authentication
+     * @throws Error if initialization fails
+     */
     async postConstruct(vNodeId: string, wallet: Wallet) {
         try {
             this.vNodeId = vNodeId;
@@ -44,11 +57,15 @@ export class WebSocketClient {
             this.startConnectionMonitoring();
             this.log.info('WebSocket client initialized');
         } catch (error) {
-            this.log.error('Failed to initialize WebSocket client:', error);
+            this.log.error('Failed to initialize WebSocket client: %o', error);
             throw error;
         }
     }
 
+    /**
+     * Establishes connections to archive nodes up to the minimum required count.
+     * @throws Error if insufficient active nodes are available
+     */
     private async initializeConnections() {
         this.log.info('Initializing archive node connections');
         const activeNodes = await this.discoveryService.getActiveArchiveNodes();
@@ -64,6 +81,13 @@ export class WebSocketClient {
         }
     }
 
+    /**
+     * Establishes a WebSocket connection to an archive node with authentication.
+     * Handles the complete connection flow including challenge-response authentication.
+     * 
+     * @param node - Archive node information
+     * @returns Promise that resolves when connection is established and authenticated
+     */
     private async connectToArchiveNode(node: NodeInfo) {        
         if (this.archiveConnections.has(node.nodeId)) {
             this.log.warn(`Already connected to node ${node.nodeId}`);
@@ -107,7 +131,7 @@ export class WebSocketClient {
                             signature,
                             validatorAddress: this.vNodeId
                         };
-                        this.log.info(`Sending auth response to ${node.nodeId}:`, response);
+                        this.log.info(`Sending auth response to ${node.nodeId}: %o`, response);
                         ws.send(JSON.stringify(response));
                     } else if (message.type === 'AUTH_SUCCESS') {
                         this.log.info(`Authentication successful for ${node.nodeId}`);
@@ -134,7 +158,7 @@ export class WebSocketClient {
             const onError = (error: Error) => {
                 cleanup();
                 ws.terminate();
-                this.log.error(`[${this.vNodeId}] Connection error to ${node.nodeId}:`, error);
+                this.log.error(`[${this.vNodeId}] Connection error to ${node.nodeId}: %o`, error);
                 reject(error);
             };
 
@@ -150,6 +174,12 @@ export class WebSocketClient {
         });
     }
 
+    /**
+     * Subscribes to block events from an archive node.
+     * 
+     * @param ws - WebSocket connection
+     * @param nodeId - Archive node identifier
+     */
     private subscribeToEvents(ws: WebSocket, nodeId: string) {
         const subscribeMessage = {
             type: 'SUBSCRIBE',
@@ -160,19 +190,26 @@ export class WebSocketClient {
         
         try {
             ws.send(JSON.stringify(subscribeMessage));
-            this.log.debug(`vNode ${this.vNodeId} subscribed to events on anode ${nodeId}:`, subscribeMessage);
+            this.log.debug(`vNode ${this.vNodeId} subscribed to events on anode ${nodeId}: %o`, subscribeMessage);
         } catch (error) {
-            this.log.error(`vNode ${this.vNodeId} failed to subscribe to events on anode ${nodeId}:`, error);
+            this.log.error(`vNode ${this.vNodeId} failed to subscribe to events on anode ${nodeId}: %o`, error);
             ws.close();
         }
     }
 
+    /**
+     * Processes incoming messages from archive nodes.
+     * Currently handles BLOCK messages and forwards them to BlockStatusManager.
+     * 
+     * @param nodeId - Source archive node identifier
+     * @param message - Received WebSocket message
+     */
     private handleArchiveMessage(nodeId: string, message: WSMessage) {
         if (message.type === 'BLOCK') {
             const blockData = (message as BlockReceivedMessage).data;
             
             if (!blockData?.blockHash ) {
-                this.log.warn(`Received invalid BLOCK message structure from ${nodeId}:`, message);
+                this.log.warn(`Received invalid BLOCK message structure from ${nodeId}: %o`, message);
                 return;
             }
 
@@ -183,17 +220,24 @@ export class WebSocketClient {
                 blockData
             );
         } else {
-            this.log.warn(`Received unexpected message type from ${nodeId}:`, message);
+            this.log.warn(`Received unexpected message type from ${nodeId}: %o`, message);
         }
     }
 
+    /**
+     * Sets up WebSocket event handlers for a connection.
+     * Handles messages, connection closure, errors, and ping/pong heartbeat.
+     * 
+     * @param nodeId - Archive node identifier
+     * @param ws - WebSocket connection
+     */
     private setupWebSocketHandlers(nodeId: string, ws: WebSocket) {
         const messageHandler = (data: string) => {
             try {
                 const message = JSON.parse(data) as WSMessage;
                 this.handleArchiveMessage(nodeId, message);
             } catch (error) {
-                this.log.error(`Message parsing error from ${nodeId}:`, error);
+                this.log.error(`Message parsing error from ${nodeId}: %o`, error);
             }
         };
 
@@ -216,7 +260,7 @@ export class WebSocketClient {
         };
 
         const errorHandler = (error: Error) => {
-            this.log.error(`WebSocket error for ${nodeId}:`, error);
+            this.log.error(`WebSocket error for ${nodeId}: %o`, error);
             ws.close();
         };
 
@@ -239,7 +283,7 @@ export class WebSocketClient {
                 this.updateConnectionState(nodeId, { lastPing: Date.now() });
                 ws.ping((err) => {
                     if (err) {
-                        this.log.warn(`Ping failed for ${nodeId}:`, err);
+                        this.log.warn(`Ping failed for ${nodeId}: %o`, err);
                         ws.close();
                     }
                 });
@@ -258,6 +302,13 @@ export class WebSocketClient {
         ws.on('error', errorHandler);
     }
 
+    /**
+     * Handles disconnection from an archive node.
+     * Implements exponential backoff reconnection strategy.
+     * Falls back to alternative nodes if reconnection fails.
+     * 
+     * @param nodeId - Disconnected node identifier
+     */
     private async handleDisconnect(nodeId: string) {
         const attempts = this.reconnectAttempts.get(nodeId) || 0;
         
@@ -287,7 +338,7 @@ export class WebSocketClient {
                 throw new Error(`Node ${nodeId} no longer available`);
             }
         } catch (error) {
-            this.log.error(`Failed to reconnect to ${nodeId}:`, error);
+            this.log.error(`Failed to reconnect to ${nodeId}: %o`, error);
             this.reconnectAttempts.set(nodeId, attempts + 1);
             
             if ((attempts + 1) >= this.maxReconnectAttempts) {
@@ -296,6 +347,10 @@ export class WebSocketClient {
         }
     }
 
+    /**
+     * Attempts to find and connect to an alternative archive node.
+     * Used when primary connections fail or are insufficient.
+     */
     private async findAlternativeNode() {
         try {
             const activeNodes = await this.discoveryService.getActiveArchiveNodes();
@@ -308,16 +363,24 @@ export class WebSocketClient {
                 await this.connectToArchiveNode(unusedNodes[0]);
             }
         } catch (error) {
-            this.log.error('Failed to find alternative node:', error);
+            this.log.error('Failed to find alternative node: %o', error);
         }
     }
 
+    /**
+     * Starts periodic connection monitoring.
+     * Checks connection health and restores connections if needed.
+     */
     private startConnectionMonitoring() {
         this.reconnectTimer = setInterval(() => {
             this.checkAndRestoreConnections();
         }, this.MONITOR_INTERVAL); // Check connections every minute
     }
 
+    /**
+     * Gracefully shuts down all WebSocket connections.
+     * Cleans up resources and connection states.
+     */
     async shutdown() {
         try {
             if (this.reconnectTimer) {
@@ -337,7 +400,7 @@ export class WebSocketClient {
             this.archiveConnections.clear();
             this.reconnectAttempts.clear();
         } catch (error) {
-            this.log.error('Error during shutdown:', error);
+            this.log.error('Error during shutdown: %o', error);
         }
     }
 
@@ -354,7 +417,7 @@ export class WebSocketClient {
                 await this.initializeConnections();
             }
         } catch (error) {
-            this.log.error('Failed to restore connections:', error);
+            this.log.error('Failed to restore connections: %o', error);
         }
     }
 
@@ -362,6 +425,10 @@ export class WebSocketClient {
         return ws.readyState === WebSocket.OPEN;
     }
 
+    /**
+     * Validates existing connections and removes stale ones.
+     * Checks both WebSocket state and ping/pong timeouts.
+     */
     private async validateConnections() {
         const now = Date.now();
         for (const [nodeId, ws] of this.archiveConnections) {
@@ -383,11 +450,24 @@ export class WebSocketClient {
         }
     }
 
+    /**
+     * Calculates reconnection delay using exponential backoff.
+     * 
+     * @param attempts - Number of previous reconnection attempts
+     * @returns Delay in milliseconds before next reconnection attempt
+     */
     private getReconnectDelay(attempts: number): number {
         const delay = this.baseReconnectDelay * Math.pow(2, attempts);
         return Math.min(delay, this.MAX_RECONNECT_DELAY);
     }
 
+    /**
+     * Updates the connection state for a node.
+     * Tracks ping/pong timestamps and reconnection status.
+     * 
+     * @param nodeId - Archive node identifier
+     * @param update - Partial state update
+     */
     private updateConnectionState(nodeId: string, update: Partial<{
         lastPing: number;
         lastPong: number;

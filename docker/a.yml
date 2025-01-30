@@ -24,27 +24,27 @@ services:
       - ./a1/log:/log
       - ./_abi/:/config/abi/
 
-  # anode2:
-  #   image: anode-main
-  #   container_name: anode2
-  #   networks:
-  #     push-dev-network:
-  #       aliases:
-  #         - anode2.local
-  #   environment:
-  #     DB_NAME: anode2
-  #     PORT: 5002
-  #   env_file:
-  #     - .env
-  #     - common.env
-  #     - a-specific.env
-  #   ports:
-  #     - "5002:5002"
-  #   entrypoint: ['sh', '/entrypoint.sh']
-  #   volumes:
-  #     - ./a2:/config
-  #     - ./a2/log:/log
-  #     - ./_abi/:/config/abi/
+  anode2:
+    image: anode-main
+    container_name: anode2
+    networks:
+      push-dev-network:
+        aliases:
+          - anode2.local
+    environment:
+      DB_NAME: anode2
+      PORT: 5002
+    env_file:
+      - .env
+      - common.env
+      - a-specific.env
+    ports:
+      - "5002:5002"
+    entrypoint: ['sh', '/entrypoint.sh']
+    volumes:
+      - ./a2:/config
+      - ./a2/log:/log
+      - ./_abi/:/config/abi/
 
 
   # anode3:

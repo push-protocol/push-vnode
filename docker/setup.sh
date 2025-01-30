@@ -40,43 +40,43 @@ fi
 
 
 echo
-echo "---- STARTING VNODE"
-read -p "-> Press ENTER to continue, or 'n' to skip: " response
-if [[ "$response" == "n" || "$response" == "N" ]]; then
-  echo "Skipped"
-else
-  echo
-  cd "${CHAIN_DIR}/push-vnode" || exit 1
-  docker build . -t vnode-main
-  cd "${DOCKER_DIR}" || exit 1
-  docker compose -f v.yml down && docker compose -f v.yml up -d && docker compose -f v.yml logs -f
-fi
+# echo "---- STARTING VNODE"
+# read -p "-> Press ENTER to continue, or 'n' to skip: " response
+# if [[ "$response" == "n" || "$response" == "N" ]]; then
+#   echo "Skipped"
+# else
+#   echo
+#   cd "${CHAIN_DIR}/push-vnode" || exit 1
+#   docker build . -t vnode-main
+#   cd "${DOCKER_DIR}" || exit 1
+#   docker compose -f v.yml down && docker compose -f v.yml up -d && docker compose -f v.yml logs -f
+# fi
 
-echo
-echo "---- STARTING SNODE"
-read -p "-> Press ENTER to continue, or 'n' to skip: " response
-if [[ "$response" == "n" || "$response" == "N" ]]; then
-  echo "Skipped"
-else
-  echo
-  cd "${CHAIN_DIR}/push-snode" || exit 1
-  docker build . -t snode-main
-  cd "${DOCKER_DIR}" || exit 1
-  docker compose -f s.yml down && docker compose -f s.yml up -d && docker compose -f s.yml logs -f
-fi
+# echo
+# echo "---- STARTING SNODE"
+# read -p "-> Press ENTER to continue, or 'n' to skip: " response
+# if [[ "$response" == "n" || "$response" == "N" ]]; then
+#   echo "Skipped"
+# else
+#   echo
+#   cd "${CHAIN_DIR}/push-snode" || exit 1
+#   docker build . -t snode-main
+#   cd "${DOCKER_DIR}" || exit 1
+#   docker compose -f s.yml down && docker compose -f s.yml up -d && docker compose -f s.yml logs -f
+# fi
 
-echo
-echo "---- STARTING ANODE"
-read -p "-> Press ENTER to continue, or 'n' to skip: " response
-if [[ "$response" == "n" || "$response" == "N" ]]; then
-  echo "Skipped"
-else
-  echo
-  cd "${CHAIN_DIR}/push-anode" || exit 1
-  docker build -t anode-main -f Dockerfile.light .
-  cd "${DOCKER_DIR}" || exit 1
-  docker compose -f a.yml down && docker compose -f a.yml up -d && docker compose -f a.yml logs -f
-fi
+# echo
+# echo "---- STARTING ANODE"
+# read -p "-> Press ENTER to continue, or 'n' to skip: " response
+# if [[ "$response" == "n" || "$response" == "N" ]]; then
+#   echo "Skipped"
+# else
+#   echo
+#   cd "${CHAIN_DIR}/push-anode" || exit 1
+#   docker build -t anode-main -f Dockerfile.light .
+#   cd "${DOCKER_DIR}" || exit 1
+#   docker compose -f a.yml down && docker compose -f a.yml up -d && docker compose -f a.yml logs -f
+# fi
 
 
 

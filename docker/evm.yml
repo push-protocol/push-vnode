@@ -20,7 +20,7 @@ services:
       # re-create everything: ./setup.sh
       VNODE_COUNT: 3 # max 10
       SNODE_COUNT: 1 # max 8
-      ANODE_COUNT: 1 # max 5
+      ANODE_COUNT: 3 # max 5
 
 
 networks:

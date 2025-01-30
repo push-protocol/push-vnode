@@ -76,6 +76,7 @@ export interface HandshakeMessage extends BaseMessage {
 
 export interface SubscribeMessage extends BaseMessage {
     type: 'SUBSCRIBE';
+    data?: string;  // Optional data field
     filters: SubscriptionFilter[];
 }
 
@@ -147,7 +148,6 @@ export interface DiscoveryConfig {
     refreshInterval: number;
     healthCheckTimeout: number;
     minArchiveNodes: number;
-    maxRetries: number;
 }
 
 export interface BlockData {

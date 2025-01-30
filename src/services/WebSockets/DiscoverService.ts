@@ -4,86 +4,129 @@ import { DiscoveryConfig } from './types';
 import { EnvLoader } from "../../utilz/envLoader";
 import { NodeInfo } from '../messaging-common/validatorContractState';
 import { WinstonUtil } from '../../utilz/winstonUtil';
+import { EventEmitter } from 'events';
+import { ArrayUtil } from '../../utilz/arrayUtil';
 
-export class DiscoveryService {
+/**
+ * Service responsible for discovering and maintaining connections to Archive Nodes (ANodes).
+ * Manages health checks and ensures a minimum number of active connections are maintained.
+ * Emits events when connection state changes.
+ * 
+ * Events:
+ * - 'minimumNodesConnected': Emitted when minimum required connections are established
+ * - 'minimumNodesLost': Emitted when connections fall below minimum threshold
+ */
+export class DiscoveryService extends EventEmitter {
     private archiveNodes = new Map<string, NodeInfo>();
     private refreshInterval: NodeJS.Timer;
     private vNodeId: string;
     private archivalNodes: Map<string, NodeInfo>;
     private readonly log = WinstonUtil.newLog("DiscoveryService");
+    private previousState: 'connected' | 'disconnected' = 'disconnected';
     
     constructor(
         private readonly config: DiscoveryConfig
     ) {
+        super();
         this.config = {
-            refreshInterval: EnvLoader.getPropertyAsNumber("DISCOVERY_REFRESH_INTERVAL", 60000),
-            healthCheckTimeout: EnvLoader.getPropertyAsNumber("DISCOVERY_HEALTH_CHECK_TIMEOUT", 5000),
-            minArchiveNodes: EnvLoader.getPropertyAsNumber("DISCOVERY_MIN_ARCHIVE_NODES", 1),
-            maxRetries: EnvLoader.getPropertyAsNumber("DISCOVERY_MAX_CONNECTION_RETRIES", 3)
+            refreshInterval: EnvLoader.getPropertyAsNumber("DISCOVERY_REFRESH_INTERVAL", 900000),
+            healthCheckTimeout: EnvLoader.getPropertyAsNumber("DISCOVERY_HEALTH_CHECK_TIMEOUT", 30000),
+            minArchiveNodes: EnvLoader.getPropertyAsNumber("DISCOVERY_MIN_ARCHIVE_NODES", 2)
         };
     }
 
+    /**
+     * Initializes the discovery service and starts periodic health checks.
+     * Attempts initial connections and sets up refresh interval.
+     * 
+     * @param vNodeId - Unique identifier for the validator node
+     * @param archivalNodes - Map of available archive nodes to connect to
+     */
     async initialize(vNodeId: string, archivalNodes: Map<string, NodeInfo>) {
         this.vNodeId = vNodeId;
         this.archivalNodes = archivalNodes;
 
-        // Initial connection with retry mechanism
-        await this.ensureMinimumConnections();
+        // Initial connection - single attempt
+        const initialSuccess = await this.ensureMinimumConnections();
+        
+        // Set initial state
+        this.previousState = initialSuccess ? 'connected' : 'disconnected';
+        
+        // Emit initial state
+        if (initialSuccess) {
+            this.emit('minimumNodesConnected');
+        } else {
+            this.emit('minimumNodesLost');
+        }
 
         // Start periodic refresh
         this.refreshInterval = setInterval(
-            () => this.refreshNodeStatus(),
+            async () => {
+                await this.refreshNodeStatus();
+                
+                // Check current state
+                const currentState = this.archiveNodes.size >= this.config.minArchiveNodes 
+                    ? 'connected' 
+                    : 'disconnected';
+                
+                // Only emit events if state has changed
+                if (currentState !== this.previousState) {
+                    if (currentState === 'connected') {
+                        this.emit('minimumNodesConnected');
+                    } else {
+                        this.log.error('Lost minimum required ANode connections, triggering cleanup');
+                        this.emit('minimumNodesLost');
+                    }
+                    this.previousState = currentState;
+                }
+            },
             this.config.refreshInterval
         );
     }
 
-    private async ensureMinimumConnections(): Promise<void> {
-        let retryCount = 0;
-        
-        while (this.archiveNodes.size < this.config.minArchiveNodes && retryCount < this.config.maxRetries) {
-            this.log.info(`Attempting to establish minimum ANode connections. Current: ${this.archiveNodes.size}, Target: ${this.config.minArchiveNodes}`);
+    /**
+     * Attempts to establish minimum required connections to archive nodes.
+     * Randomly shuffles available nodes and attempts connections until minimum is reached.
+     * 
+     * @returns Promise<boolean> - True if minimum connections established, false otherwise
+     */
+    private async ensureMinimumConnections(): Promise<boolean> {
+        this.log.info(`Available ANodes: ${this.archivalNodes.size}, Needed connections to: ${this.config.minArchiveNodes}`);
             
-            // Get available nodes that aren't already connected
-            const availableNodes = Array.from(this.archivalNodes.entries())
-                .filter(([nodeId]) => !this.archiveNodes.has(nodeId));
+        // Get all available nodes
+        const availableNodes = Array.from(this.archivalNodes.entries());
 
-            if (availableNodes.length === 0) {
-                this.log.error('No more available nodes to connect to');
+        // Randomize the order of connection attempts
+        const shuffledNodes = ArrayUtil.shuffleArray(availableNodes);
+        
+        // Try each available node until we reach our minimum or run out of nodes
+        for (const [nodeId, nodeInfo] of shuffledNodes) {
+            if (this.archiveNodes.size >= this.config.minArchiveNodes) {
+                this.log.info('Reached minimum required connections');
                 break;
             }
-
-            // Shuffle available nodes for random selection
-            const shuffledNodes = this.shuffleArray(availableNodes);
-
-            // Try to connect to nodes until we reach minimum or run out of nodes
-            for (const [nodeId, nodeInfo] of shuffledNodes) {
-                if (this.archiveNodes.size >= this.config.minArchiveNodes) break;
-                
-                const wsUrl = nodeInfo.url.replace(/^http/, 'ws').replace(/^https/, 'wss');
-                await this.addNode(wsUrl, nodeInfo);
-            }
-
-            retryCount++;
             
-            if (this.archiveNodes.size < this.config.minArchiveNodes) {
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait before retry
-            }
+            const wsUrl = nodeInfo.url.replace(/^http/, 'ws').replace(/^https/, 'wss');
+            await this.addNode(wsUrl, nodeInfo);
         }
 
-        if (this.archiveNodes.size < this.config.minArchiveNodes) {
-            this.log.error(`Failed to establish minimum required connections. Current: ${this.archiveNodes.size}, Required: ${this.config.minArchiveNodes}`);
+        const success = this.archiveNodes.size >= this.config.minArchiveNodes;
+        if (!success) {
+            this.log.warn(`Initial connection attempt: Could not establish minimum required connections. ` +
+                       `Connected: ${this.archiveNodes.size}, Required: ${this.config.minArchiveNodes}. ` +
+                       `Periodic refresh will continue trying.`);
+        } else {
+            this.log.info(`Successfully established initial ${this.archiveNodes.size} connections`);
         }
+        
+        return success;
     }
 
-    private shuffleArray<T>(array: T[]): T[] {
-        const shuffled = [...array];
-        for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-        }
-        return shuffled;
-    }
-
+    /**
+     * Returns list of currently active and healthy archive nodes.
+     * 
+     * @returns Promise<NodeInfo[]> - Array of active node information
+     */
     async getActiveArchiveNodes(): Promise<NodeInfo[]> {
         const nodes = Array.from(this.archiveNodes.values());
         return nodes.filter(node => node.nodeStatus === 0);
@@ -94,15 +137,22 @@ export class DiscoveryService {
             const isHealthy = await this.checkNodeHealth(wsUrl);
             if (isHealthy) {
                 this.archiveNodes.set(nodeInfo.nodeId, nodeInfo);
-                this.log.info(`Successfully added healthy ANode ${nodeInfo.nodeId}`);
+                this.log.info(`Successfully added healthy ANode ${nodeInfo.nodeId} with url: ${wsUrl}`);
             } else {
                 this.log.warn(`ANode ${nodeInfo.nodeId} not added - health check failed`);
             }
         } catch (error) {
-            this.log.error(`Failed to add node ${wsUrl}:`, error);
+            this.log.error(`Failed to add node ${wsUrl}: %o`, error);
         }
     }
 
+    /**
+     * Performs health check on a node via WebSocket connection.
+     * Tests connection, authentication, and health check response within timeout period.
+     * 
+     * @param wsUrl - WebSocket URL of the node to check
+     * @returns Promise<boolean> - True if node is healthy, false otherwise
+     */
     private async checkNodeHealth(wsUrl: string): Promise<boolean> {
         return new Promise((resolve) => {
             try {                
@@ -126,7 +176,7 @@ export class DiscoveryService {
                 ws.on('message', (data: Buffer) => {
                     try {
                         const message = JSON.parse(data.toString());
-                        this.log.info(`Received ${message.type} from ANode at ${wsUrl}:`, JSON.stringify(message, null, 2));
+                        this.log.info(`Received ${message.type} from ANode at ${wsUrl}: %o`, message);
 
                         if (message.type === 'AUTH_CHALLENGE' && message.nonce) {
                             const healthCheck = {
@@ -142,7 +192,7 @@ export class DiscoveryService {
                             resolve(true);
                         }
                     } catch (error) {
-                        this.log.error(`Failed to process message from ANode at ${wsUrl}:`, error);
+                        this.log.error(`Failed to process message from ANode at ${wsUrl}: %o`, error);
                         cleanup();
                         ws.close();
                         resolve(false);
@@ -150,7 +200,7 @@ export class DiscoveryService {
                 });
 
                 ws.on('error', (error) => {
-                    this.log.error(`WebSocket error for ANode at ${wsUrl}:`, error);
+                    this.log.error(`WebSocket error for ANode at ${wsUrl}: %o`, error);
                     cleanup();
                     resolve(false);
                 });
@@ -160,13 +210,19 @@ export class DiscoveryService {
                     ws.removeAllListeners();
                 };
             } catch (error) {
-                this.log.error(`Failed to establish WebSocket connection to ANode at ${wsUrl}:`, error);
+                this.log.error(`Failed to establish WebSocket connection to ANode at ${wsUrl}: %o`, error);
                 resolve(false);
             }
         });
     }
 
+    /**
+     * Periodic refresh of node status. Checks health of all connected nodes
+     * and attempts to establish new connections if below minimum threshold.
+     * Updates internal state and emits events on state changes.
+     */
     private async refreshNodeStatus() {
+        this.log.info(`Refreshing node status...`);
         const updatedNodes = new Map<string, NodeInfo>();
 
         // First check existing nodes
@@ -183,48 +239,33 @@ export class DiscoveryService {
             }
         }
 
-        // If we're below minimum, try to add new nodes
-        while (updatedNodes.size < this.config.minArchiveNodes) {
-            // Get available nodes that aren't already in use
-            const availableNodes = Array.from(this.archivalNodes.entries())
-                .filter(([nodeId]) => !updatedNodes.has(nodeId));
-
-            if (availableNodes.length === 0) {
-                this.log.error('No more available ANodes to try');
-                break;
-            }
-
-            // Pick a random available node
-            const shuffledNodes = this.shuffleArray(availableNodes);
-            const [nodeId, nodeInfo] = shuffledNodes[0];
-            
-            const wsUrl = nodeInfo.url.replace(/^http/, 'ws').replace(/^https/, 'wss');
-            const isHealthy = await this.checkNodeHealth(wsUrl);
-            
-            if (isHealthy) {
-                updatedNodes.set(nodeId, {
-                    ...nodeInfo,
-                    nodeStatus: 0
-                });
-                this.log.info(`Added new healthy ANode ${nodeId}`);
-            } else {
-                this.log.warn(`Attempted ANode ${nodeId} is not healthy, trying another`);
-            }
-        }
-
-        // Update the archive nodes map
+        // Update the archive nodes map with currently healthy nodes
         this.archiveNodes = updatedNodes;
 
+        // If we're below minimum, try to establish more connections
         if (this.archiveNodes.size < this.config.minArchiveNodes) {
-            this.log.error(`Failed to maintain minimum required archive nodes. Current: ${this.archiveNodes.size}, Required: ${this.config.minArchiveNodes}`);
+            this.log.info(`Healthy nodes (${this.archiveNodes.size}) below minimum (${this.config.minArchiveNodes}), attempting to establish more connections`);
+            await this.ensureMinimumConnections();
         } else {
             this.log.info(`Successfully maintaining ${this.archiveNodes.size} healthy archive nodes`);
         }
     }
 
+    /**
+     * Cleans up resources by clearing refresh interval.
+     */
     async destroy() {
         if (this.refreshInterval) {
             clearInterval(this.refreshInterval);
         }
+    }
+
+    /**
+     * Returns the minimum number of archive nodes required for operation.
+     * 
+     * @returns number - Minimum required archive nodes
+     */
+    public getMinArchiveNodes(): number {
+        return this.config.minArchiveNodes;
     }
 }
