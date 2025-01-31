@@ -51,4 +51,9 @@ export class EnvLoader {
     const val = process.env[propName]
     return NumUtil.parseInt(val, defaultValue);
   }
+
+  static getPropertyAsArray(key: string, defaultValue: string[] = []): string[] {
+    const value = process.env[key];
+    return value ? value.split(',').map(item => item.trim()) : defaultValue;
+  }
 }
