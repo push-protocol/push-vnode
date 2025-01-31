@@ -16,7 +16,6 @@ import { Wallet } from 'ethers';
  */
 @Service()
 export class WebSocketClient {
-    private readonly MIN_ARCHIVE_CONNECTIONS = 1;
     private archiveConnections = new Map<string, WebSocket>();
     private readonly log = WinstonUtil.newLog("WebSocketClient");
     private reconnectTimer: NodeJS.Timer;
@@ -477,5 +476,12 @@ export class WebSocketClient {
             isReconnecting: false
         };
         this.connectionStates.set(nodeId, { ...current, ...update });
+    }
+
+    /**
+     * Gets the minimum required archive node connections from discovery service
+     */
+    private get MIN_ARCHIVE_CONNECTIONS(): number {
+        return this.discoveryService.getMinArchiveNodes();
     }
 }
