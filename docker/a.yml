@@ -47,74 +47,74 @@ services:
       - ./_abi/:/config/abi/
 
 
-  # anode3:
-  #   image: anode-main
-  #   container_name: anode3
-  #   networks:
-  #     push-dev-network:
-  #       aliases:
-  #         - anode3.local
-  #   environment:
-  #     DB_NAME: anode3
-  #     PORT: 5003
-  #   env_file:
-  #     - .env
-  #     - common.env
-  #     - a-specific.env
-  #   ports:
-  #     - "5003:5003"
-  #   entrypoint: ['sh', '/entrypoint.sh']
-  #   volumes:
-  #     - ./a3:/config
-  #     - ./a3/log:/log
-  #     - ./_abi/:/config/abi/
+  anode3:
+    image: anode-main
+    container_name: anode3
+    networks:
+      push-dev-network:
+        aliases:
+          - anode3.local
+    environment:
+      DB_NAME: anode3
+      PORT: 5003
+    env_file:
+      - .env
+      - common.env
+      - a-specific.env
+    ports:
+      - "5003:5003"
+    entrypoint: ['sh', '/entrypoint.sh']
+    volumes:
+      - ./a3:/config
+      - ./a3/log:/log
+      - ./_abi/:/config/abi/
 
 
 
-#  anode4:
-#    image: anode-main
-#    container_name: anode4
-#    networks:
-#      push-dev-network:
-#        aliases:
-#          - anode4.local
-#    environment:
-#      DB_NAME: anode4
-#      PORT: 5004
-#    env_file:
-#      - .env
-#      - common.env
-#      - a-specific.env
-#    ports:
-#      - "5004:5004"
-#    entrypoint: ['sh', '/entrypoint.sh']
-#    volumes:
-#      - ./a4:/config
-#      - ./a4/log:/log
-#      - ./_abi/:/config/abi/
-#
-#
-#  anode5:
-#    image: anode-main
-#    container_name: anode5
-#    networks:
-#      push-dev-network:
-#        aliases:
-#          - anode5.local
-#    environment:
-#      DB_NAME: anode5
-#      PORT: 5005
-#    env_file:
-#      - .env
-#      - common.env
-#      - a-specific.env
-#    ports:
-#      - "5005:5005"
-#    entrypoint: ['sh', '/entrypoint.sh']
-#    volumes:
-#      - ./a5:/config
-#      - ./a5/log:/log
-#      - ./_abi/:/config/abi/
+ anode4:
+   image: anode-main
+   container_name: anode4
+   networks:
+     push-dev-network:
+       aliases:
+         - anode4.local
+   environment:
+     DB_NAME: anode4
+     PORT: 5004
+   env_file:
+     - .env
+     - common.env
+     - a-specific.env
+   ports:
+     - "5004:5004"
+   entrypoint: ['sh', '/entrypoint.sh']
+   volumes:
+     - ./a4:/config
+     - ./a4/log:/log
+     - ./_abi/:/config/abi/
+
+
+ anode5:
+   image: anode-main
+   container_name: anode5
+   networks:
+     push-dev-network:
+       aliases:
+         - anode5.local
+   environment:
+     DB_NAME: anode5
+     PORT: 5005
+   env_file:
+     - .env
+     - common.env
+     - a-specific.env
+   ports:
+     - "5005:5005"
+   entrypoint: ['sh', '/entrypoint.sh']
+   volumes:
+     - ./a5:/config
+     - ./a5/log:/log
+     - ./_abi/:/config/abi/
 
 
 

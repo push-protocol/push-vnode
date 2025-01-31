@@ -18,8 +18,8 @@ services:
       # remove everything: ./cleanup.sh
       # uncomment N number of records in v.yml ; s.yml; a.yml which matches the values above
       # re-create everything: ./setup.sh
-      VNODE_COUNT: 3 # max 10
-      SNODE_COUNT: 1 # max 8
+      VNODE_COUNT: 6 # max 10
+      SNODE_COUNT: 3 # max 8
       ANODE_COUNT: 3 # max 5
 
 
