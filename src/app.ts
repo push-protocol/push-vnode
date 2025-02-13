@@ -27,6 +27,8 @@ import winston from "winston";
 import pgPromise from 'pg-promise'
 import { IClient } from 'pg-promise/typescript/pg-subset'
 import {DbLoader} from "./services/messaging/dbLoader";
+import { WebSocketManager } from "./services/WebSockets/WebSocketManager";
+import { ValidatorContractState } from "./services/messaging-common/validatorContractState";
 
 let server: Server;
 let log = WinstonUtil.newLog("SERVER");
@@ -47,6 +49,12 @@ async function startServer(logLevel: string = null, testMode = false, padder = 0
   }, 5 * 60 * 1000);
 
   await initValidator();
+
+  const validatorContractState = Container.get(ValidatorContractState);
+  await validatorContractState.postConstruct();
+  const validatorNode = Container.get(ValidatorNode);
+  const archivalNodes = validatorContractState.getArchivalNodesMap();
+
 
   const app: Express = express();
   server = http.createServer(app);
@@ -82,11 +90,21 @@ async function startServer(logLevel: string = null, testMode = false, padder = 0
 
 
 
-      🛡️  Server listening on port: ${PORT} 🛡️
+      🛡️  HTTP Server listening on port: ${PORT} 🛡️
 
       ################################################
     `);
   });
+
+  
+  // Initialize WebSocket Manager with error handling
+  try {
+    const wsManager = Container.get(WebSocketManager);
+    await wsManager.postConstruct(validatorNode.nodeId, validatorContractState.wallet, archivalNodes, server);
+  } catch (error) {
+    log.error('Failed to initialize WebSocket Manager: %o', error);
+    log.warn('Continuing with HTTP server initialization despite WebSocket failure');
+  }
 }
 
 function printMemoryUsage() {
