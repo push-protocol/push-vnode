@@ -143,4 +143,5 @@ package-lock.json
 # devtools secrets
 package-lock.json
 /docker/external
+/docker/debug-*
 /log
