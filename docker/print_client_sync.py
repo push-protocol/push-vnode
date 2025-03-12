@@ -1,3 +1,8 @@
+# edit DB_HOST,USER,PASSWORD,PORT
+# pip install psycopg2-binary
+# pip install tabulate
+# python3 print_client_sync.py
+
 import psycopg2
 import time
 from tabulate import tabulate

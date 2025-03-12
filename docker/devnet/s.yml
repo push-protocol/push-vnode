@@ -22,13 +22,6 @@ services:
       - ./s1:/config
       - ./s1/log:/log
       - ./_abi/:/config/abi/
-    healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:3001/status || exit 1" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    restart: always
 
 
   snode2:
@@ -51,13 +44,7 @@ services:
       - ./s2:/config
       - ./s2/log:/log
       - ./_abi/:/config/abi/
-    healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:3002/status || exit 1" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    restart: always
+
 
   snode3:
     image: snode-main
@@ -79,13 +66,7 @@ services:
       - ./s3:/config
       - ./s3/log:/log
       - ./_abi/:/config/abi/
-    healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:3003/status || exit 1" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    restart: always
+
 
   snode4:
     image: snode-main
@@ -107,13 +88,7 @@ services:
       - ./s4:/config
       - ./s4/log:/log
       - ./_abi/:/config/abi/
-    healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:3004/status || exit 1" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    restart: always
+
 
   snode5:
     image: snode-main
@@ -135,13 +110,7 @@ services:
       - ./s5:/config
       - ./s5/log:/log
       - ./_abi/:/config/abi/
-    healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:3005/status || exit 1" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    restart: always
+
 
   snode6:
     image: snode-main
@@ -163,13 +132,7 @@ services:
       - ./s6:/config
       - ./s6/log:/log
       - ./_abi/:/config/abi/
-    healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:3006/status || exit 1" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    restart: always
+
 
   snode7:
     image: snode-main
@@ -191,13 +154,7 @@ services:
       - ./s7:/config
       - ./s7/log:/log
       - ./_abi/:/config/abi/
-    healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:3007/status || exit 1" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    restart: always
+
 
   snode8:
     image: snode-main
@@ -219,13 +176,7 @@ services:
       - ./s8:/config
       - ./s8/log:/log
       - ./_abi/:/config/abi/
-    healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:3008/status || exit 1" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    restart: always
+
 
 networks:
   push-dev-network:
