@@ -146,17 +146,26 @@ export class WinstonUtil {
     if (loggerObj != null) {
       return loggerObj
     }
+    // ugly hack, in Winston a transport overrides logger levels;
+    // i.e. if transport has it's filter set to debug, it will print every debug message
+    // even if the logger is set to 'error'
+    const transports = [];
+    const loglevel = WinstonUtil.LOG_LEVEL;
+    if(loglevel === 'info' || loglevel === 'debug' || loglevel === 'trace') {
+      transports.push(WinstonUtil.consoleTransport);
+    }
+    if(loglevel === 'debug' || loglevel === 'trace') {
+      transports.push(WinstonUtil.debugFileTransport);
+    }
+    transports.push(WinstonUtil.errorFileTransport);
+    // end
     loggerObj = winston.createLogger({
-      level: WinstonUtil.LOG_LEVEL,
-      format: this.createFormat1WhichSetsClassName(loggerName), //winston.format.json(),
-      transports: [
-        WinstonUtil.consoleTransport,
-        WinstonUtil.debugFileTransport,
-        WinstonUtil.errorFileTransport
-      ]
+      level: loglevel,
+      format: this.createFormat1WhichSetsClassName(loggerName),
+      transports: transports
     })
     WinstonUtil.loggerMap.set(loggerName, loggerObj);
-    console.log(`WinstonUtil.newLog(): ${loggerName} LOG_LEVEL=${WinstonUtil.LOG_LEVEL}`);
+    console.log(`WinstonUtil.newLog(): ${loggerName} LOG_LEVEL=${loglevel}, transports size=${transports.length}`);
     return loggerObj
   }
 }
