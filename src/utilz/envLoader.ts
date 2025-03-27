@@ -20,6 +20,7 @@ export class EnvLoader {
         console.log("[WARN] no .env file; if you wanted to load a specific .env please specify CONFIG_DIR env variable ");
       }
     }
+    console.log(`EnvLoader.loadEnvOrFail(): LOG_LEVEL=${process.env["LOG_LEVEL"]}`)
   }
 
   public static getPropertyOrFail(propName: string): string {
