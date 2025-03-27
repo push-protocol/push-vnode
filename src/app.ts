@@ -25,10 +25,11 @@ import {ReflUtil} from "./utilz/reflUtil";
 import {StrUtil} from "./utilz/strUtil";
 import winston from "winston";
 import pgPromise from 'pg-promise'
-import { IClient } from 'pg-promise/typescript/pg-subset'
+import {IClient} from 'pg-promise/typescript/pg-subset'
 import {DbLoader} from "./services/messaging/dbLoader";
-import { WebSocketManager } from "./services/WebSockets/WebSocketManager";
-import { ValidatorContractState } from "./services/messaging-common/validatorContractState";
+import {WebSocketManager} from "./services/WebSockets/WebSocketManager";
+import {ValidatorContractState} from "./services/messaging-common/validatorContractState";
+import {RateLimiter} from "./api/routes/rateLimiter";
 
 let server: Server;
 let log = WinstonUtil.newLog("SERVER");
@@ -58,7 +59,6 @@ async function startServer(logLevel: string = null, testMode = false, padder = 0
 
   const app: Express = express();
   server = http.createServer(app);
-
   initRoutes(app);
 
   let PORT = EnvLoader.getPropertyAsNumber("PORT", 4001);
@@ -69,7 +69,7 @@ async function startServer(logLevel: string = null, testMode = false, padder = 0
     }
 
     let artwork =
-`    
+      `    
  ____            _      __     __    _ _     _       _             
 |  _ \\ _   _ ___| |__   \\ \\   / /_ _| (_) __| | __ _| |_ ___  _ __ 
 | |_) | | | / __| '_ \\   \\ \\ / / _\` | | |/ _\` |/ _\` | __/ _ \\| '__|
@@ -96,7 +96,7 @@ async function startServer(logLevel: string = null, testMode = false, padder = 0
     `);
   });
 
-  
+
   // Initialize WebSocket Manager with error handling
   try {
     const wsManager = Container.get(WebSocketManager);
@@ -160,15 +160,26 @@ function createBeforeAndAfterLoggingController(log: winston.Logger, object): [ob
   const afterController = {};
   let methodNames = ReflUtil.getMethodNames(object);
   for (const method of methodNames) {
-    beforeController[method] = function (params: any, _: any, raw: any) {
+    beforeController[method] = async function (params: any, _: any, raw: any) {
       const reqId = "req" + raw?.req?.body?.id;
-      log.debug(`>>> Calling /%s(%s) [%s]`, method, reqId, StrUtil.fmt(params));
+      if (log.isDebugEnabled()) {
+        log.debug(`>>> Calling /%s(%s) [%s]`, method, reqId, StrUtil.fmt(params));
+      }
+      if (method === 'push_sendTransaction') {
+        log.debug('push_sendTransaction, checking rate limit');
+        let rl = Container.get(RateLimiter);
+        if (!await rl.checkLimitsForRpc(raw?.req?.ip)) {
+          throw new Error('Rate limit exceeded');
+        }
+      }
       // log.debug("%o", raw)
     };
     afterController[method] = [
       function (params: any, result: any, raw: any) {
         const reqId = "req" + raw?.req?.body?.id;
-        log.debug(`=== Reply /%s(%s) result: %o`, method, reqId, StrUtil.fmt(result));
+        if (log.isDebugEnabled()) {
+          log.debug(`=== Reply /%s(%s) result: %o`, method, reqId, StrUtil.fmt(result));
+        }
       }];
   }
   return [beforeController, afterController]
@@ -180,6 +191,11 @@ function initRpc(app: Router) {
   if (EnvLoader.getPropertyAsBool('VALIDATOR_HTTP_LOG', false)) {
     [before, after] = createBeforeAndAfterLoggingController(validatorRpc.log, validatorRpc);
   }
+
+  let rateLimitBefore = function (params: any, result: any, raw: any) {
+    const reqId = "req" + raw?.req?.body?.id;
+    log.debug(`=== Reply /%s(%s) result: %o`, method, reqId, StrUtil.fmt(result));
+  };
 
   app.use(`/api/v1/rpc`,
     jsonRouter({
