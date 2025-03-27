@@ -134,6 +134,7 @@ export class WinstonUtil {
   }
 
   public static newLog(classNameOrClass: string | { name: string }): winston.Logger {
+    console.log(`WinstonUtil.newLog(): ${classNameOrClass} LOG_LEVEL=${WinstonUtil.LOG_LEVEL}`);
     let loggerName = null
     if (typeof classNameOrClass === 'string') {
       loggerName = classNameOrClass
