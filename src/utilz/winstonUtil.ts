@@ -134,7 +134,6 @@ export class WinstonUtil {
   }
 
   public static newLog(classNameOrClass: string | { name: string }): winston.Logger {
-    console.log(`WinstonUtil.newLog(): ${classNameOrClass} LOG_LEVEL=${WinstonUtil.LOG_LEVEL}`);
     let loggerName = null
     if (typeof classNameOrClass === 'string') {
       loggerName = classNameOrClass
@@ -156,7 +155,8 @@ export class WinstonUtil {
         WinstonUtil.errorFileTransport
       ]
     })
-    WinstonUtil.loggerMap.set(loggerName, loggerObj)
+    WinstonUtil.loggerMap.set(loggerName, loggerObj);
+    console.log(`WinstonUtil.newLog(): ${loggerName} LOG_LEVEL=${WinstonUtil.LOG_LEVEL}`);
     return loggerObj
   }
 }
