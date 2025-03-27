@@ -166,9 +166,12 @@ function createBeforeAndAfterLoggingController(log: winston.Logger, object): [ob
         log.debug(`>>> Calling /%s(%s) [%s]`, method, reqId, StrUtil.fmt(params));
       }
       if (method === 'push_sendTransaction') {
-        log.debug('push_sendTransaction, checking rate limit');
         let rl = Container.get(RateLimiter);
-        if (!await rl.checkLimitsForRpc(raw?.req?.ip)) {
+        let proxyIp = raw.req.header("X-Real-IP")
+        let ip = StrUtil.isEmpty(proxyIp) ? raw?.req?.ip : proxyIp;
+        let isValid = StrUtil.isEmpty(ip) || await rl.checkLimitsForRpc(ip);
+        log.debug('push_sendTransaction, checking rate limit proxyIp: %s, ip: %s, isValid: %s', proxyIp, ip, isValid);
+        if (!isValid) {
           throw new Error('Rate limit exceeded');
         }
       }
